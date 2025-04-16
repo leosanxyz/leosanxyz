@@ -1,0 +1,210 @@
+"use client";
+import { useEffect, useRef } from "react";
+import Matter from "matter-js";
+
+export default function Home() {
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<Matter.Engine | null>(null);
+  const renderRef = useRef<Matter.Render | null>(null);
+
+  useEffect(() => {
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    const blockSize = 40;
+    const word = "leosanxyz";
+    const startX = 100;
+    const startY = Math.max(80, height * 0.18);
+    const spacing = 5;
+    const blocks: Matter.Body[] = [];
+
+    // Setup Matter.js
+    const Engine = Matter.Engine,
+      Render = Matter.Render,
+      Runner = Matter.Runner,
+      Bodies = Matter.Bodies,
+      Composite = Matter.Composite,
+      Mouse = Matter.Mouse,
+      MouseConstraint = Matter.MouseConstraint,
+      Constraint = Matter.Constraint;
+
+    const engine = Engine.create();
+    engineRef.current = engine;
+
+    const render = Render.create({
+      element: sceneRef.current!,
+      engine: engine,
+      options: {
+        width,
+        height,
+        wireframes: false,
+        background: '#f8fafc',
+      },
+    });
+    renderRef.current = render;
+
+    // Crear bloques para cada letra (sin isStatic en la config inicial)
+    for (let i = 0; i < word.length; i++) {
+      const block = Bodies.rectangle(
+        startX + i * (blockSize + spacing),
+        startY,
+        blockSize,
+        blockSize,
+        {
+          render: {
+            fillStyle: '#222',
+            strokeStyle: '#444',
+            lineWidth: 2,
+          },
+          label: word[i],
+        }
+      );
+      blocks.push(block);
+    }
+
+    // Resortera y bola (aparecen al cargar la página)
+    const slingStart = { x: width * 0.75, y: height / 2 };
+    let ball: Matter.Body | null = Bodies.circle(slingStart.x, slingStart.y, 22, {
+      density: 0.004,
+      restitution: 0.8,
+      render: { fillStyle: '#eab308' },
+    });
+    let sling: Matter.Constraint | null = Constraint.create({
+      pointA: slingStart,
+      bodyB: ball,
+      stiffness: 0.05,
+      render: {
+        strokeStyle: '#f59e42',
+        lineWidth: 6,
+      },
+    });
+
+    Composite.add(engine.world, [...blocks, ball, sling]);
+
+    // Hacer los bloques estáticos después de agregarlos al mundo
+    for (const block of blocks) {
+      Matter.Body.setStatic(block, true);
+    }
+
+    // Mouse control
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse,
+      constraint: {
+        stiffness: 0.1,
+        render: { visible: false },
+      },
+    });
+    Composite.add(engine.world, mouseConstraint);
+
+    // Permitir crear bola y resortera con mousedown cerca del círculo
+    render.canvas.addEventListener('mousedown', (e) => {
+      if (!ball && !sling) {
+        const rect = render.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const dist = Math.hypot(mouseX - slingStart.x, mouseY - slingStart.y);
+        if (dist < 60) {
+          ball = Bodies.circle(slingStart.x, slingStart.y, 22, {
+            density: 0.004,
+            restitution: 0.8,
+            render: { fillStyle: '#eab308' },
+          });
+          sling = Constraint.create({
+            pointA: slingStart,
+            bodyB: ball,
+            stiffness: 0.05,
+            render: {
+              strokeStyle: '#f59e42',
+              lineWidth: 6,
+            },
+          });
+          Composite.add(engine.world, [ball, sling]);
+        }
+      }
+    });
+
+    // Lógica para soltar la bola de la resortera
+    Matter.Events.on(mouseConstraint, "enddrag", (event: Matter.IEvent<Matter.MouseConstraint>) => {
+      if (ball && sling && (event as { body?: Matter.Body }).body === ball) {
+        // Calcular vector de estiramiento
+        const dx = sling.pointA.x - ball.position.x;
+        const dy = sling.pointA.y - ball.position.y;
+        // Normalizar y escalar la fuerza
+        const forceScale = 0.002;
+        const fx = dx * forceScale;
+        const fy = dy * forceScale;
+        setTimeout(() => {
+          // Eliminar el constraint del mundo
+          Composite.remove(engine.world, sling!);
+          Matter.Body.applyForce(ball!, ball!.position, { x: fx, y: fy });
+          // Dejar referencias listas para la siguiente bola
+          ball = null;
+          sling = null;
+        }, 16);
+      }
+    });
+
+    // Renderizar letras sobre los bloques y la resortera si no hay bola
+    Matter.Events.on(render, "afterRender", () => {
+      const ctx = render.context;
+      ctx.save();
+      ctx.font = "bold 28px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        ctx.fillStyle = "#fff";
+        ctx.fillText(word[i], b.position.x, b.position.y + 2);
+      }
+      // Resortera visual si no hay bola
+      if (!ball && !sling) {
+        ctx.strokeStyle = '#f59e42';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(slingStart.x, slingStart.y, 24, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    // Detectar colisión de la bola con los bloques y volverlos dinámicos
+    Matter.Events.on(engine, 'collisionStart', (event) => {
+      for (const pair of event.pairs) {
+        for (const block of blocks) {
+          if ((pair.bodyA === block && pair.bodyB === ball) || (pair.bodyB === block && pair.bodyA === ball)) {
+            Matter.Body.setStatic(block, false);
+          }
+        }
+      }
+    });
+
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // Redimensionar el canvas al cambiar el tamaño de la ventana
+    const handleResize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      render.options.width = width;
+      render.options.height = height;
+      render.canvas.width = width;
+      render.canvas.height = height;
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Limpieza
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      Render.stop(render);
+      Runner.stop(runner);
+      Composite.clear(engine.world, false);
+      Engine.clear(engine);
+      if (render.canvas) render.canvas.remove();
+    };
+  }, []);
+
+  return (
+    <div ref={sceneRef} className="fixed inset-0 w-full h-full min-h-screen bg-gray-50 z-0" />
+  );
+} 
