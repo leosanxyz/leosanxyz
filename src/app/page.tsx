@@ -12,10 +12,7 @@ export default function Home() {
     let height = window.innerHeight;
     const blockSize = 40;
     const word = "leosanxyz";
-    const startX = 100;
-    const startY = Math.max(80, height * 0.18);
     const spacing = 5;
-    const blocks: Matter.Body[] = [];
 
     // Setup Matter.js
     const Engine = Matter.Engine,
@@ -42,48 +39,76 @@ export default function Home() {
     });
     renderRef.current = render;
 
-    // Crear bloques para cada letra (sin isStatic en la config inicial)
-    for (let i = 0; i < word.length; i++) {
+    // Suelo invisible más abajo
+    const ground = Bodies.rectangle(
+      width / 2,
+      height + 40, // más abajo para que no se vea
+      width,
+      80,
+      {
+        isStatic: true,
+        render: { visible: false }, // invisible
+      }
+    );
+
+    // Paredes invisibles laterales
+    const leftWall = Bodies.rectangle(-20, height / 2, 40, height * 2, {
+      isStatic: true,
+      render: { visible: false },
+    });
+    const rightWall = Bodies.rectangle(width + 20, height / 2, 40, height * 2, {
+      isStatic: true,
+      render: { visible: false },
+    });
+
+    // Detectar si es móvil
+    const isMobile = width < 600;
+    // Palabra a mostrar
+    const displayWord = isMobile ? 'leosan' : word;
+    // Margen derecho proporcional para responsividad
+    const rightMargin = isMobile ? Math.max(12, width * 0.04) : Math.max(24, width * 0.08);
+    // Bloques de 'leosanxyz' como estáticos en la parte superior derecha (más abajo)
+    const titleX = isMobile
+      ? width - (displayWord.length * (blockSize + spacing)) - rightMargin
+      : width - (displayWord.length * (blockSize + spacing)) - rightMargin;
+    const titleY = isMobile ? 100 : 120;
+    const blocks: Matter.Body[] = [];
+    for (let i = 0; i < displayWord.length; i++) {
       const block = Bodies.rectangle(
-        startX + i * (blockSize + spacing),
-        startY,
+        titleX + i * (blockSize + spacing),
+        titleY,
         blockSize,
         blockSize,
         {
+          isStatic: true,
           render: {
             fillStyle: '#222',
             strokeStyle: '#444',
             lineWidth: 2,
           },
-          label: word[i],
+          label: displayWord[i],
         }
       );
       blocks.push(block);
     }
 
-    // Resortera y bola (aparecen al cargar la página)
-    const slingStart = { x: width * 0.75, y: height / 2 };
-    let ball: Matter.Body | null = Bodies.circle(slingStart.x, slingStart.y, 22, {
-      density: 0.004,
-      restitution: 0.8,
-      render: { fillStyle: '#eab308' },
-    });
-    let sling: Matter.Constraint | null = Constraint.create({
-      pointA: slingStart,
-      bodyB: ball,
-      stiffness: 0.05,
-      render: {
-        strokeStyle: '#f59e42',
-        lineWidth: 6,
-      },
-    });
+    // Figuras dinámicas apiladas encima de los bloques
+    const figures: Matter.Body[] = [
+      Bodies.rectangle(titleX + 60, titleY - 60, 60, 30, { restitution: 0.5, render: { fillStyle: '#f59e42' } }),
+      Bodies.circle(titleX + 120, titleY - 100, 20, { restitution: 0.8, render: { fillStyle: '#10b981' } }),
+      Bodies.polygon(titleX + 180, titleY - 80, 3, 30, { restitution: 0.7, render: { fillStyle: '#fbbf24' } }),
+      Bodies.rectangle(titleX + 200, titleY - 60, 30, 70, { restitution: 0.4, render: { fillStyle: '#6366f1' } }),
+      Bodies.circle(titleX + 40, titleY - 120, 20, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
+    ];
 
-    Composite.add(engine.world, [...blocks, ball, sling]);
+    // Resortera y bola (no aparecen inicialmente)
+    const slingStart = isMobile
+      ? { x: Math.max(32, width * 0.12), y: height - 120 }
+      : { x: Math.max(32, width * 0.04), y: Math.max(80, height * 0.18) };
+    let ball: Matter.Body | null = null;
+    let sling: Matter.Constraint | null = null;
 
-    // Hacer los bloques estáticos después de agregarlos al mundo
-    for (const block of blocks) {
-      Matter.Body.setStatic(block, true);
-    }
+    Composite.add(engine.world, [ground, leftWall, rightWall, ...blocks, ...figures]);
 
     // Mouse control
     const mouse = Mouse.create(render.canvas);
@@ -97,13 +122,16 @@ export default function Home() {
     Composite.add(engine.world, mouseConstraint);
 
     // Permitir crear bola y resortera con mousedown cerca del círculo
-    render.canvas.addEventListener('mousedown', (e) => {
+    const handleInteraction = (x: number, y: number) => {
       if (!ball && !sling) {
         const rect = render.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const dist = Math.hypot(mouseX - slingStart.x, mouseY - slingStart.y);
-        if (dist < 60) {
+        // Convertir coordenadas de página a coordenadas de canvas
+        const canvasX = x - rect.left;
+        const canvasY = y - rect.top;
+        // Zona de detección más grande en móvil
+        const detectRadius = isMobile ? 120 : 60;
+        const dist = Math.hypot(canvasX - slingStart.x, canvasY - slingStart.y);
+        if (dist < detectRadius) {
           ball = Bodies.circle(slingStart.x, slingStart.y, 22, {
             density: 0.004,
             restitution: 0.8,
@@ -120,6 +148,18 @@ export default function Home() {
           });
           Composite.add(engine.world, [ball, sling]);
         }
+      }
+    };
+
+    // Eventos de mouse
+    render.canvas.addEventListener('mousedown', (e) => {
+      handleInteraction(e.clientX, e.clientY);
+    });
+
+    // Eventos touch para móvil
+    render.canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
       }
     });
 
@@ -151,18 +191,23 @@ export default function Home() {
       ctx.font = "bold 28px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      // Letras de los bloques
       for (let i = 0; i < blocks.length; i++) {
         const b = blocks[i];
         ctx.fillStyle = "#fff";
-        ctx.fillText(word[i], b.position.x, b.position.y + 2);
+        ctx.fillText(b.label || '', b.position.x, b.position.y + 2);
       }
-      // Resortera visual si no hay bola
+      // Indicador visual para crear bola
       if (!ball && !sling) {
         ctx.strokeStyle = '#f59e42';
-        ctx.lineWidth = 6;
+        ctx.lineWidth = isMobile ? 8 : 6;
         ctx.beginPath();
-        ctx.arc(slingStart.x, slingStart.y, 24, 0, 2 * Math.PI);
+        ctx.arc(slingStart.x, slingStart.y, isMobile ? 32 : 24, 0, 2 * Math.PI);
         ctx.stroke();
+        // Mensaje de ayuda
+        ctx.fillStyle = '#f59e42';
+        ctx.font = "16px Arial";
+        ctx.fillText(isMobile ? "Toca aquí" : "Haz click aquí", slingStart.x, slingStart.y + 50);
       }
       ctx.restore();
     });
