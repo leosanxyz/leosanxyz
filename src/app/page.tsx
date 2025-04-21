@@ -108,7 +108,7 @@ export default function Home() {
       Bodies.circle(titleX + 120, titleY - 100, 20, { restitution: 0.8, render: { fillStyle: '#10b981' } }),
       Bodies.polygon(titleX + 180, titleY - 80, 3, 30, { restitution: 0.7, render: { fillStyle: '#fbbf24' } }),
       Bodies.rectangle(titleX + 200, titleY - 60, 30, 70, { restitution: 0.4, render: { fillStyle: '#6366f1' } }),
-      Bodies.circle(titleX + 40, titleY - 120, 20, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
+      Bodies.rectangle(titleX + 40, titleY - 120, 40, 40, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
     ];
 
     // Resortera y bola (posición responsiva)
