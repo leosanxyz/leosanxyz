@@ -2,6 +2,13 @@
 import { useEffect, useRef } from "react";
 import Matter from "matter-js";
 
+// Define un tipo para las propiedades personalizadas de los bloques
+interface BouncingBlock extends Matter.Body {
+  originX?: number;
+  originY?: number;
+  isBouncing?: boolean;
+}
+
 export default function Home() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
@@ -89,6 +96,9 @@ export default function Home() {
           label: displayWord[i],
         }
       );
+      (block as BouncingBlock).originY = block.position.y; // dónde debe "volver"
+      (block as BouncingBlock).originX = block.position.x; // posición original en X
+      (block as BouncingBlock).isBouncing = false; // evita rebotes simultáneos
       blocks.push(block);
     }
 
@@ -101,12 +111,13 @@ export default function Home() {
       Bodies.circle(titleX + 40, titleY - 120, 20, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
     ];
 
-    // Resortera y bola (no aparecen inicialmente)
+    // Resortera y bola (posición responsiva)
     const slingStart = isMobile
       ? { x: Math.max(32, width * 0.12), y: height - 120 }
-      : { x: Math.max(32, width * 0.04), y: Math.max(80, height * 0.18) };
+      : { x: width * 0.15, y: height - 120 }; // Desktop: inferior izquierda
     let ball: Matter.Body | null = null;
     let sling: Matter.Constraint | null = null;
+    let activeBallId: number | null = null;
 
     Composite.add(engine.world, [ground, leftWall, rightWall, ...blocks, ...figures]);
 
@@ -147,6 +158,8 @@ export default function Home() {
             },
           });
           Composite.add(engine.world, [ball, sling]);
+          activeBallId = ball.id;
+          console.log("New ball created. Active ID:", activeBallId);
         }
       }
     };
@@ -180,6 +193,7 @@ export default function Home() {
           // Dejar referencias listas para la siguiente bola
           ball = null;
           sling = null;
+          console.log("Ball launched. Active ID remains:", activeBallId);
         }, 16);
       }
     });
@@ -212,12 +226,50 @@ export default function Home() {
       ctx.restore();
     });
 
-    // Detectar colisión de la bola con los bloques y volverlos dinámicos
+    // Función auxiliar para el efecto de rebote (simplified manual bounce)
+    const bounceBlock = (block: BouncingBlock) => {
+      if (block.isBouncing) return;
+      block.isBouncing = true;
+      const origX = block.originX!;
+      const origY = block.originY!;
+      const bounceHeight = 20;
+      console.log(`-> bounceBlock: "${block.label}" up by ${bounceHeight}px`);
+      Matter.Body.setPosition(block, { x: origX, y: origY - bounceHeight });
+      setTimeout(() => {
+        Matter.Body.setPosition(block, { x: origX, y: origY });
+        block.isBouncing = false;
+        console.log(`-> bounceBlock: "${block.label}" returned to origin`);
+      }, 200);
+    };
+
+    // Detectar colisión de la bola con los bloques y aplicar rebote si es desde abajo
     Matter.Events.on(engine, 'collisionStart', (event) => {
+      if (!activeBallId) {
+        return;
+      }
+
       for (const pair of event.pairs) {
-        for (const block of blocks) {
-          if ((pair.bodyA === block && pair.bodyB === ball) || (pair.bodyB === block && pair.bodyA === ball)) {
-            Matter.Body.setStatic(block, false);
+        let blockHit: BouncingBlock | null = null;
+        let projectile: Matter.Body | null = null;
+
+        if (blocks.some(b => b.id === pair.bodyA.id) && pair.bodyB.id === activeBallId) {
+          blockHit = pair.bodyA as BouncingBlock;
+          projectile = pair.bodyB;
+        } else if (blocks.some(b => b.id === pair.bodyB.id) && pair.bodyA.id === activeBallId) {
+          blockHit = pair.bodyB as BouncingBlock;
+          projectile = pair.bodyA;
+        }
+
+        if (blockHit && projectile) {
+          console.log("\tCollision involves ball and block:", blockHit.label);
+          const ballY = projectile.position.y;
+          const blockY = blockHit.position.y;
+          console.log(`\tBall Y: ${ballY.toFixed(2)}, Block Y: ${blockY.toFixed(2)}`);
+          if (ballY > blockY) {
+            console.log("\tCondition (ballY > blockY) met: Ball hit from below!");
+            bounceBlock(blockHit);
+          } else {
+            console.log("\tCondition not met: Ball did not hit from below.");
           }
         }
       }
