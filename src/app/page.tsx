@@ -268,6 +268,15 @@ export default function Home() {
       requestAnimationFrame(animateUp);
     };
 
+    // Animación inicial tipo gusano para las letras tras 2s de carga
+    setTimeout(() => {
+      blocks.forEach((blk, idx) => {
+        setTimeout(() => {
+          bounceBlock(blk as BouncingBlock);
+        }, idx * 100);
+      });
+    }, 2000);
+
     // Detectar colisión de la bola con los bloques y aplicar rebote si es desde abajo
     Matter.Events.on(engine, 'collisionStart', (event) => {
       if (!activeBallId) {
