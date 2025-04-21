@@ -226,20 +226,46 @@ export default function Home() {
       ctx.restore();
     });
 
-    // Función auxiliar para el efecto de rebote (simplified manual bounce)
+    // Función auxiliar para el efecto de rebote con interpolación
     const bounceBlock = (block: BouncingBlock) => {
       if (block.isBouncing) return;
       block.isBouncing = true;
       const origX = block.originX!;
       const origY = block.originY!;
-      const bounceHeight = 20;
-      console.log(`-> bounceBlock: "${block.label}" up by ${bounceHeight}px`);
-      Matter.Body.setPosition(block, { x: origX, y: origY - bounceHeight });
-      setTimeout(() => {
-        Matter.Body.setPosition(block, { x: origX, y: origY });
-        block.isBouncing = false;
-        console.log(`-> bounceBlock: "${block.label}" returned to origin`);
-      }, 200);
+      const bounceHeight = 40; // stronger impulse
+      const duration = 300;
+      const half = duration / 2;
+      const easeOutQuad = (t: number) => t * (2 - t);
+
+      console.log(`-> bounceBlock: "${block.label}" bounceHeight=${bounceHeight}, duration=${duration}`);
+
+      const startTime = performance.now();
+      function animateUp(time: number) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / half, 1);
+        const y = origY - bounceHeight * easeOutQuad(progress);
+        Matter.Body.setPosition(block, { x: origX, y });
+        if (progress < 1) {
+          requestAnimationFrame(animateUp);
+        } else {
+          const downStart = performance.now();
+          function animateDown(now: number) {
+            const downElapsed = now - downStart;
+            const downProgress = Math.min(downElapsed / half, 1);
+            const y2 = origY - bounceHeight + bounceHeight * easeOutQuad(downProgress);
+            Matter.Body.setPosition(block, { x: origX, y: y2 });
+            if (downProgress < 1) {
+              requestAnimationFrame(animateDown);
+            } else {
+              Matter.Body.setPosition(block, { x: origX, y: origY });
+              block.isBouncing = false;
+              console.log(`-> bounceBlock: "${block.label}" returned to origin`);
+            }
+          }
+          requestAnimationFrame(animateDown);
+        }
+      }
+      requestAnimationFrame(animateUp);
     };
 
     // Detectar colisión de la bola con los bloques y aplicar rebote si es desde abajo
