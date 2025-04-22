@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 
@@ -16,6 +16,23 @@ export default function Home() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Aplicar cambios al body cuando cambia el modo oscuro
+  useEffect(() => {
+    // Aplicar estilos al body para eliminar márgenes blancos
+    document.body.style.backgroundColor = darkMode ? '#1a1a1a' : '#f8fafc';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    document.body.style.overflow = 'hidden';
+    
+    // Aplicar clase para detectar modo oscuro a nivel global
+    if (darkMode) {
+      document.documentElement.classList.add('dark-mode');
+    } else {
+      document.documentElement.classList.remove('dark-mode');
+    }
+  }, [darkMode]);
 
   useEffect(() => {
     let width = window.innerWidth;
@@ -44,7 +61,7 @@ export default function Home() {
         width,
         height,
         wireframes: false,
-        background: '#f8fafc',
+        background: darkMode ? '#1a1a1a' : '#f8fafc',
       },
     });
     renderRef.current = render;
@@ -92,8 +109,8 @@ export default function Home() {
         {
           isStatic: true,
           render: {
-            fillStyle: '#222',
-            strokeStyle: '#444',
+            fillStyle: darkMode ? '#ddd' : '#222',
+            strokeStyle: darkMode ? '#eee' : '#444',
             lineWidth: 2,
           },
           label: displayWord[i],
@@ -211,7 +228,7 @@ export default function Home() {
       // Letras de los bloques
       for (let i = 0; i < blocks.length; i++) {
         const b = blocks[i];
-        ctx.fillStyle = "#fff";
+        ctx.fillStyle = darkMode ? "#333" : "#fff";
         ctx.fillText(b.label || '', b.position.x, b.position.y + 2);
       }
       // Indicador visual para crear bola
@@ -337,7 +354,7 @@ export default function Home() {
       Engine.clear(engine);
       if (render.canvas) render.canvas.remove();
     };
-  }, []);
+  }, [darkMode]); // Agregar darkMode como dependencia para que se recargue al cambiar
 
   // Handler para mostrar mensaje de construcción en los enlaces
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -345,15 +362,131 @@ export default function Home() {
     alert('¡página aún en construcción! :)');
   };
 
+  // Toggle para cambiar entre modo claro y oscuro
+  const toggleDarkMode = () => {
+    setDarkMode(prev => !prev);
+  };
+
   return (
     <>
-      <div ref={sceneRef} className="fixed inset-0 w-full h-full min-h-screen bg-gray-50 z-0" />
-      <div className={geist.className} style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', zIndex: 10 }}>
+      <style jsx global>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+          width: 100%;
+          height: 100%;
+          background-color: ${darkMode ? '#1a1a1a' : '#f8fafc'};
+        }
+      `}</style>
+      
+      <div 
+        ref={sceneRef} 
+        className="fixed inset-0 w-full h-full min-h-screen z-0"
+        style={{ 
+          backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
+        }}
+      />
+      
+      {/* Dark Mode Switch */}
+      <button 
+        onClick={toggleDarkMode}
+        className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+        style={{ 
+          backgroundColor: darkMode ? '#333' : '#fff',
+          color: darkMode ? '#fff' : '#333',
+          top: '40px',         // Más arriba
+          left: '24px',        // Cerca del margen izquierdo
+          width: '48px',       // Tamaño grande
+          height: '48px'       // Tamaño grande
+        }}
+        aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
+      >
+        {darkMode ? (
+          // Luna
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        ) : (
+          // Sol
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        )}
+      </button>
+
+      <div 
+        className={geist.className} 
+        style={{ 
+          position: 'fixed', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)', 
+          textAlign: 'center', 
+          zIndex: 10 
+        }}
+      >
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          <li style={{ margin: '1rem 0' }}><a href="/blog" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>blog</a></li>
-          <li style={{ margin: '1rem 0' }}><a href="/diseno" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>diseño</a></li>
-          <li style={{ margin: '1rem 0' }}><a href="/proyectos" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>proyectos</a></li>
-          <li style={{ margin: '1rem 0' }}><a href="/about" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>sobre mi:)</a></li>
+          <li style={{ margin: '1rem 0' }}>
+            <a 
+              href="/blog" 
+              style={{ 
+                fontSize: '2rem', 
+                color: darkMode ? '#fff' : '#333', 
+                textDecoration: 'none' 
+              }} 
+              onClick={handleNavClick}
+            >
+              blog
+            </a>
+          </li>
+          <li style={{ margin: '1rem 0' }}>
+            <a 
+              href="/diseno" 
+              style={{ 
+                fontSize: '2rem', 
+                color: darkMode ? '#fff' : '#333', 
+                textDecoration: 'none' 
+              }} 
+              onClick={handleNavClick}
+            >
+              diseño
+            </a>
+          </li>
+          <li style={{ margin: '1rem 0' }}>
+            <a 
+              href="/proyectos" 
+              style={{ 
+                fontSize: '2rem', 
+                color: darkMode ? '#fff' : '#333', 
+                textDecoration: 'none' 
+              }} 
+              onClick={handleNavClick}
+            >
+              proyectos
+            </a>
+          </li>
+          <li style={{ margin: '1rem 0' }}>
+            <a 
+              href="/about" 
+              style={{ 
+                fontSize: '2rem', 
+                color: darkMode ? '#fff' : '#333', 
+                textDecoration: 'none' 
+              }} 
+              onClick={handleNavClick}
+            >
+              sobre mi:)
+            </a>
+          </li>
         </ul>
       </div>
     </>
