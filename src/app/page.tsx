@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Matter from "matter-js";
+import { GeistSans } from "geist/font/sans";
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -8,6 +9,8 @@ interface BouncingBlock extends Matter.Body {
   originY?: number;
   isBouncing?: boolean;
 }
+
+const geist = GeistSans;
 
 export default function Home() {
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -345,12 +348,12 @@ export default function Home() {
   return (
     <>
       <div ref={sceneRef} className="fixed inset-0 w-full h-full min-h-screen bg-gray-50 z-0" />
-      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', zIndex: 10 }}>
+      <div className={geist.className} style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', zIndex: 10 }}>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           <li style={{ margin: '1rem 0' }}><a href="/blog" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>blog</a></li>
           <li style={{ margin: '1rem 0' }}><a href="/diseno" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>diseño</a></li>
           <li style={{ margin: '1rem 0' }}><a href="/proyectos" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>proyectos</a></li>
-          <li style={{ margin: '1rem 0' }}><a href="/quien-soy" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>¿quien soy?</a></li>
+          <li style={{ margin: '1rem 0' }}><a href="/about" style={{ fontSize: '2rem', color: '#333', textDecoration: 'none' }} onClick={handleNavClick}>sobre mi:)</a></li>
         </ul>
       </div>
     </>
