@@ -8,6 +8,8 @@ interface BouncingBlock extends Matter.Body {
   originX?: number;
   originY?: number;
   isBouncing?: boolean;
+  noteIndex?: number;
+  noteFrequency?: number;
 }
 
 const geist = GeistSans;
@@ -17,6 +19,17 @@ export default function Home() {
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const blocksRef = useRef<Matter.Body[]>([]);
+  const playAnimationRef = useRef<(() => void) | null>(null);
+
+  // Detectar si es móvil después del montaje para evitar error de hidratación
+  useEffect(() => {
+    // Establecer soundEnabled dependiendo del ancho de la pantalla
+    const isMobile = window.innerWidth < 600;
+    setSoundEnabled(!isMobile); // Apagado en móviles, encendido en desktop
+  }, []);
 
   // Aplicar cambios al body cuando cambia el modo oscuro
   useEffect(() => {
@@ -35,6 +48,49 @@ export default function Home() {
   }, [darkMode]);
 
   useEffect(() => {
+    // Audio setup for block bounce sounds
+    // Se crea como referencia para poder accederlo de manera lazy al interactuar con la página
+    let audioContext: AudioContext | null = null;
+
+    // Función para crear o resumir el contexto de audio (necesario para Safari)
+    const getAudioContext = () => {
+      if (!audioContext) {
+        // Crear el contexto de audio si no existe
+        audioContext = new (window.AudioContext)();
+        setAudioInitialized(true);
+      }
+      
+      // En Safari y Chrome, el contexto inicialmente está en estado "suspended"
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+        setAudioInitialized(true);
+      }
+      
+      return audioContext;
+    };
+    
+    // Función para tocar un sonido que funciona en Safari y móviles
+    const playSound = (frequency: number) => {
+      if (!soundEnabled) return;
+      
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+        
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+        
+        osc.connect(gainNode).connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+      } catch (err) {
+        console.log("Error reproduciendo sonido:", err);
+      }
+    };
+
     let width = window.innerWidth;
     let height = window.innerHeight;
     const blockSize = 40;
@@ -119,8 +175,13 @@ export default function Home() {
       (block as BouncingBlock).originY = block.position.y; // dónde debe "volver"
       (block as BouncingBlock).originX = block.position.x; // posición original en X
       (block as BouncingBlock).isBouncing = false; // evita rebotes simultáneos
+      (block as BouncingBlock).noteIndex = i;
+      (block as BouncingBlock).noteFrequency = 261.63 * Math.pow(Math.pow(2, 1/12), i);
       blocks.push(block);
     }
+
+    // Guardar referencia a los bloques para poder accederlos más tarde
+    blocksRef.current = blocks;
 
     // Figuras dinámicas apiladas encima de los bloques
     const figures: Matter.Body[] = [
@@ -133,8 +194,8 @@ export default function Home() {
 
     // Resortera y bola (posición responsiva)
     const slingStart = isMobile
-      ? { x: Math.max(32, width * 0.12), y: height - 120 }
-      : { x: width * 0.15, y: height - 120 }; // Desktop: inferior izquierda
+      ? { x: width / 2, y: height - 120 }
+      : { x: width / 2, y: height - 120 }; // Centrado horizontalmente
     let ball: Matter.Body | null = null;
     let sling: Matter.Constraint | null = null;
     let activeBallId: number | null = null;
@@ -186,11 +247,15 @@ export default function Home() {
 
     // Eventos de mouse
     render.canvas.addEventListener('mousedown', (e) => {
+      // Activar audio en la primera interacción del usuario
+      getAudioContext();
       handleInteraction(e.clientX, e.clientY);
     });
 
     // Eventos touch para móvil
     render.canvas.addEventListener('touchstart', (e) => {
+      // Activar audio en la primera interacción del usuario
+      getAudioContext();
       if (e.touches.length > 0) {
         handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
       }
@@ -250,6 +315,11 @@ export default function Home() {
     const bounceBlock = (block: BouncingBlock) => {
       if (block.isBouncing) return;
       block.isBouncing = true;
+      // Play bounce sound
+      if (audioContext && soundEnabled) {
+        const freq = block.noteFrequency ?? 261.63;
+        playSound(freq);
+      }
       const origX = block.originX!;
       const origY = block.originY!;
       const bounceHeight = 40; // stronger impulse
@@ -288,13 +358,34 @@ export default function Home() {
       requestAnimationFrame(animateUp);
     };
 
+    // Añadir evento a la página completa para activar audio (necesario para Safari)
+    document.addEventListener('click', () => {
+      getAudioContext();
+    }, { once: true });
+
+    document.addEventListener('touchstart', () => {
+      getAudioContext();
+    }, { once: true });
+
     // Animación inicial tipo gusano para las letras tras 2s de carga
-    setTimeout(() => {
+    const playWormAnimation = () => {
       blocks.forEach((blk, idx) => {
         setTimeout(() => {
           bounceBlock(blk as BouncingBlock);
         }, idx * 100);
       });
+    };
+    
+    // Guardar referencia a la función de animación
+    playAnimationRef.current = playWormAnimation;
+
+    setTimeout(() => {
+      // Intentamos iniciar el audio al lanzar la animación,
+      // pero primero tenemos que esperar una interacción del usuario
+      if (document.body.clientWidth) {
+        getAudioContext();
+      }
+      playWormAnimation();
     }, 2000);
 
     // Detectar colisión de la bola con los bloques y aplicar rebote si es desde abajo
@@ -354,7 +445,7 @@ export default function Home() {
       Engine.clear(engine);
       if (render.canvas) render.canvas.remove();
     };
-  }, [darkMode]); // Agregar darkMode como dependencia para que se recargue al cambiar
+  }, [darkMode, soundEnabled]); // Agregar soundEnabled como dependencia
 
   // Handler para mostrar mensaje de construcción en los enlaces
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -365,6 +456,25 @@ export default function Home() {
   // Toggle para cambiar entre modo claro y oscuro
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
+  };
+
+  // Toggle para activar/desactivar sonido
+  const toggleSound = () => {
+    setSoundEnabled(prev => {
+      const newState = !prev;
+      if (newState && playAnimationRef.current) {
+        // Si activamos el sonido, reproducir animación de gusano
+        playAnimationRef.current();
+      }
+      return newState;
+    });
+    
+    // Crear evento de interacción fingido para iniciar el audio si es necesario
+    if (!audioInitialized) {
+      const event = new Event('click');
+      document.dispatchEvent(event);
+      setAudioInitialized(true);
+    }
   };
 
   return (
@@ -419,6 +529,37 @@ export default function Home() {
             <line x1="21" y1="12" x2="23" y2="12"></line>
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        )}
+      </button>
+
+      {/* Sound Toggle Button */}
+      <button 
+        onClick={toggleSound}
+        className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+        style={{ 
+          backgroundColor: darkMode ? '#333' : '#fff',
+          color: darkMode ? '#fff' : '#333',
+          top: '100px',        // Debajo del botón de modo oscuro
+          left: '24px',        // Misma alineación horizontal
+          width: '48px',       // Mismo tamaño
+          height: '48px'       // Mismo tamaño
+        }}
+        aria-label={soundEnabled ? "Desactivar sonido" : "Activar sonido"}
+      >
+        {soundEnabled ? (
+          // Icono de volumen alto
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        ) : (
+          // Icono de volumen apagado
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
           </svg>
         )}
       </button>
