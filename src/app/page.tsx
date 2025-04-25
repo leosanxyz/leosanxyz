@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 import ReactMarkdown from 'react-markdown';
+import ScrambleIn from './components/ScrambleIn';
+import Typewriter from './components/Typewriter';
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -40,6 +42,7 @@ export default function Home() {
   const [postContent, setPostContent] = useState<string | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [errorLoadingContent, setErrorLoadingContent] = useState<string | null>(null);
+  const [postTyped, setPostTyped] = useState(false);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
@@ -536,6 +539,7 @@ export default function Home() {
         setIsLoadingContent(true);
         setErrorLoadingContent(null);
         setPostContent(null); // Clear previous content
+        setPostTyped(false); // Reset typing state when new content loads
         try {
           const response = await fetch(`/api/posts/${encodeURIComponent(selectedSlug)}`);
           if (!response.ok) {
@@ -744,53 +748,37 @@ export default function Home() {
               <li style={{ margin: '1rem 0' }}>
                 <a 
                   href="/blog" 
-                  style={{ 
-                    fontSize: '2rem', 
-                    color: darkMode ? '#fff' : '#333', 
-                    textDecoration: 'none' 
-                  }} 
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
                   onClick={(e) => handleNavClick(e, '/blog')}
                 >
-                  blog
+                  <ScrambleIn text="blog" />
                 </a>
               </li>
               <li style={{ margin: '1rem 0' }}>
                 <a 
                   href="/diseno" 
-                  style={{ 
-                    fontSize: '2rem', 
-                    color: darkMode ? '#fff' : '#333', 
-                    textDecoration: 'none' 
-                  }} 
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
                   onClick={(e) => handleNavClick(e, '/diseno')}
                 >
-                  diseño
+                  <ScrambleIn text="diseño" />
                 </a>
               </li>
               <li style={{ margin: '1rem 0' }}>
                 <a 
                   href="/proyectos" 
-                  style={{ 
-                    fontSize: '2rem', 
-                    color: darkMode ? '#fff' : '#333', 
-                    textDecoration: 'none' 
-                  }} 
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
                   onClick={(e) => handleNavClick(e, '/proyectos')}
                 >
-                  proyectos
+                  <ScrambleIn text="proyectos" />
                 </a>
               </li>
               <li style={{ margin: '1rem 0' }}>
                 <a 
                   href="/about" 
-                  style={{ 
-                    fontSize: '2rem', 
-                    color: darkMode ? '#fff' : '#333', 
-                    textDecoration: 'none' 
-                  }} 
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
                   onClick={(e) => handleNavClick(e, '/about')}
                 >
-                  sobre mi:)
+                  <ScrambleIn text="sobre mi:)" />
                 </a>
               </li>
             </ul>
@@ -814,13 +802,9 @@ export default function Home() {
                       <a 
                         href="#"
                         onClick={(e) => handlePostClick(e, post.slug)}
-                        style={{ 
-                          fontSize: '1.8rem', 
-                          color: darkMode ? '#eee' : '#111', 
-                          textDecoration: 'none' 
-                        }}
+                        style={{ fontSize: '1.8rem', color: darkMode ? '#eee' : '#111', textDecoration: 'none' }}
                       >
-                        {post.title}
+                        <ScrambleIn text={post.title} scrambleSpeed={25} />
                       </a>
                     </li>
                   ))}
@@ -875,22 +859,33 @@ export default function Home() {
                           }),
                     }}
                   >
-                    <ReactMarkdown
-                      components={{
-                        h1: ({ ...props}) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props} />, 
-                        h2: ({ ...props}) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props} />, 
-                        p: ({ ...props}) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props} />, 
-                        a: ({ ...props}) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props} />, 
-                        li: ({ ...props}) => <li style={{ marginBottom: '0.5rem' }} {...props} />, 
-                        blockquote: ({ ...props}) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props} />, 
-                        code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) => 
-                          inline ? 
-                            <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code> : 
-                            <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>,
-                      }}
-                    >
-                      {postContent}
-                    </ReactMarkdown>
+                    {!postTyped ? (
+                      <Typewriter
+                        text={postContent}
+                        speed={25}
+                        onComplete={() => setPostTyped(true)}
+                        className="w-full break-words"
+                      />
+                    ) : (
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ children, ...props }) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props}>{children}</h1>,
+                          h2: ({ children, ...props }) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props}>{children}</h2>,
+                          p: ({ children, ...props }) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props}>{children}</p>,
+                          a: ({ children, ...props }) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props}>{children}</a>,
+                          li: ({ children, ...props }) => <li style={{ marginBottom: '0.5rem' }} {...props}>{children}</li>,
+                          blockquote: ({ children, ...props }) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props}>{children}</blockquote>,
+                          code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) =>
+                            inline ? (
+                              <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code>
+                            ) : (
+                              <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>
+                            ),
+                        }}
+                      >
+                        {postContent}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 )}
               </div>
