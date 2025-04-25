@@ -1,13 +1,13 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
 export async function GET(
   request: NextRequest,
-  context: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params;
   try {
-    const slug = context.params.slug;
     // Decode the slug in case it contains URL-encoded characters (like spaces %20)
     const decodedSlug = decodeURIComponent(slug);
     const postsDirectory = path.join(process.cwd(), 'content/blog');
@@ -30,8 +30,6 @@ export async function GET(
     return NextResponse.json({ content: fileContent });
 
   } catch (error) {
-    // Ensure 'slug' is defined here or use context.params.slug if available
-    const slug = context.params.slug; // Define slug here for the catch block
     console.error(`Error reading post ${slug}:`, error);
     return NextResponse.json({ error: 'Failed to load post content' }, { status: 500 });
   }
