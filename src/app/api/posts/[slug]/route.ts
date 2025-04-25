@@ -6,9 +6,8 @@ export async function GET(
   request: NextRequest,
   context: { params: { slug: string } }
 ) {
-  const { params } = context; // Destructure params inside the function
   try {
-    const slug = params.slug;
+    const slug = context.params.slug;
     // Decode the slug in case it contains URL-encoded characters (like spaces %20)
     const decodedSlug = decodeURIComponent(slug);
     const postsDirectory = path.join(process.cwd(), 'content/blog');
@@ -31,7 +30,9 @@ export async function GET(
     return NextResponse.json({ content: fileContent });
 
   } catch (error) {
-    console.error(`Error reading post ${params.slug}:`, error);
+    // Ensure 'slug' is defined here or use context.params.slug if available
+    const slug = context.params.slug; // Define slug here for the catch block
+    console.error(`Error reading post ${slug}:`, error);
     return NextResponse.json({ error: 'Failed to load post content' }, { status: 500 });
   }
 } 
