@@ -4,8 +4,9 @@ import path from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
+  const { params } = context; // Destructure params inside the function
   try {
     const slug = params.slug;
     // Decode the slug in case it contains URL-encoded characters (like spaces %20)
