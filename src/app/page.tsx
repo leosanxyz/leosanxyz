@@ -582,6 +582,49 @@ export default function Home() {
     }
   };
 
+  // Estilo condicional para el contenedor principal
+  const styleMainContainer: React.CSSProperties = {
+    position: 'fixed',
+    top: '200px',
+    textAlign: viewMode === 'home' ? 'center' : 'left',
+    color: darkMode ? '#eee' : '#111',
+    zIndex: 10,
+    opacity: 1,
+    maxWidth: '800px',
+    maxHeight: 'calc(100vh - 240px)',
+    overflowY: 'auto',
+    padding: '20px',
+    ...(viewMode === 'post' && typeof window !== 'undefined' && window.innerWidth >= 900
+      ? {
+          left: 'auto',
+          right: '5vw',
+          transform: 'none',
+          width: '600px',
+        }
+      : {
+          left: viewMode === 'home' ? '50%' : '80px',
+          transform: viewMode === 'home' ? 'translateX(-50%)' : 'none',
+          width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)',
+        }),
+    ...(viewMode === 'post'
+      ? {
+          backgroundColor: 'transparent',
+          borderRadius: '16px',
+          backdropFilter: 'blur(8px)',
+          boxShadow: `0 0 40px 40px ${darkMode ? 'rgba(26, 26, 26, 0.6)' : 'rgba(248, 250, 252, 0.6)'}`,
+          background: darkMode
+            ? 'radial-gradient(circle at center, rgba(26, 26, 26, 0.82) 0%, rgba(26, 26, 26, 0.7) 50%, rgba(26, 26, 26, 0.4) 80%, rgba(26, 26, 26, 0) 100%)'
+            : 'radial-gradient(circle at center, rgba(248, 250, 252, 0.82) 0%, rgba(248, 250, 252, 0.7) 50%, rgba(248, 250, 252, 0.4) 80%, rgba(248, 250, 252, 0) 100%)',
+        }
+      : {
+          backgroundColor: 'transparent',
+          borderRadius: 0,
+          backdropFilter: 'none',
+          boxShadow: 'none',
+          background: 'none',
+        }),
+  };
+
   return (
     <>
       <style jsx global>{`
@@ -692,41 +735,12 @@ export default function Home() {
       {/* Contenido central (Navegación o Posts) */}
       <div 
         className={`${geist.className} transition-opacity duration-500 ease-in-out`}
-        style={{ 
-          position: 'fixed', 
-          top: '200px',
-          left: viewMode === 'home' ? '50%' : '80px',
-          transform: viewMode === 'home' ? 'translateX(-50%)' : 'none',
-          textAlign: viewMode === 'home' ? 'center' : 'left',
-          color: darkMode ? '#eee' : '#111',
-          zIndex: 10, 
-          opacity: 1, 
-          width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)',
-          maxWidth: '800px',
-          maxHeight: 'calc(100vh - 240px)',
-          overflowY: 'auto',
-          padding: '20px',
-          ...(viewMode === 'post' ? {
-            backgroundColor: 'transparent',
-            borderRadius: '16px',
-            backdropFilter: 'blur(8px)',
-            boxShadow: `0 0 40px 40px ${darkMode ? 'rgba(26, 26, 26, 0.6)' : 'rgba(248, 250, 252, 0.6)'}`,
-            background: darkMode 
-              ? 'radial-gradient(circle at center, rgba(26, 26, 26, 0.82) 0%, rgba(26, 26, 26, 0.7) 50%, rgba(26, 26, 26, 0.4) 80%, rgba(26, 26, 26, 0) 100%)'
-              : 'radial-gradient(circle at center, rgba(248, 250, 252, 0.82) 0%, rgba(248, 250, 252, 0.7) 50%, rgba(248, 250, 252, 0.4) 80%, rgba(248, 250, 252, 0) 100%)'
-          } : {
-            backgroundColor: 'transparent',
-            borderRadius: 0,
-            backdropFilter: 'none',
-            boxShadow: 'none',
-            background: 'none'
-          })
-        }}
+        style={styleMainContainer}
       >
         <div style={{ position: 'relative' }}>
           {viewMode === 'home' ? (
             // Vista Home: Navegación principal
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '5vh' }}>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '10vh' }}>
               <li style={{ margin: '1rem 0' }}>
                 <a 
                   href="/blog" 
@@ -782,7 +796,13 @@ export default function Home() {
             </ul>
           ) : viewMode === 'blog' ? (
             // Vista Blog: Lista de posts
-            <div>
+            <div
+              style={
+                window.innerWidth >= 900
+                  ? { display: 'flex', justifyContent: 'center', width: '100%' }
+                  : undefined
+              }
+            >
               {isLoadingPosts ? (
                 <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando posts...</p>
               ) : errorLoadingPosts ? (
@@ -831,7 +851,30 @@ export default function Home() {
                 {isLoadingContent && <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando contenido...</p>}
                 {errorLoadingContent && <p style={{ color: 'red' }}>Error: {errorLoadingContent}</p>}
                 {postContent && (
-                  <div className="markdown-content" style={{ textAlign: 'left', paddingBottom: '78px' /* Extra bottom space */ }}>
+                  <div
+                    className="markdown-content"
+                    style={{
+                      textAlign: 'left',
+                      paddingBottom: '78px',
+                      height: '100%',
+                      overflowY: 'auto',
+                      boxSizing: 'border-box',
+                      // Desktop: alinea a la derecha
+                      ...(window.innerWidth >= 900
+                        ? {
+                            marginLeft: 'auto',
+                            marginRight: 0,
+                            maxWidth: '600px',
+                            paddingLeft: '120px', // grande a la izquierda
+                            paddingRight: '24px', // pequeño a la derecha
+                          }
+                        : {
+                            width: '100%',
+                            paddingLeft: '12px',
+                            paddingRight: '12px',
+                          }),
+                    }}
+                  >
                     <ReactMarkdown
                       components={{
                         h1: ({ ...props}) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props} />, 
