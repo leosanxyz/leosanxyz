@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
+import ReactMarkdown from 'react-markdown';
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -10,6 +11,12 @@ interface BouncingBlock extends Matter.Body {
   isBouncing?: boolean;
   noteIndex?: number;
   noteFrequency?: number;
+}
+
+// Define un tipo para la estructura de un post
+interface Post {
+  slug: string;
+  title: string;
 }
 
 const geist = GeistSans;
@@ -23,6 +30,16 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const blocksRef = useRef<Matter.Body[]>([]);
   const playAnimationRef = useRef<(() => void) | null>(null);
+  const [viewMode, setViewMode] = useState<'home' | 'blog' | 'post'>('home'); // 'home' or 'blog' or 'post'
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [errorLoadingPosts, setErrorLoadingPosts] = useState<string | null>(null);
+
+  // State for selected post
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [postContent, setPostContent] = useState<string | null>(null);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
+  const [errorLoadingContent, setErrorLoadingContent] = useState<string | null>(null);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
@@ -193,9 +210,9 @@ export default function Home() {
     ];
 
     // Resortera y bola (posición responsiva)
-    const slingStart = isMobile
-      ? { x: width / 2, y: height - 120 }
-      : { x: width / 2, y: height - 120 }; // Centrado horizontalmente
+    const slingX = 48; // Align with the center of the left buttons (24px left + 48px width / 2)
+    const slingY = height - 120; // Keep near bottom
+    const slingStart = { x: slingX, y: slingY };
     let ball: Matter.Body | null = null;
     let sling: Matter.Constraint | null = null;
     let activeBallId: number | null = null;
@@ -299,14 +316,14 @@ export default function Home() {
       // Indicador visual para crear bola
       if (!ball && !sling) {
         ctx.strokeStyle = '#f59e42';
-        ctx.lineWidth = isMobile ? 8 : 6;
+        ctx.lineWidth = 6; // Consistent line width
         ctx.beginPath();
-        ctx.arc(slingStart.x, slingStart.y, isMobile ? 32 : 24, 0, 2 * Math.PI);
+        ctx.arc(slingStart.x, slingStart.y, 24, 0, 2 * Math.PI); // Use updated slingStart.x
         ctx.stroke();
         // Mensaje de ayuda
         ctx.fillStyle = '#f59e42';
         ctx.font = "16px Arial";
-        ctx.fillText(isMobile ? "Toca aquí" : "Haz click aquí", slingStart.x, slingStart.y + 50);
+        ctx.fillText(isMobile ? "Toca aquí" : "Haz click aquí", slingStart.x, slingStart.y + 50); // Use updated slingStart.x
       }
       ctx.restore();
     });
@@ -447,11 +464,99 @@ export default function Home() {
     };
   }, [darkMode, soundEnabled]); // Agregar soundEnabled como dependencia
 
-  // Handler para mostrar mensaje de construcción en los enlaces
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    alert('¡página aún en construcción! :)');
+  // Función para obtener la lista de posts
+  const fetchPosts = async () => {
+    setIsLoadingPosts(true);
+    setErrorLoadingPosts(null);
+    try {
+      const response = await fetch('/api/posts');
+      if (!response.ok) {
+        throw new Error(`Error fetching posts: ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      setPosts(data.posts || []); // Asegurarse de que posts sea un array
+    } catch (error) {
+      console.error("Failed to fetch posts:", error);
+      setErrorLoadingPosts(error instanceof Error ? error.message : 'Unknown error occurred');
+      setPosts([]); // Limpiar posts en caso de error
+    } finally {
+      setIsLoadingPosts(false);
+    }
   };
+
+  // Efecto para cargar posts cuando viewMode cambia a 'blog'
+  useEffect(() => {
+    if (viewMode === 'blog') {
+      fetchPosts();
+    }
+  }, [viewMode]);
+
+  // Handler para la navegación
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
+    e.preventDefault();
+    if (target === '/blog') {
+      setViewMode('blog');
+      // Clear selected post when going to blog list
+      setSelectedSlug(null);
+      setPostContent(null);
+    } else {
+      alert('¡página aún en construcción! :)');
+    }
+  };
+
+  // Handler for clicking a post title
+  const handlePostClick = (e: React.MouseEvent<HTMLAnchorElement>, slug: string) => {
+    e.preventDefault();
+    setSelectedSlug(slug);
+    setViewMode('post'); // Switch to post view
+  };
+
+  // Handler para volver (depende del viewMode)
+  const handleGoBack = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+    e.preventDefault();
+    if (viewMode === 'post') {
+      setViewMode('blog'); // Go back to list from post
+      setSelectedSlug(null);
+      setPostContent(null);
+      setErrorLoadingContent(null);
+    } else if (viewMode === 'blog') {
+      setViewMode('home'); // Go back to home from list
+      setPosts([]); // Opcional: limpiar la lista de posts al volver a home
+      setErrorLoadingPosts(null);
+    }
+  };
+
+  // Efecto para cargar el contenido del post seleccionado
+  useEffect(() => {
+    if (selectedSlug) {
+      const fetchPostContent = async () => {
+        setIsLoadingContent(true);
+        setErrorLoadingContent(null);
+        setPostContent(null); // Clear previous content
+        try {
+          const response = await fetch(`/api/posts/${encodeURIComponent(selectedSlug)}`);
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({})); // Try to get error msg
+            throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+          }
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          setPostContent(data.content);
+        } catch (error) {
+          console.error("Failed to fetch post content:", error);
+          setErrorLoadingContent(error instanceof Error ? error.message : 'Unknown error loading content');
+        } finally {
+          setIsLoadingContent(false);
+        }
+      };
+      fetchPostContent();
+    }
+  }, [selectedSlug]);
 
   // Toggle para cambiar entre modo claro y oscuro
   const toggleDarkMode = () => {
@@ -564,71 +669,161 @@ export default function Home() {
         )}
       </button>
 
+      {/* Back Arrow Button - Visible in blog/post view */}
+      {(viewMode === 'blog' || viewMode === 'post') && (
+        <button
+          onClick={handleGoBack} 
+          className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+          style={{
+            backgroundColor: darkMode ? '#333' : '#fff',
+            color: darkMode ? '#fff' : '#333',
+            top: '160px', // Position below sound button
+            left: '24px', // Align with other buttons
+            width: '48px',
+            height: '48px',
+            fontSize: '28px' // Adjust size of arrow
+          }}
+          aria-label="Volver"
+        >
+          ←
+        </button>
+      )}
+
+      {/* Contenido central (Navegación o Posts) */}
       <div 
-        className={geist.className} 
+        className={`${geist.className} transition-opacity duration-500 ease-in-out`}
         style={{ 
           position: 'fixed', 
-          top: '50%', 
-          left: '50%', 
-          transform: 'translate(-50%, -50%)', 
-          textAlign: 'center', 
-          zIndex: 10 
+          top: '200px', // Start below the blocks area
+          left: viewMode === 'home' ? '50%' : '80px', // Center only for home
+          transform: viewMode === 'home' ? 'translateX(-50%)' : 'none',
+          textAlign: viewMode === 'home' ? 'center' : 'left', // Center on home, left align otherwise
+          color: darkMode ? '#eee' : '#111', // Text color responds to dark mode
+          zIndex: 10, 
+          opacity: 1, 
+          width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)', // Wider for home
+          maxWidth: '800px', // Max width for readability
+          maxHeight: 'calc(100vh - 240px)', // Limit height (adjust 240px as needed)
+          overflowY: 'auto', // Make this outer container scrollable
+          padding: '20px', // Add some internal padding
+          backgroundColor: darkMode ? 'rgba(26, 26, 26, 0.8)' : 'rgba(248, 250, 252, 0.8)', // Slightly transparent background 
+          borderRadius: '8px', // Optional: rounded corners
+          backdropFilter: 'blur(5px)' // Optional: blur background behind container
         }}
       >
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          <li style={{ margin: '1rem 0' }}>
-            <a 
-              href="/blog" 
-              style={{ 
-                fontSize: '2rem', 
-                color: darkMode ? '#fff' : '#333', 
-                textDecoration: 'none' 
-              }} 
-              onClick={handleNavClick}
-            >
-              blog
-            </a>
-          </li>
-          <li style={{ margin: '1rem 0' }}>
-            <a 
-              href="/diseno" 
-              style={{ 
-                fontSize: '2rem', 
-                color: darkMode ? '#fff' : '#333', 
-                textDecoration: 'none' 
-              }} 
-              onClick={handleNavClick}
-            >
-              diseño
-            </a>
-          </li>
-          <li style={{ margin: '1rem 0' }}>
-            <a 
-              href="/proyectos" 
-              style={{ 
-                fontSize: '2rem', 
-                color: darkMode ? '#fff' : '#333', 
-                textDecoration: 'none' 
-              }} 
-              onClick={handleNavClick}
-            >
-              proyectos
-            </a>
-          </li>
-          <li style={{ margin: '1rem 0' }}>
-            <a 
-              href="/about" 
-              style={{ 
-                fontSize: '2rem', 
-                color: darkMode ? '#fff' : '#333', 
-                textDecoration: 'none' 
-              }} 
-              onClick={handleNavClick}
-            >
-              sobre mi:)
-            </a>
-          </li>
-        </ul>
+        {viewMode === 'home' ? (
+          // Vista Home: Navegación principal
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '10vh' }}>
+            <li style={{ margin: '1rem 0' }}>
+              <a 
+                href="/blog" 
+                style={{ 
+                  fontSize: '2rem', 
+                  color: darkMode ? '#fff' : '#333', 
+                  textDecoration: 'none' 
+                }} 
+                onClick={(e) => handleNavClick(e, '/blog')}
+              >
+                blog
+              </a>
+            </li>
+            <li style={{ margin: '1rem 0' }}>
+              <a 
+                href="/diseno" 
+                style={{ 
+                  fontSize: '2rem', 
+                  color: darkMode ? '#fff' : '#333', 
+                  textDecoration: 'none' 
+                }} 
+                onClick={(e) => handleNavClick(e, '/diseno')}
+              >
+                diseño
+              </a>
+            </li>
+            <li style={{ margin: '1rem 0' }}>
+              <a 
+                href="/proyectos" 
+                style={{ 
+                  fontSize: '2rem', 
+                  color: darkMode ? '#fff' : '#333', 
+                  textDecoration: 'none' 
+                }} 
+                onClick={(e) => handleNavClick(e, '/proyectos')}
+              >
+                proyectos
+              </a>
+            </li>
+            <li style={{ margin: '1rem 0' }}>
+              <a 
+                href="/about" 
+                style={{ 
+                  fontSize: '2rem', 
+                  color: darkMode ? '#fff' : '#333', 
+                  textDecoration: 'none' 
+                }} 
+                onClick={(e) => handleNavClick(e, '/about')}
+              >
+                sobre mi:)
+              </a>
+            </li>
+          </ul>
+        ) : viewMode === 'blog' ? (
+          // Vista Blog: Lista de posts
+          <div>
+            {isLoadingPosts ? (
+              <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando posts...</p>
+            ) : errorLoadingPosts ? (
+              <p style={{ color: 'red' }}>Error: {errorLoadingPosts}</p>
+            ) : posts.length > 0 ? (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {posts.map((post) => (
+                  <li key={post.slug} style={{ margin: '1rem 0' }}>
+                    <a 
+                      href="#"
+                      onClick={(e) => handlePostClick(e, post.slug)}
+                      style={{ 
+                        fontSize: '1.8rem', 
+                        color: darkMode ? '#eee' : '#111', 
+                        textDecoration: 'none' 
+                      }}
+                    >
+                      {post.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ color: darkMode ? '#ccc' : '#555' }}>No hay posts todavía.</p>
+            )}
+          </div>
+        ) : viewMode === 'post' ? (
+          // Vista Post: Contenido del Markdown
+          <div> {/* Inner div no longer needs scrolling/height/paddingTop limits */}
+            {isLoadingContent && <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando contenido...</p>}
+            {errorLoadingContent && <p style={{ color: 'red' }}>Error: {errorLoadingContent}</p>}
+            {postContent && (
+              <div className="markdown-content" style={{ textAlign: 'left', paddingBottom: '78px' /* Extra bottom space */ }}>
+                <ReactMarkdown
+                  components={{
+                    // Re-add basic styling components (adjust as needed)
+                    h1: ({ ...props}) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props} />,
+                    h2: ({ ...props}) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props} />,
+                    p: ({ ...props}) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props} />,
+                    a: ({ ...props}) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props} />,
+                    li: ({ ...props}) => <li style={{ marginBottom: '0.5rem' }} {...props} />,
+                    blockquote: ({ ...props}) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props} />,
+                    code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) => 
+                      inline ? 
+                        <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code> : 
+                        <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>,
+                  }}
+                >
+                  {postContent}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </>
   );
