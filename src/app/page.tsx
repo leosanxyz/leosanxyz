@@ -694,137 +694,167 @@ export default function Home() {
         className={`${geist.className} transition-opacity duration-500 ease-in-out`}
         style={{ 
           position: 'fixed', 
-          top: '200px', // Start below the blocks area
-          left: viewMode === 'home' ? '50%' : '80px', // Center only for home
+          top: '200px',
+          left: viewMode === 'home' ? '50%' : '80px',
           transform: viewMode === 'home' ? 'translateX(-50%)' : 'none',
-          textAlign: viewMode === 'home' ? 'center' : 'left', // Center on home, left align otherwise
-          color: darkMode ? '#eee' : '#111', // Text color responds to dark mode
+          textAlign: viewMode === 'home' ? 'center' : 'left',
+          color: darkMode ? '#eee' : '#111',
           zIndex: 10, 
           opacity: 1, 
-          width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)', // Wider for home
-          maxWidth: '800px', // Max width for readability
-          maxHeight: 'calc(100vh - 240px)', // Limit height (adjust 240px as needed)
-          overflowY: 'auto', // Make this outer container scrollable
-          padding: '20px', // Add some internal padding
-          backgroundColor: darkMode ? 'rgba(26, 26, 26, 0.8)' : 'rgba(248, 250, 252, 0.8)', // Slightly transparent background 
-          borderRadius: '8px', // Optional: rounded corners
-          backdropFilter: 'blur(5px)' // Optional: blur background behind container
+          width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)',
+          maxWidth: '800px',
+          maxHeight: 'calc(100vh - 240px)',
+          overflowY: 'auto',
+          padding: '20px',
+          ...(viewMode === 'post' ? {
+            backgroundColor: 'transparent',
+            borderRadius: '16px',
+            backdropFilter: 'blur(8px)',
+            boxShadow: `0 0 40px 40px ${darkMode ? 'rgba(26, 26, 26, 0.6)' : 'rgba(248, 250, 252, 0.6)'}`,
+            background: darkMode 
+              ? 'radial-gradient(circle at center, rgba(26, 26, 26, 0.82) 0%, rgba(26, 26, 26, 0.7) 50%, rgba(26, 26, 26, 0.4) 80%, rgba(26, 26, 26, 0) 100%)'
+              : 'radial-gradient(circle at center, rgba(248, 250, 252, 0.82) 0%, rgba(248, 250, 252, 0.7) 50%, rgba(248, 250, 252, 0.4) 80%, rgba(248, 250, 252, 0) 100%)'
+          } : {
+            backgroundColor: 'transparent',
+            borderRadius: 0,
+            backdropFilter: 'none',
+            boxShadow: 'none',
+            background: 'none'
+          })
         }}
       >
-        {viewMode === 'home' ? (
-          // Vista Home: Navegación principal
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '10vh' }}>
-            <li style={{ margin: '1rem 0' }}>
-              <a 
-                href="/blog" 
-                style={{ 
-                  fontSize: '2rem', 
-                  color: darkMode ? '#fff' : '#333', 
-                  textDecoration: 'none' 
-                }} 
-                onClick={(e) => handleNavClick(e, '/blog')}
-              >
-                blog
-              </a>
-            </li>
-            <li style={{ margin: '1rem 0' }}>
-              <a 
-                href="/diseno" 
-                style={{ 
-                  fontSize: '2rem', 
-                  color: darkMode ? '#fff' : '#333', 
-                  textDecoration: 'none' 
-                }} 
-                onClick={(e) => handleNavClick(e, '/diseno')}
-              >
-                diseño
-              </a>
-            </li>
-            <li style={{ margin: '1rem 0' }}>
-              <a 
-                href="/proyectos" 
-                style={{ 
-                  fontSize: '2rem', 
-                  color: darkMode ? '#fff' : '#333', 
-                  textDecoration: 'none' 
-                }} 
-                onClick={(e) => handleNavClick(e, '/proyectos')}
-              >
-                proyectos
-              </a>
-            </li>
-            <li style={{ margin: '1rem 0' }}>
-              <a 
-                href="/about" 
-                style={{ 
-                  fontSize: '2rem', 
-                  color: darkMode ? '#fff' : '#333', 
-                  textDecoration: 'none' 
-                }} 
-                onClick={(e) => handleNavClick(e, '/about')}
-              >
-                sobre mi:)
-              </a>
-            </li>
-          </ul>
-        ) : viewMode === 'blog' ? (
-          // Vista Blog: Lista de posts
-          <div>
-            {isLoadingPosts ? (
-              <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando posts...</p>
-            ) : errorLoadingPosts ? (
-              <p style={{ color: 'red' }}>Error: {errorLoadingPosts}</p>
-            ) : posts.length > 0 ? (
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {posts.map((post) => (
-                  <li key={post.slug} style={{ margin: '1rem 0' }}>
-                    <a 
-                      href="#"
-                      onClick={(e) => handlePostClick(e, post.slug)}
-                      style={{ 
-                        fontSize: '1.8rem', 
-                        color: darkMode ? '#eee' : '#111', 
-                        textDecoration: 'none' 
+        <div style={{ position: 'relative' }}>
+          {viewMode === 'home' ? (
+            // Vista Home: Navegación principal
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '5vh' }}>
+              <li style={{ margin: '1rem 0' }}>
+                <a 
+                  href="/blog" 
+                  style={{ 
+                    fontSize: '2rem', 
+                    color: darkMode ? '#fff' : '#333', 
+                    textDecoration: 'none' 
+                  }} 
+                  onClick={(e) => handleNavClick(e, '/blog')}
+                >
+                  blog
+                </a>
+              </li>
+              <li style={{ margin: '1rem 0' }}>
+                <a 
+                  href="/diseno" 
+                  style={{ 
+                    fontSize: '2rem', 
+                    color: darkMode ? '#fff' : '#333', 
+                    textDecoration: 'none' 
+                  }} 
+                  onClick={(e) => handleNavClick(e, '/diseno')}
+                >
+                  diseño
+                </a>
+              </li>
+              <li style={{ margin: '1rem 0' }}>
+                <a 
+                  href="/proyectos" 
+                  style={{ 
+                    fontSize: '2rem', 
+                    color: darkMode ? '#fff' : '#333', 
+                    textDecoration: 'none' 
+                  }} 
+                  onClick={(e) => handleNavClick(e, '/proyectos')}
+                >
+                  proyectos
+                </a>
+              </li>
+              <li style={{ margin: '1rem 0' }}>
+                <a 
+                  href="/about" 
+                  style={{ 
+                    fontSize: '2rem', 
+                    color: darkMode ? '#fff' : '#333', 
+                    textDecoration: 'none' 
+                  }} 
+                  onClick={(e) => handleNavClick(e, '/about')}
+                >
+                  sobre mi:)
+                </a>
+              </li>
+            </ul>
+          ) : viewMode === 'blog' ? (
+            // Vista Blog: Lista de posts
+            <div>
+              {isLoadingPosts ? (
+                <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando posts...</p>
+              ) : errorLoadingPosts ? (
+                <p style={{ color: 'red' }}>Error: {errorLoadingPosts}</p>
+              ) : posts.length > 0 ? (
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {posts.map((post) => (
+                    <li key={post.slug} style={{ margin: '1rem 0' }}>
+                      <a 
+                        href="#"
+                        onClick={(e) => handlePostClick(e, post.slug)}
+                        style={{ 
+                          fontSize: '1.8rem', 
+                          color: darkMode ? '#eee' : '#111', 
+                          textDecoration: 'none' 
+                        }}
+                      >
+                        {post.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ color: darkMode ? '#ccc' : '#555' }}>No hay posts todavía.</p>
+              )}
+            </div>
+          ) : viewMode === 'post' ? (
+            <>
+              {/* Fade effect at the top of scroll area - solo en modo post */}
+              <div style={{
+                position: 'sticky',
+                top: '-30px',
+                left: '-20px',
+                right: '-20px',
+                height: '40px',
+                zIndex: 15,
+                pointerEvents: 'none',
+                background: darkMode 
+                  ? 'linear-gradient(to bottom, rgba(26, 26, 26, 0.95) 0%, rgba(26, 26, 26, 0.8) 30%, rgba(26, 26, 26, 0.4) 70%, rgba(26, 26, 26, 0) 100%)' 
+                  : 'linear-gradient(to bottom, rgba(248, 250, 252, 0.95) 0%, rgba(248, 250, 252, 0.8) 30%, rgba(248, 250, 252, 0.4) 70%, rgba(248, 250, 252, 0) 100%)',
+                backdropFilter: 'blur(6px)',
+                borderTopLeftRadius: '16px',
+                borderTopRightRadius: '16px',
+              }} />
+              <div> {/* Inner div no longer needs scrolling/height/paddingTop limits */}
+                {isLoadingContent && <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando contenido...</p>}
+                {errorLoadingContent && <p style={{ color: 'red' }}>Error: {errorLoadingContent}</p>}
+                {postContent && (
+                  <div className="markdown-content" style={{ textAlign: 'left', paddingBottom: '78px' /* Extra bottom space */ }}>
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ ...props}) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props} />, 
+                        h2: ({ ...props}) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props} />, 
+                        p: ({ ...props}) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props} />, 
+                        a: ({ ...props}) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props} />, 
+                        li: ({ ...props}) => <li style={{ marginBottom: '0.5rem' }} {...props} />, 
+                        blockquote: ({ ...props}) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props} />, 
+                        code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) => 
+                          inline ? 
+                            <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code> : 
+                            <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>,
                       }}
                     >
-                      {post.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ color: darkMode ? '#ccc' : '#555' }}>No hay posts todavía.</p>
-            )}
-          </div>
-        ) : viewMode === 'post' ? (
-          // Vista Post: Contenido del Markdown
-          <div> {/* Inner div no longer needs scrolling/height/paddingTop limits */}
-            {isLoadingContent && <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando contenido...</p>}
-            {errorLoadingContent && <p style={{ color: 'red' }}>Error: {errorLoadingContent}</p>}
-            {postContent && (
-              <div className="markdown-content" style={{ textAlign: 'left', paddingBottom: '78px' /* Extra bottom space */ }}>
-                <ReactMarkdown
-                  components={{
-                    // Re-add basic styling components (adjust as needed)
-                    h1: ({ ...props}) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props} />,
-                    h2: ({ ...props}) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props} />,
-                    p: ({ ...props}) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props} />,
-                    a: ({ ...props}) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props} />,
-                    li: ({ ...props}) => <li style={{ marginBottom: '0.5rem' }} {...props} />,
-                    blockquote: ({ ...props}) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props} />,
-                    code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) => 
-                      inline ? 
-                        <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code> : 
-                        <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>,
-                  }}
-                >
-                  {postContent}
-                </ReactMarkdown>
+                      {postContent}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
     </>
   );
-} 
+}
