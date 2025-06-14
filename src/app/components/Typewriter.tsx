@@ -8,6 +8,7 @@ interface TypewriterProps {
   onComplete?: () => void;  // optional callback when typing finishes
   className?: string;       // wrapper CSS classes
   cursorChar?: string;      // character to use as cursor
+  skip?: boolean;           // force skip to show full text immediately
 }
 
 const Typewriter: React.FC<TypewriterProps> = ({
@@ -17,12 +18,19 @@ const Typewriter: React.FC<TypewriterProps> = ({
   onComplete,
   className,
   cursorChar = "|",
+  skip = false,
 }) => {
   const [displayed, setDisplayed] = useState("");
   const indexRef = useRef(0);
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (skip) {
+      setDisplayed(text);
+      onComplete?.();
+      return;
+    }
+
     const startTyping = () => {
       if (indexRef.current < text.length) {
         timeoutRef.current = window.setTimeout(() => {
@@ -46,12 +54,12 @@ const Typewriter: React.FC<TypewriterProps> = ({
       indexRef.current = 0;
       setDisplayed("");
     };
-  }, [text]);
+  }, [text, skip, speed, initialDelay, onComplete]);
 
   return (
     <span className={className} style={{ whiteSpace: 'pre-wrap' }}>
       {displayed}
-      <span style={{ marginLeft: '2px' }}>{cursorChar}</span>
+      {!skip && <span style={{ marginLeft: '2px' }}>{cursorChar}</span>}
     </span>
   );
 };

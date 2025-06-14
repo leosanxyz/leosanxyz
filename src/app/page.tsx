@@ -43,6 +43,7 @@ export default function Home() {
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [errorLoadingContent, setErrorLoadingContent] = useState<string | null>(null);
   const [postTyped, setPostTyped] = useState(false);
+  const [skipTypewriter, setSkipTypewriter] = useState(false);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
@@ -540,6 +541,7 @@ export default function Home() {
         setErrorLoadingContent(null);
         setPostContent(null); // Clear previous content
         setPostTyped(false); // Reset typing state when new content loads
+        setSkipTypewriter(false); // Reset skip state for new posts
         try {
           const response = await fetch(`/api/posts/${encodeURIComponent(selectedSlug)}`);
           if (!response.ok) {
@@ -860,12 +862,39 @@ export default function Home() {
                     }}
                   >
                     {!postTyped ? (
-                      <Typewriter
-                        text={postContent}
-                        speed={25}
-                        onComplete={() => setPostTyped(true)}
-                        className="w-full break-words"
-                      />
+                      <>
+                        {!skipTypewriter && (
+                          <div style={{ 
+                            marginBottom: '20px',
+                            display: 'flex',
+                            justifyContent: 'flex-end'
+                          }}>
+                            <button
+                              onClick={() => setSkipTypewriter(true)}
+                              className="px-4 py-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+                              style={{
+                                backgroundColor: darkMode ? '#444' : '#fff',
+                                color: darkMode ? '#fff' : '#333',
+                                border: `2px solid ${darkMode ? '#666' : '#ddd'}`,
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              Saltar →
+                            </button>
+                          </div>
+                        )}
+                        <Typewriter
+                          text={postContent}
+                          speed={25}
+                          onComplete={() => {
+                            setPostTyped(true);
+                            setSkipTypewriter(false);
+                          }}
+                          skip={skipTypewriter}
+                          className="w-full break-words"
+                        />
+                      </>
                     ) : (
                       <ReactMarkdown
                         components={{
