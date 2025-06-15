@@ -46,6 +46,8 @@ export default function Home() {
   const [postTyped, setPostTyped] = useState(false);
   const [skipTypewriter, setSkipTypewriter] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [asciiFrames, setAsciiFrames] = useState<string[] | null>(null);
+  const [frameDelay, setFrameDelay] = useState<number>(100);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
@@ -537,6 +539,7 @@ export default function Home() {
       setSelectedSlug(null);
       setPostContent(null);
       setErrorLoadingContent(null);
+      setAsciiFrames(null);
     } else if (viewMode === 'blog') {
       setViewMode('home'); // Go back to home from list
       setPosts([]); // Opcional: limpiar la lista de posts al volver a home
@@ -564,6 +567,8 @@ export default function Home() {
             throw new Error(data.error);
           }
           setPostContent(data.content);
+          setAsciiFrames(data.asciiFrames || null);
+          setFrameDelay(data.frameDelay || 100);
         } catch (error) {
           console.error("Failed to fetch post content:", error);
           setErrorLoadingContent(error instanceof Error ? error.message : 'Unknown error loading content');
@@ -751,7 +756,12 @@ export default function Home() {
 
       {/* ASCII Animation - only on desktop in post view */}
       {viewMode === 'post' && isDesktop && (
-        <AsciiAnimation darkMode={darkMode} />
+        <AsciiAnimation 
+          darkMode={darkMode} 
+          customFrames={asciiFrames || undefined} 
+          postTitle={selectedSlug || undefined}
+          frameDelay={frameDelay}
+        />
       )}
 
       {/* Contenido central (Navegación o Posts) */}
