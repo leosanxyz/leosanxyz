@@ -230,7 +230,7 @@ export async function gifToAsciiFramesEnhanced(gifPath: string): Promise<string[
 }
 
 // Analyze GIF to determine best conversion settings
-function analyzeGif(frameData: Uint8Array, width: number, height: number): { 
+function analyzeGif(frameData: Uint8Array): { 
   targetWidth: number; 
   targetHeight: number;
   style: 'dense' | 'detailed';
@@ -268,7 +268,7 @@ export async function gifToAsciiFramesAuto(gifPath: string): Promise<string[]> {
     // Analyze first frame to determine style
     const firstFrame = new Uint8Array(reader.width * reader.height * 4);
     reader.decodeAndBlitFrameRGBA(0, firstFrame);
-    const settings = analyzeGif(firstFrame, reader.width, reader.height);
+    const settings = analyzeGif(firstFrame);
     
     const frames: string[] = [];
     const frameCount = reader.numFrames();

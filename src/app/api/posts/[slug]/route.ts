@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getCachedAsciiFrames } from '@/utils/gifToAscii';
-import { getEnhancedAsciiFrames } from '@/utils/gifToAsciiImproved';
+// import { getCachedAsciiFrames } from '@/utils/gifToAscii';
+// import { getEnhancedAsciiFrames } from '@/utils/gifToAsciiImproved';
 import { getOptimizedAsciiFrames } from '@/utils/gifToAsciiAdvanced';
 
 // ASCII animations for different posts

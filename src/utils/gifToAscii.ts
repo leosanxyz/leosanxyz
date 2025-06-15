@@ -5,9 +5,9 @@ import path from 'path';
 // Extended ASCII characters from dark to light for better detail
 // Using characters that match the style of the provided example
 const ASCII_CHARS = ' .:-=+*#%@';
-const DETAILED_CHARS = ' .::-==+++***###%%%@@@';
+// const DETAILED_CHARS = ' .::-==+++***###%%%@@@';
 const BLOCK_CHARS = ' ░▒▓█';
-const SIMPLE_CHARS = ' .,:;i1tfLCG08@';
+// const SIMPLE_CHARS = ' .,:;i1tfLCG08@';
 
 // Convert a pixel's brightness to an ASCII character with better contrast
 function pixelToAscii(r: number, g: number, b: number, useBlocks: boolean = false): string {
@@ -81,7 +81,7 @@ export async function gifToAsciiFrames(gifPath: string): Promise<string[]> {
     
     // Process each frame
     for (let i = 0; i < frameCount; i++) {
-      const frameInfo = reader.frameInfo(i);
+      // const frameInfo = reader.frameInfo(i);
       const frameData = new Uint8Array(reader.width * reader.height * 4);
       reader.decodeAndBlitFrameRGBA(i, frameData);
       
@@ -110,7 +110,7 @@ export async function gifToAsciiFramesWithConfig(
   config: AsciiConfig = {}
 ): Promise<string[]> {
   try {
-    const { width = 50, height = 35, useBlocks = false } = config;
+    const { width = 50, height = 35 } = config;
     
     // Read GIF file
     const gifData = fs.readFileSync(gifPath);
@@ -121,7 +121,7 @@ export async function gifToAsciiFramesWithConfig(
     
     // Process each frame
     for (let i = 0; i < frameCount; i++) {
-      const frameInfo = reader.frameInfo(i);
+      // const frameInfo = reader.frameInfo(i);
       const frameData = new Uint8Array(reader.width * reader.height * 4);
       reader.decodeAndBlitFrameRGBA(i, frameData);
       
@@ -167,7 +167,7 @@ export async function getGifInfo(gifPath: string): Promise<{ frames: string[], f
     // Get average frame delay (in centiseconds)
     let totalDelay = 0;
     for (let i = 0; i < reader.numFrames(); i++) {
-      const frameInfo = reader.frameInfo(i);
+      // const frameInfo = reader.frameInfo(i);
       totalDelay += frameInfo.delay || 10; // Default to 10cs (100ms) if no delay specified
     }
     const avgDelay = totalDelay / reader.numFrames();

@@ -72,7 +72,7 @@ const AsciiAnimation: React.FC<AsciiAnimationProps> = ({ darkMode, customFrames,
   
   useEffect(() => {
     // Initialize matrix rain
-    const chars = Array.from({ length: 20 }, (_, i) => ({
+    const chars = Array.from({ length: 20 }, () => ({
       char: matrixSymbols[Math.floor(Math.random() * matrixSymbols.length)],
       y: Math.random() * -100,
       speed: Math.random() * 2 + 1
