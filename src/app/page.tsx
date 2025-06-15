@@ -5,6 +5,7 @@ import { GeistSans } from "geist/font/sans";
 import ReactMarkdown from 'react-markdown';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
+import AsciiAnimation from './components/AsciiAnimation';
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -44,12 +45,24 @@ export default function Home() {
   const [errorLoadingContent, setErrorLoadingContent] = useState<string | null>(null);
   const [postTyped, setPostTyped] = useState(false);
   const [skipTypewriter, setSkipTypewriter] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [asciiFrames, setAsciiFrames] = useState<string[] | null>(null);
+  const [frameDelay, setFrameDelay] = useState<number>(100);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
     // Establecer soundEnabled dependiendo del ancho de la pantalla
     const isMobile = window.innerWidth < 600;
     setSoundEnabled(!isMobile); // Apagado en móviles, encendido en desktop
+    setIsDesktop(window.innerWidth >= 900);
+    
+    // Handle resize
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 900);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Aplicar cambios al body cuando cambia el modo oscuro
@@ -526,6 +539,7 @@ export default function Home() {
       setSelectedSlug(null);
       setPostContent(null);
       setErrorLoadingContent(null);
+      setAsciiFrames(null);
     } else if (viewMode === 'blog') {
       setViewMode('home'); // Go back to home from list
       setPosts([]); // Opcional: limpiar la lista de posts al volver a home
@@ -553,6 +567,8 @@ export default function Home() {
             throw new Error(data.error);
           }
           setPostContent(data.content);
+          setAsciiFrames(data.asciiFrames || null);
+          setFrameDelay(data.frameDelay || 100);
         } catch (error) {
           console.error("Failed to fetch post content:", error);
           setErrorLoadingContent(error instanceof Error ? error.message : 'Unknown error loading content');
@@ -600,7 +616,7 @@ export default function Home() {
     maxHeight: 'calc(100vh - 240px)',
     overflowY: 'auto',
     padding: '20px',
-    ...(viewMode === 'post' && typeof window !== 'undefined' && window.innerWidth >= 900
+    ...(viewMode === 'post' && isDesktop
       ? {
           left: 'auto',
           right: '5vw',
@@ -738,6 +754,16 @@ export default function Home() {
         </button>
       )}
 
+      {/* ASCII Animation - only on desktop in post view */}
+      {viewMode === 'post' && isDesktop && (
+        <AsciiAnimation 
+          darkMode={darkMode} 
+          customFrames={asciiFrames || undefined} 
+          postTitle={selectedSlug || undefined}
+          frameDelay={frameDelay}
+        />
+      )}
+
       {/* Contenido central (Navegación o Posts) */}
       <div 
         className={`${geist.className} transition-opacity duration-500 ease-in-out`}
@@ -846,7 +872,7 @@ export default function Home() {
                       overflowY: 'auto',
                       boxSizing: 'border-box',
                       // Desktop: alinea a la derecha
-                      ...(window.innerWidth >= 900
+                      ...(isDesktop
                         ? {
                             marginLeft: 'auto',
                             marginRight: 0,
