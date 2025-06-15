@@ -2,17 +2,17 @@ import { GifReader } from 'omggif';
 import fs from 'fs';
 import path from 'path';
 
-// Character map with precise brightness values (inspired by gif-for-cli)
+// Character map with precise brightness values - adjusted for less density
 const CHAR_MAP: { char: string; brightness: number }[] = [
   { char: ' ', brightness: 0 },
-  { char: '.', brightness: 0.1 },
-  { char: ':', brightness: 0.15 },
-  { char: '-', brightness: 0.2 },
-  { char: '=', brightness: 0.3 },
-  { char: '+', brightness: 0.4 },
-  { char: '*', brightness: 0.5 },
-  { char: '#', brightness: 0.65 },
-  { char: '%', brightness: 0.8 },
+  { char: ' ', brightness: 0.05 },    // More spaces for lighter areas
+  { char: '.', brightness: 0.15 },
+  { char: ':', brightness: 0.25 },
+  { char: '-', brightness: 0.35 },
+  { char: '=', brightness: 0.45 },
+  { char: '+', brightness: 0.55 },
+  { char: '*', brightness: 0.7 },
+  { char: '#', brightness: 0.85 },
   { char: '@', brightness: 1.0 },
 ];
 
@@ -130,8 +130,13 @@ export function frameToAsciiAdvanced(
         brightness = 1 - brightness;
       }
       
-      // Get ASCII character
-      ascii += getCharForBrightness(brightness, detailed);
+      // Force more spaces for very light areas to reduce density
+      if (brightness < 0.2) {
+        ascii += ' ';
+      } else {
+        // Get ASCII character
+        ascii += getCharForBrightness(brightness, detailed);
+      }
     }
     ascii += '\n';
   }
@@ -181,7 +186,7 @@ export async function gifToAsciiOptimized(
         const asciiFrame = frameToAsciiAdvanced(frameData, reader.width, reader.height, {
           cols: options.cols || 100,
           detailed: options.detailed || false,
-          contrast: 1.5,
+          contrast: 1.1,  // Reduced contrast for less saturation
           invert: options.invert || false
         });
         
@@ -196,7 +201,7 @@ export async function gifToAsciiOptimized(
         const asciiFrame = frameToAsciiAdvanced(frameData, reader.width, reader.height, {
           cols: options.cols || 100,
           detailed: options.detailed || false,
-          contrast: 1.5,
+          contrast: 1.1,  // Reduced contrast for less saturation
           invert: options.invert || false
         });
         
@@ -325,7 +330,7 @@ export async function getOptimizedAsciiFrames(slug: string): Promise<{ frames: s
   
   // Process and cache
   const result = await gifToAsciiOptimized(gifPath, {
-    cols: 100,
+    cols: 80,  // Reduced from 100 for less density
     detailed: false,
     maxFrames: 200, // Increased limit to capture full GIF
     invert: needsInversion
