@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface ScrambleInProps {
   text: string;
@@ -33,7 +33,7 @@ const ScrambleIn: React.FC<ScrambleInProps> = ({
   const frameRef = useRef<number | null>(null);
   const idxRef = useRef<number>(0);
 
-  const start = () => {
+  const start = useCallback(() => {
     onStart?.();
     idxRef.current = 0;
     const total = text.length;
@@ -59,7 +59,7 @@ const ScrambleIn: React.FC<ScrambleInProps> = ({
       }
     };
     scramble();
-  };
+  }, [text, scrambleSpeed, scrambledLetterCount, characters, onStart, onComplete]);
 
   useEffect(() => {
     if (autoStart) {
@@ -70,7 +70,7 @@ const ScrambleIn: React.FC<ScrambleInProps> = ({
         clearTimeout(frameRef.current);
       }
     };
-  }, [text]);
+  }, [text, autoStart, start]);
 
   return (
     <span className={className}>

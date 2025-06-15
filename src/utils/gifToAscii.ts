@@ -167,7 +167,7 @@ export async function getGifInfo(gifPath: string): Promise<{ frames: string[], f
     // Get average frame delay (in centiseconds)
     let totalDelay = 0;
     for (let i = 0; i < reader.numFrames(); i++) {
-      // const frameInfo = reader.frameInfo(i);
+      const frameInfo = reader.frameInfo(i);
       totalDelay += frameInfo.delay || 10; // Default to 10cs (100ms) if no delay specified
     }
     const avgDelay = totalDelay / reader.numFrames();
