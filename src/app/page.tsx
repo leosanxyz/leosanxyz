@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
 import AsciiAnimation from './components/AsciiAnimation';
+import Screensaver from './components/Screensaver';
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -48,6 +49,7 @@ export default function Home() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [asciiFrames, setAsciiFrames] = useState<string[] | null>(null);
   const [frameDelay, setFrameDelay] = useState<number>(100);
+  const [showScreensaver, setShowScreensaver] = useState(false);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
@@ -520,7 +522,7 @@ export default function Home() {
       setSelectedSlug(null);
       setPostContent(null);
     } else {
-      alert('¡página aún en construcción! :)');
+      setShowScreensaver(true);
     }
   };
 
@@ -659,6 +661,13 @@ export default function Home() {
           background-color: ${darkMode ? '#1a1a1a' : '#f8fafc'};
         }
       `}</style>
+      
+      {/* Screensaver Component */}
+      {showScreensaver && (
+        <div onClick={() => setShowScreensaver(false)}>
+          <Screensaver darkMode={darkMode} />
+        </div>
+      )}
       
       <div 
         ref={sceneRef} 

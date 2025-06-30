@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Click</title>
+</head>
+<body>
+    <h1>Test Navigation</h1>
+    <a href="/diseno" id="disenoLink">Diseño</a>
+    
+    <script>
+        // Open localhost:3000 and run this in console
+        console.log(`
+        // Run this in the console of localhost:3000
+        
+        // Find diseño link
+        const links = document.querySelectorAll('a');
+        links.forEach(link => {
+            if (link.textContent.includes('diseño')) {
+                console.log('Found diseño link:', link);
+                link.click();
+            }
+        });
+        
+        // Check screensaver state
+        setTimeout(() => {
+            const screensaver = document.querySelector('[style*="fixed inset-0"]');
+            console.log('Screensaver element:', screensaver);
+        }, 1000);
+        `);
+    </script>
+</body>
+</html>
