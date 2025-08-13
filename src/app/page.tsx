@@ -229,7 +229,8 @@ export default function Home() {
     ];
 
     // Resortera y bola (posición responsiva)
-    const slingX = 48; // Align with the center of the left buttons (24px left + 48px width / 2)
+    // En desktop lo movemos un poco a la derecha para facilitar el arrastre
+    const slingX = isMobile ? 48 : 80; // Align with buttons on mobile, give more room on desktop
     const slingY = height - 120; // Keep near bottom
     const slingStart = { x: slingX, y: slingY };
     let ball: Matter.Body | null = null;
