@@ -2,11 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
-import ReactMarkdown from 'react-markdown';
+import dynamic from 'next/dynamic';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
-import AsciiAnimation from './components/AsciiAnimation';
-import Screensaver from './components/Screensaver';
+
+// Lazy-load heavy optional components
+const ReactMarkdown = dynamic(() => import('react-markdown'));
+const AsciiAnimation = dynamic(() => import('./components/AsciiAnimation'), { ssr: false });
+const Screensaver = dynamic(() => import('./components/Screensaver'), { ssr: false });
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -277,7 +280,9 @@ export default function Home() {
           });
           Composite.add(engine.world, [ball, sling]);
           activeBallId = ball.id;
-          console.log("New ball created. Active ID:", activeBallId);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log("New ball created. Active ID:", activeBallId);
+          }
         }
       }
     };
@@ -315,7 +320,9 @@ export default function Home() {
           // Dejar referencias listas para la siguiente bola
           ball = null;
           sling = null;
-          console.log("Ball launched. Active ID remains:", activeBallId);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log("Ball launched. Active ID remains:", activeBallId);
+          }
         }, 16);
       }
     });
@@ -364,7 +371,9 @@ export default function Home() {
       const half = duration / 2;
       const easeOutQuad = (t: number) => t * (2 - t);
 
-      console.log(`-> bounceBlock: "${block.label}" bounceHeight=${bounceHeight}, duration=${duration}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`-> bounceBlock: "${block.label}" bounceHeight=${bounceHeight}, duration=${duration}`);
+      }
 
       const startTime = performance.now();
       function animateUp(time: number) {
@@ -386,7 +395,9 @@ export default function Home() {
             } else {
               Matter.Body.setPosition(block, { x: origX, y: origY });
               block.isBouncing = false;
-              console.log(`-> bounceBlock: "${block.label}" returned to origin`);
+              if (process.env.NODE_ENV !== 'production') {
+                console.log(`-> bounceBlock: "${block.label}" returned to origin`);
+              }
             }
           }
           requestAnimationFrame(animateDown);
@@ -444,15 +455,23 @@ export default function Home() {
         }
 
         if (blockHit && projectile) {
-          console.log("\tCollision involves ball and block:", blockHit.label);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log("\tCollision involves ball and block:", blockHit.label);
+          }
           const ballY = projectile.position.y;
           const blockY = blockHit.position.y;
-          console.log(`\tBall Y: ${ballY.toFixed(2)}, Block Y: ${blockY.toFixed(2)}`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`\tBall Y: ${ballY.toFixed(2)}, Block Y: ${blockY.toFixed(2)}`);
+          }
           if (ballY > blockY) {
-            console.log("\tCondition (ballY > blockY) met: Ball hit from below!");
+            if (process.env.NODE_ENV !== 'production') {
+              console.log("\tCondition (ballY > blockY) met: Ball hit from below!");
+            }
             bounceBlock(blockHit);
           } else {
-            console.log("\tCondition not met: Ball did not hit from below.");
+            if (process.env.NODE_ENV !== 'production') {
+              console.log("\tCondition not met: Ball did not hit from below.");
+            }
           }
         }
       }
@@ -461,6 +480,18 @@ export default function Home() {
     Render.run(render);
     const runner = Runner.create();
     Runner.run(runner, engine);
+
+    // Pause/resume animation when tab visibility changes
+    const handleVisibility = () => {
+      if (document.hidden) {
+        Render.stop(render);
+        Runner.stop(runner);
+      } else {
+        Render.run(render);
+        Runner.run(runner, engine);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     // Redimensionar el canvas al cambiar el tamaño de la ventana
     const handleResize = () => {
@@ -475,6 +506,7 @@ export default function Home() {
 
     // Limpieza
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('resize', handleResize);
       Render.stop(render);
       Runner.stop(runner);
@@ -824,7 +856,7 @@ export default function Home() {
             // Vista Blog: Lista de posts
             <div
               style={
-                window.innerWidth >= 900
+                isDesktop
                   ? { display: 'flex', justifyContent: 'center', width: '100%' }
                   : undefined
               }

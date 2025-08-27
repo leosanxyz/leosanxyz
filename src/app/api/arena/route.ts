@@ -1,22 +1,17 @@
+export const revalidate = 3600; // cache external fetches for 1 hour
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // First, get channel info to know total number of blocks
-    const channelResponse = await fetch('https://api.are.na/v2/channels/wow-wmoqvbzq_ys');
-    const channelData = await channelResponse.json();
-    const totalBlocks = channelData.length || 0;
-    
-    
-    // Calculate number of pages to fetch (max 5 pages to avoid too many requests)
+    // Fetch multiple pages in parallel (cap pages to avoid excessive requests)
     const perPage = 50;
-    const totalPages = Math.min(5, Math.ceil(totalBlocks / perPage));
+    const totalPages = 3; // fetch first 3 pages for variety
     
     // Fetch multiple pages in parallel
     const pagePromises = [];
     for (let page = 1; page <= totalPages; page++) {
       pagePromises.push(
-        fetch(`https://api.are.na/v2/channels/wow-wmoqvbzq_ys?per=${perPage}&page=${page}`)
+        fetch(`https://api.are.na/v2/channels/wow-wmoqvbzq_ys?per=${perPage}&page=${page}`, { next: { revalidate: 3600 } })
           .then(res => res.json())
       );
     }
@@ -34,8 +29,6 @@ export async function GET() {
         .filter(Boolean) || [];
       allImageUrls.push(...pageImages);
     });
-    
-    
     // Shuffle all images using Fisher-Yates algorithm
     const shuffledUrls = [...allImageUrls];
     for (let i = shuffledUrls.length - 1; i > 0; i--) {

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import Image from "next/image";
 
 interface ScreensaverProps {
   darkMode: boolean;
@@ -259,7 +260,8 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
             width: isMobile === true ? '150px' : '250px',
             height: isMobile === true ? '150px' : '250px',
             transition: 'none',
-            zIndex: 9998 - index
+            zIndex: 9998 - index,
+            willChange: 'transform'
           }}
         >
           <div style={{
@@ -272,14 +274,12 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
               ? '0 15px 40px rgba(255, 255, 255, 0.3)' 
               : '0 15px 40px rgba(0, 0, 0, 0.3)'
           }}>
-            <img
+            <Image
               src={img.imageUrl}
               alt={`Arena image ${img.id}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
+              fill
+              sizes="(max-width: 768px) 150px, 250px"
+              style={{ objectFit: 'cover' }}
               onError={() => console.error('Failed to load:', img.imageUrl)}
             />
           </div>

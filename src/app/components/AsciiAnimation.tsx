@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 interface AsciiAnimationProps {
   darkMode: boolean;
@@ -81,25 +81,50 @@ const AsciiAnimation: React.FC<AsciiAnimationProps> = ({ darkMode, customFrames,
   }, []);
 
   // Separate effects for GIF animation and text animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame((prev) => (prev + 1) % frames.length);
-      
-      // Update matrix rain
-      setMatrixChars(prev => prev.map(char => {
-        const newY = char.y + char.speed;
-        if (newY > 100) {
-          return {
-            char: matrixSymbols[Math.floor(Math.random() * matrixSymbols.length)],
-            y: -10,
-            speed: Math.random() * 2 + 1
-          };
-        }
-        return { ...char, y: newY };
-      }));
-    }, frameDelay); // Use actual frame delay from GIF
+  // rAF-driven animation using elapsed time to honor frameDelay
+  const lastTimeRef = useRef<number>(0);
+  const accRef = useRef<number>(0);
+  const rafRef = useRef<number | null>(null);
 
-    return () => clearInterval(interval);
+  useEffect(() => {
+    const animate = (ts: number) => {
+      if (!lastTimeRef.current) lastTimeRef.current = ts;
+      const delta = ts - lastTimeRef.current;
+      lastTimeRef.current = ts;
+
+      if (!document.hidden) {
+        accRef.current += delta;
+        while (accRef.current >= frameDelay) {
+          setFrame((prev) => (prev + 1) % frames.length);
+          accRef.current -= frameDelay;
+        }
+
+        // Update matrix rain a bit each frame
+        setMatrixChars((prev) =>
+          prev.map((char) => {
+            const newY = char.y + char.speed * (delta / 16.67);
+            if (newY > 100) {
+              return {
+                char: matrixSymbols[Math.floor(Math.random() * matrixSymbols.length)],
+                y: -10,
+                speed: Math.random() * 2 + 1,
+              };
+            }
+            return { ...char, y: newY };
+          })
+        );
+      }
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      lastTimeRef.current = 0;
+      accRef.current = 0;
+    };
   }, [frames.length, frameDelay]);
 
   // Separate interval for text animation (slower)
