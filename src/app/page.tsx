@@ -27,6 +27,10 @@ interface Post {
   title: string;
 }
 
+// Body type with sprite render for texture swapping without using `any`
+type SpriteRender = { texture: string; xScale?: number; yScale?: number };
+type SpriteBody = Matter.Body & { render: Matter.Body['render'] & { sprite?: SpriteRender } };
+
 const geist = GeistSans;
 
 export default function Home() {
@@ -325,18 +329,21 @@ export default function Home() {
     });
 
     // Cambiar textura cuando se empieza a arrastrar la bola
-    Matter.Events.on(mouseConstraint, 'startdrag', (event: any) => {
+    type DragEvt = Matter.IEvent<Matter.MouseConstraint> & { body?: Matter.Body };
+    Matter.Events.on(mouseConstraint, 'startdrag', (event: DragEvt) => {
       if (ball && event && event.body && event.body.id === ball.id) {
         // Cambiar a textura de "hold" mientras se estira
-        (ball as any).render.sprite.texture = SLING_TEXTURES.hold;
+        const spr = (ball as SpriteBody).render.sprite;
+        if (spr) spr.texture = SLING_TEXTURES.hold;
       }
     });
 
     // Lógica para soltar la bola de la resortera
-    Matter.Events.on(mouseConstraint, "enddrag", (event: Matter.IEvent<Matter.MouseConstraint>) => {
-      if (ball && sling && (event as { body?: Matter.Body }).body === ball) {
+    Matter.Events.on(mouseConstraint, "enddrag", (event: DragEvt) => {
+      if (ball && sling && event.body === ball) {
         // Volver a textura base al terminar el arrastre
-        (ball as any).render.sprite.texture = SLING_TEXTURES.base;
+        const spr = (ball as SpriteBody).render.sprite;
+        if (spr) spr.texture = SLING_TEXTURES.base;
         // Calcular vector de estiramiento
         const dx = sling.pointA.x - ball.position.x;
         const dy = sling.pointA.y - ball.position.y;
@@ -787,7 +794,7 @@ export default function Home() {
                 width={size}
                 height={size}
                 text={"estírame • estírame • estírame • estírame • "}
-                textStyle={{ fontSize: 14, letterSpacing: 1.2 as any }}
+                textStyle={{ fontSize: 14, letterSpacing: 1.2 }}
                 duration={8}
                 textAnchor="start"
               />
