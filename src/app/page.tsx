@@ -5,6 +5,7 @@ import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
+import AnimatedPathText from './components/TextAlongPath';
 
 // Lazy-load heavy optional components
 const ReactMarkdown = dynamic(() => import('react-markdown'));
@@ -33,6 +34,8 @@ export default function Home() {
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [slingPos, setSlingPos] = useState<{ x: number; y: number } | null>(null);
+  const [showStretchHint, setShowStretchHint] = useState(true);
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const blocksRef = useRef<Matter.Body[]>([]);
@@ -236,6 +239,17 @@ export default function Home() {
     const slingX = isMobile ? 48 : 80; // Align with buttons on mobile, give more room on desktop
     const slingY = height - 120; // Keep near bottom
     const slingStart = { x: slingX, y: slingY };
+    // Guardar posición para overlays
+    setSlingPos({ x: slingStart.x, y: slingStart.y });
+    // Texturas del slingshot
+    const SLING_TEXTURES = {
+      base: '/slingshot/base.png',
+      hold: '/slingshot/hold.png',
+    } as const;
+    // Tamaño de la pelota (duplicado respecto al anterior 22)
+    const ballRadius = 44; // antes: 22
+    // Escala para que el PNG (2100px) se vea del tamaño del círculo
+    const spriteScale = (ballRadius * 2) / 2100;
     let ball: Matter.Body | null = null;
     let sling: Matter.Constraint | null = null;
     let activeBallId: number | null = null;
@@ -264,10 +278,16 @@ export default function Home() {
         const detectRadius = isMobile ? 120 : 60;
         const dist = Math.hypot(canvasX - slingStart.x, canvasY - slingStart.y);
         if (dist < detectRadius) {
-          ball = Bodies.circle(slingStart.x, slingStart.y, 22, {
+          ball = Bodies.circle(slingStart.x, slingStart.y, ballRadius, {
             density: 0.004,
             restitution: 0.8,
-            render: { fillStyle: '#eab308' },
+            render: {
+              sprite: {
+                texture: SLING_TEXTURES.base,
+                xScale: spriteScale,
+                yScale: spriteScale,
+              },
+            },
           });
           sling = Constraint.create({
             pointA: slingStart,
@@ -280,6 +300,7 @@ export default function Home() {
           });
           Composite.add(engine.world, [ball, sling]);
           activeBallId = ball.id;
+          setShowStretchHint(false);
           if (process.env.NODE_ENV !== 'production') {
             console.log("New ball created. Active ID:", activeBallId);
           }
@@ -303,9 +324,19 @@ export default function Home() {
       }
     });
 
+    // Cambiar textura cuando se empieza a arrastrar la bola
+    Matter.Events.on(mouseConstraint, 'startdrag', (event: any) => {
+      if (ball && event && event.body && event.body.id === ball.id) {
+        // Cambiar a textura de "hold" mientras se estira
+        (ball as any).render.sprite.texture = SLING_TEXTURES.hold;
+      }
+    });
+
     // Lógica para soltar la bola de la resortera
     Matter.Events.on(mouseConstraint, "enddrag", (event: Matter.IEvent<Matter.MouseConstraint>) => {
       if (ball && sling && (event as { body?: Matter.Body }).body === ball) {
+        // Volver a textura base al terminar el arrastre
+        (ball as any).render.sprite.texture = SLING_TEXTURES.base;
         // Calcular vector de estiramiento
         const dx = sling.pointA.x - ball.position.x;
         const dy = sling.pointA.y - ball.position.y;
@@ -320,6 +351,7 @@ export default function Home() {
           // Dejar referencias listas para la siguiente bola
           ball = null;
           sling = null;
+          setShowStretchHint(true);
           if (process.env.NODE_ENV !== 'production') {
             console.log("Ball launched. Active ID remains:", activeBallId);
           }
@@ -328,6 +360,10 @@ export default function Home() {
     });
 
     // Renderizar letras sobre los bloques y la resortera si no hay bola
+    // Pre-cargar imagen base para el placeholder
+    const placeholderImg = new Image();
+    placeholderImg.src = SLING_TEXTURES.base;
+
     Matter.Events.on(render, "afterRender", () => {
       const ctx = render.context;
       ctx.save();
@@ -340,17 +376,24 @@ export default function Home() {
         ctx.fillStyle = darkMode ? "#333" : "#fff";
         ctx.fillText(b.label || '', b.position.x, b.position.y + 2);
       }
-      // Indicador visual para crear bola
+      // Indicador visual para crear bola: mostrar el sprite base
       if (!ball && !sling) {
-        ctx.strokeStyle = '#f59e42';
-        ctx.lineWidth = 6; // Consistent line width
-        ctx.beginPath();
-        ctx.arc(slingStart.x, slingStart.y, 24, 0, 2 * Math.PI); // Use updated slingStart.x
-        ctx.stroke();
-        // Mensaje de ayuda
-        ctx.fillStyle = '#f59e42';
-        ctx.font = "16px Arial";
-        ctx.fillText(isMobile ? "Toca aquí" : "Haz click aquí", slingStart.x, slingStart.y + 50); // Use updated slingStart.x
+        const size = ballRadius * 2; // diámetro
+        if (placeholderImg.complete) {
+          ctx.drawImage(
+            placeholderImg,
+            slingStart.x - size / 2,
+            slingStart.y - size / 2,
+            size,
+            size
+          );
+        } else {
+          // Fallback mínimo mientras carga la imagen
+          ctx.beginPath();
+          ctx.arc(slingStart.x, slingStart.y, ballRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = '#f59e42';
+          ctx.fill();
+        }
       }
       ctx.restore();
     });
@@ -501,6 +544,11 @@ export default function Home() {
       render.options.height = height;
       render.canvas.width = width;
       render.canvas.height = height;
+      // Actualizar posición del slingshot para overlays
+      const isMobileNow = width < 600;
+      const nx = isMobileNow ? 48 : 80;
+      const ny = height - 120;
+      setSlingPos({ x: nx, y: ny });
     };
     window.addEventListener('resize', handleResize);
 
@@ -709,6 +757,44 @@ export default function Home() {
           backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
         }}
       />
+      {slingPos && showStretchHint && !showScreensaver && (
+        (() => {
+          const BALL_RADIUS = 44; // mantener en sync con el radio de la bola
+          const ringRadius = BALL_RADIUS + 12; // margen cercano al balón
+          const padding = 24; // separa el borde del SVG para que no corte el texto
+          const size = ringRadius * 2 + padding * 2;
+          const cx = ringRadius + padding;
+          const cy = ringRadius + padding;
+          const r = ringRadius;
+          const circlePath = `M ${cx} ${cy} m -${r}, 0 a ${r},${r} 0 1,1 ${2 * r},0 a ${r},${r} 0 1,1 -${2 * r},0`;
+          return (
+            <div
+              className="fixed"
+              style={{
+                left: slingPos.x,
+                top: slingPos.y,
+                transform: 'translate(-50%, -50%)',
+                width: `${size}px`,
+                height: `${size}px`,
+                zIndex: 12,
+                color: darkMode ? '#f59e42' : '#d97706',
+                pointerEvents: 'none',
+              }}
+            >
+              <AnimatedPathText
+                path={circlePath}
+                viewBox={`0 0 ${size} ${size}`}
+                width={size}
+                height={size}
+                text={"estírame • estírame • estírame • estírame • "}
+                textStyle={{ fontSize: 14, letterSpacing: 1.2 as any }}
+                duration={8}
+                textAnchor="start"
+              />
+            </div>
+          );
+        })()
+      )}
       
       {/* Dark Mode Switch */}
       <button 
