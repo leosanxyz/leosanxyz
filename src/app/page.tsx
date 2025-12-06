@@ -11,6 +11,7 @@ import AnimatedPathText from './components/TextAlongPath';
 const ReactMarkdown = dynamic(() => import('react-markdown'));
 const AsciiAnimation = dynamic(() => import('./components/AsciiAnimation'), { ssr: false });
 const Screensaver = dynamic(() => import('./components/Screensaver'), { ssr: false });
+const AboutMe = dynamic(() => import('./components/AboutMe'));
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -44,7 +45,7 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const blocksRef = useRef<Matter.Body[]>([]);
   const playAnimationRef = useRef<(() => void) | null>(null);
-  const [viewMode, setViewMode] = useState<'home' | 'blog' | 'post'>('home'); // 'home' or 'blog' or 'post'
+  const [viewMode, setViewMode] = useState<'home' | 'blog' | 'post' | 'about'>('home'); // 'home' or 'blog' or 'post' or 'about'
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [errorLoadingPosts, setErrorLoadingPosts] = useState<string | null>(null);
@@ -67,12 +68,12 @@ export default function Home() {
     const isMobile = window.innerWidth < 600;
     setSoundEnabled(!isMobile); // Apagado en móviles, encendido en desktop
     setIsDesktop(window.innerWidth >= 900);
-    
+
     // Handle resize
     const handleResize = () => {
       setIsDesktop(window.innerWidth >= 900);
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -84,7 +85,7 @@ export default function Home() {
     document.body.style.margin = '0';
     document.body.style.padding = '0';
     document.body.style.overflow = 'hidden';
-    
+
     // Aplicar clase para detectar modo oscuro a nivel global
     if (darkMode) {
       document.documentElement.classList.add('dark-mode');
@@ -105,30 +106,30 @@ export default function Home() {
         audioContext = new (window.AudioContext)();
         setAudioInitialized(true);
       }
-      
+
       // En Safari y Chrome, el contexto inicialmente está en estado "suspended"
       if (audioContext.state === 'suspended') {
         audioContext.resume();
         setAudioInitialized(true);
       }
-      
+
       return audioContext;
     };
-    
+
     // Función para tocar un sonido que funciona en Safari y móviles
     const playSound = (frequency: number) => {
       if (!soundEnabled) return;
-      
+
       try {
         const ctx = getAudioContext();
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(frequency, ctx.currentTime);
-        
+
         const gainNode = ctx.createGain();
         gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-        
+
         osc.connect(gainNode).connect(ctx.destination);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.2);
@@ -222,7 +223,7 @@ export default function Home() {
       (block as BouncingBlock).originX = block.position.x; // posición original en X
       (block as BouncingBlock).isBouncing = false; // evita rebotes simultáneos
       (block as BouncingBlock).noteIndex = i;
-      (block as BouncingBlock).noteFrequency = 261.63 * Math.pow(Math.pow(2, 1/12), i);
+      (block as BouncingBlock).noteFrequency = 261.63 * Math.pow(Math.pow(2, 1 / 12), i);
       blocks.push(block);
     }
 
@@ -473,7 +474,7 @@ export default function Home() {
         }, idx * 100);
       });
     };
-    
+
     // Guardar referencia a la función de animación
     playAnimationRef.current = playWormAnimation;
 
@@ -609,6 +610,10 @@ export default function Home() {
       // Clear selected post when going to blog list
       setSelectedSlug(null);
       setPostContent(null);
+    } else if (target === '/about') {
+      setViewMode('about');
+      setSelectedSlug(null);
+      setPostContent(null);
     } else {
       setShowScreensaver(true);
     }
@@ -630,6 +635,8 @@ export default function Home() {
       setPostContent(null);
       setErrorLoadingContent(null);
       setAsciiFrames(null);
+    } else if (viewMode === 'about') {
+      setViewMode('home');
     } else if (viewMode === 'blog') {
       setViewMode('home'); // Go back to home from list
       setPosts([]); // Opcional: limpiar la lista de posts al volver a home
@@ -685,7 +692,7 @@ export default function Home() {
       }
       return newState;
     });
-    
+
     // Crear evento de interacción fingido para iniciar el audio si es necesario
     if (!audioInitialized) {
       const event = new Event('click');
@@ -708,33 +715,40 @@ export default function Home() {
     padding: '20px',
     ...(viewMode === 'post' && isDesktop
       ? {
-          left: 'auto',
-          right: '5vw',
-          transform: 'none',
-          width: '600px',
-        }
+        left: 'auto',
+        right: '5vw',
+        transform: 'none',
+        width: '600px',
+      }
       : {
-          left: viewMode === 'home' ? '50%' : '80px',
-          transform: viewMode === 'home' ? 'translateX(-50%)' : 'none',
-          width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)',
-        }),
+        left: viewMode === 'home' ? '50%' : '80px',
+        transform: viewMode === 'home' ? 'translateX(-50%)' : 'none',
+        width: viewMode === 'home' ? '90%' : 'calc(100% - 120px)',
+      }),
+    ...(viewMode === 'about'
+      ? {
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '90%',
+        maxWidth: '700px',
+      } : {}),
     ...(viewMode === 'post'
       ? {
-          backgroundColor: 'transparent',
-          borderRadius: '16px',
-          backdropFilter: 'blur(8px)',
-          boxShadow: `0 0 40px 40px ${darkMode ? 'rgba(26, 26, 26, 0.6)' : 'rgba(248, 250, 252, 0.6)'}`,
-          background: darkMode
-            ? 'radial-gradient(circle at center, rgba(26, 26, 26, 0.82) 0%, rgba(26, 26, 26, 0.7) 50%, rgba(26, 26, 26, 0.4) 80%, rgba(26, 26, 26, 0) 100%)'
-            : 'radial-gradient(circle at center, rgba(248, 250, 252, 0.82) 0%, rgba(248, 250, 252, 0.7) 50%, rgba(248, 250, 252, 0.4) 80%, rgba(248, 250, 252, 0) 100%)',
-        }
+        backgroundColor: 'transparent',
+        borderRadius: '16px',
+        backdropFilter: 'blur(8px)',
+        boxShadow: `0 0 40px 40px ${darkMode ? 'rgba(26, 26, 26, 0.6)' : 'rgba(248, 250, 252, 0.6)'}`,
+        background: darkMode
+          ? 'radial-gradient(circle at center, rgba(26, 26, 26, 0.82) 0%, rgba(26, 26, 26, 0.7) 50%, rgba(26, 26, 26, 0.4) 80%, rgba(26, 26, 26, 0) 100%)'
+          : 'radial-gradient(circle at center, rgba(248, 250, 252, 0.82) 0%, rgba(248, 250, 252, 0.7) 50%, rgba(248, 250, 252, 0.4) 80%, rgba(248, 250, 252, 0) 100%)',
+      }
       : {
-          backgroundColor: 'transparent',
-          borderRadius: 0,
-          backdropFilter: 'none',
-          boxShadow: 'none',
-          background: 'none',
-        }),
+        backgroundColor: 'transparent',
+        borderRadius: 0,
+        backdropFilter: 'none',
+        boxShadow: 'none',
+        background: 'none',
+      }),
   };
 
   return (
@@ -749,18 +763,18 @@ export default function Home() {
           background-color: ${darkMode ? '#1a1a1a' : '#f8fafc'};
         }
       `}</style>
-      
+
       {/* Screensaver Component */}
       {showScreensaver && (
         <div onClick={() => setShowScreensaver(false)}>
           <Screensaver darkMode={darkMode} />
         </div>
       )}
-      
-      <div 
-        ref={sceneRef} 
+
+      <div
+        ref={sceneRef}
         className="fixed inset-0 w-full h-full min-h-screen z-0"
-        style={{ 
+        style={{
           backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
         }}
       />
@@ -802,12 +816,12 @@ export default function Home() {
           );
         })()
       )}
-      
+
       {/* Dark Mode Switch */}
-      <button 
+      <button
         onClick={toggleDarkMode}
         className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
-        style={{ 
+        style={{
           backgroundColor: darkMode ? '#333' : '#fff',
           color: darkMode ? '#fff' : '#333',
           top: '40px',         // Más arriba
@@ -839,10 +853,10 @@ export default function Home() {
       </button>
 
       {/* Sound Toggle Button */}
-      <button 
+      <button
         onClick={toggleSound}
         className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
-        style={{ 
+        style={{
           backgroundColor: darkMode ? '#333' : '#fff',
           color: darkMode ? '#fff' : '#333',
           top: '100px',        // Debajo del botón de modo oscuro
@@ -869,10 +883,10 @@ export default function Home() {
         )}
       </button>
 
-      {/* Back Arrow Button - Visible in blog/post view */}
-      {(viewMode === 'blog' || viewMode === 'post') && (
+      {/* Back Arrow Button - Visible in blog/post/about view */}
+      {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about') && (
         <button
-          onClick={handleGoBack} 
+          onClick={handleGoBack}
           className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
           style={{
             backgroundColor: darkMode ? '#333' : '#fff',
@@ -891,16 +905,16 @@ export default function Home() {
 
       {/* ASCII Animation - only on desktop in post view */}
       {viewMode === 'post' && isDesktop && (
-        <AsciiAnimation 
-          darkMode={darkMode} 
-          customFrames={asciiFrames || undefined} 
+        <AsciiAnimation
+          darkMode={darkMode}
+          customFrames={asciiFrames || undefined}
           postTitle={selectedSlug || undefined}
           frameDelay={frameDelay}
         />
       )}
 
       {/* Contenido central (Navegación o Posts) */}
-      <div 
+      <div
         className={`${geist.className} transition-opacity duration-500 ease-in-out`}
         style={styleMainContainer}
       >
@@ -909,42 +923,44 @@ export default function Home() {
             // Vista Home: Navegación principal
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '10vh' }}>
               <li style={{ margin: '1rem 0' }}>
-                <a 
-                  href="/blog" 
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
+                <a
+                  href="/blog"
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
                   onClick={(e) => handleNavClick(e, '/blog')}
                 >
                   <ScrambleIn text="blog" />
                 </a>
               </li>
               <li style={{ margin: '1rem 0' }}>
-                <a 
-                  href="/diseno" 
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
+                <a
+                  href="/diseno"
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
                   onClick={(e) => handleNavClick(e, '/diseno')}
                 >
                   <ScrambleIn text="diseño" />
                 </a>
               </li>
               <li style={{ margin: '1rem 0' }}>
-                <a 
-                  href="/proyectos" 
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
+                <a
+                  href="/proyectos"
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
                   onClick={(e) => handleNavClick(e, '/proyectos')}
                 >
                   <ScrambleIn text="proyectos" />
                 </a>
               </li>
               <li style={{ margin: '1rem 0' }}>
-                <a 
-                  href="/about" 
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }} 
+                <a
+                  href="/about"
+                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
                   onClick={(e) => handleNavClick(e, '/about')}
                 >
                   <ScrambleIn text="sobre mi:)" />
                 </a>
               </li>
             </ul>
+          ) : viewMode === 'about' ? (
+            <AboutMe darkMode={darkMode} />
           ) : viewMode === 'blog' ? (
             // Vista Blog: Lista de posts
             <div
@@ -962,7 +978,7 @@ export default function Home() {
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {posts.map((post) => (
                     <li key={post.slug} style={{ margin: '1rem 0' }}>
-                      <a 
+                      <a
                         href="#"
                         onClick={(e) => handlePostClick(e, post.slug)}
                         style={{ fontSize: '1.8rem', color: darkMode ? '#eee' : '#111', textDecoration: 'none' }}
@@ -987,8 +1003,8 @@ export default function Home() {
                 height: '40px',
                 zIndex: 15,
                 pointerEvents: 'none',
-                background: darkMode 
-                  ? 'linear-gradient(to bottom, rgba(26, 26, 26, 0.95) 0%, rgba(26, 26, 26, 0.8) 30%, rgba(26, 26, 26, 0.4) 70%, rgba(26, 26, 26, 0) 100%)' 
+                background: darkMode
+                  ? 'linear-gradient(to bottom, rgba(26, 26, 26, 0.95) 0%, rgba(26, 26, 26, 0.8) 30%, rgba(26, 26, 26, 0.4) 70%, rgba(26, 26, 26, 0) 100%)'
                   : 'linear-gradient(to bottom, rgba(248, 250, 252, 0.95) 0%, rgba(248, 250, 252, 0.8) 30%, rgba(248, 250, 252, 0.4) 70%, rgba(248, 250, 252, 0) 100%)',
                 backdropFilter: 'blur(6px)',
                 borderTopLeftRadius: '16px',
@@ -1009,23 +1025,23 @@ export default function Home() {
                       // Desktop: alinea a la derecha
                       ...(isDesktop
                         ? {
-                            marginLeft: 'auto',
-                            marginRight: 0,
-                            maxWidth: '600px',
-                            paddingLeft: '120px', // grande a la izquierda
-                            paddingRight: '24px', // pequeño a la derecha
-                          }
+                          marginLeft: 'auto',
+                          marginRight: 0,
+                          maxWidth: '600px',
+                          paddingLeft: '120px', // grande a la izquierda
+                          paddingRight: '24px', // pequeño a la derecha
+                        }
                         : {
-                            width: '100%',
-                            paddingLeft: '12px',
-                            paddingRight: '12px',
-                          }),
+                          width: '100%',
+                          paddingLeft: '12px',
+                          paddingRight: '12px',
+                        }),
                     }}
                   >
                     {!postTyped ? (
                       <>
                         {!skipTypewriter && (
-                          <div style={{ 
+                          <div style={{
                             marginBottom: '20px',
                             display: 'flex',
                             justifyContent: 'flex-end'

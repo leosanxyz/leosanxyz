@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: 'images.are.na',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'd2w9rnfcy7mm78.cloudfront.net',
+        pathname: '/**',
+      },
     ],
   },
 };
