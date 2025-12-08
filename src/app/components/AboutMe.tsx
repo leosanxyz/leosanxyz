@@ -8,7 +8,6 @@ interface AboutMeProps {
 const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
     const textColor = darkMode ? '#eee' : '#111';
     const subTextColor = darkMode ? '#bbb' : '#555';
-    const accentColor = darkMode ? '#f59e42' : '#d97706';
 
     return (
         <div style={{
