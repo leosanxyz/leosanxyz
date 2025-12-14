@@ -915,7 +915,7 @@ export default function Home() {
 
       {/* Contenido central (Navegación o Posts) */}
       <div
-        className={`${geist.className} transition-opacity duration-500 ease-in-out`}
+        className={`${geist.className} no-scrollbar transition-opacity duration-500 ease-in-out`}
         style={styleMainContainer}
       >
         <div style={{ position: 'relative' }}>

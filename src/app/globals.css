@@ -7,6 +7,281 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* Hide scrollbar but keep scroll */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* About: right-side collage (uses whitespace to the right) */
+.about-side-media {
+  position: fixed;
+  width: 320px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 11; /* arriba del canvas y del contenido */
+  transition: opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity;
+}
+
+.about-steve-media {
+  position: fixed;
+  width: var(--steve-size, 240px);
+  pointer-events: none;
+  user-select: none;
+  z-index: 11;
+  transition: opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity;
+}
+
+.about-steve-wrap {
+  position: relative;
+  width: var(--steve-size, 240px);
+  height: var(--steve-size, 240px);
+}
+
+.about-steve-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.18));
+}
+
+.about-steve-media--inline {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.about-side-collage {
+  position: relative;
+  width: 320px;
+  height: 220px;
+}
+
+.about-side-img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  height: auto;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.18));
+  transform-origin: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Top-right "hero" */
+.about-side-img--a {
+  right: -10px;
+  top: -10px;
+  width: 210px;
+  transform: rotate(2deg);
+}
+
+/* Left-ish mid */
+.about-side-img--b {
+  left: -6px;
+  top: 48px;
+  width: 170px;
+  transform: rotate(-4deg);
+}
+
+/* Bottom-ish */
+.about-side-img--c {
+  right: 18px;
+  bottom: 6px;
+  width: 150px;
+  transform: rotate(3deg);
+  opacity: 0.98;
+}
+
+.about-side-aa {
+  position: absolute;
+  left: 56px;
+  bottom: -8px;
+  font-size: 88px;
+  font-weight: 600;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  opacity: 0.92;
+  mix-blend-mode: multiply;
+}
+
+@media (max-width: 1100px) {
+  /* En pantallas chicas ya no hay "whitespace" a la derecha */
+  .about-side-media {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    width: 100%;
+    margin: 14px auto 0;
+    display: flex;
+    justify-content: center;
+    opacity: 1 !important;
+  }
+  .about-steve-media {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    width: 100%;
+    opacity: 1 !important;
+  }
+  .about-side-aa {
+    mix-blend-mode: normal;
+  }
+}
+
+/* About: progressive reveal (slide up + blur) */
+.about-reveal {
+  opacity: 0;
+  transform: translate3d(0, 46px, 0);
+  filter: blur(8px);
+  transition:
+    opacity 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform, opacity, filter;
+}
+
+.about-reveal.about-reveal--visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+}
+
+/* About: CTA block */
+.about-cta {
+  margin-top: 64px;
+  padding-top: 24px;
+  padding-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  text-align: center;
+}
+
+.about-cta-title {
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  font-size: clamp(3.2rem, 7vw, 5.8rem);
+}
+
+.about-cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.35rem;
+  padding: 12px 18px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(17, 17, 17, 0.86);
+  border: 1px solid rgba(17, 17, 17, 0);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+}
+
+.about-cta-button:hover {
+  transform: scale(1.08);
+  background: rgba(17, 17, 17, 0.95);
+}
+
+.dark-mode .about-cta-button {
+  background: rgba(238, 238, 238, 0.16);
+  border-color: rgba(238, 238, 238, 0);
+  color: #eee;
+}
+.dark-mode .about-cta-button:hover {
+  background: rgba(238, 238, 238, 0.22);
+}
+
+/* About: yellow highlight animation */
+.about-highlight {
+  --about-highlight: rgba(255, 235, 59, 0.65);
+  background-image: linear-gradient(transparent 60%, var(--about-highlight) 60%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  padding: 0 0.08em;
+  border-radius: 0.12em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background-size 720ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.about-highlight.about-highlight--on {
+  background-size: 100% 100%;
+}
+.dark-mode .about-highlight {
+  --about-highlight: rgba(255, 235, 59, 0.35);
+}
+
+/* About: social links */
+.about-social-link {
+  font-size: 1.35rem;
+  opacity: 0.9;
+  display: inline-block;
+  transform: translateZ(0);
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.06);
+  border: 1px solid rgba(17, 17, 17, 0.06);
+  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+}
+.about-social-link:hover {
+  opacity: 1;
+  transform: scale(1.08);
+  background: rgba(17, 17, 17, 0.085);
+}
+
+.about-social-email {
+  font-size: 1.25rem;
+  opacity: 0.9;
+  display: inline-block;
+  transform: translateZ(0);
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.06);
+  border: 1px solid rgba(17, 17, 17, 0.06);
+  transition: transform 180ms ease, opacity 180ms ease, color 180ms ease, background 180ms ease;
+}
+.about-social-email:hover {
+  opacity: 1;
+  transform: scale(1.04);
+  background: rgba(17, 17, 17, 0.085);
+}
+.dark-mode .about-social-email:hover {
+  color: #eee;
+}
+
+.dark-mode .about-social-link,
+.dark-mode .about-social-email {
+  background: rgba(238, 238, 238, 0.08);
+  border-color: rgba(238, 238, 238, 0.1);
+}
+.dark-mode .about-social-link:hover,
+.dark-mode .about-social-email:hover {
+  background: rgba(238, 238, 238, 0.12);
+}
+
 /* Screensaver animation */
 @keyframes screensaverMove {
   0% {
