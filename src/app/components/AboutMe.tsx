@@ -33,16 +33,13 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
         const update = () => setPrefersReducedMotion(mql.matches);
         update();
 
-        // Safari viejo no soporta addEventListener en MediaQueryList
-        try {
+        // Fallback legacy (Safari viejo): addListener/removeListener
+        if ('addEventListener' in mql) {
             mql.addEventListener('change', update);
             return () => mql.removeEventListener('change', update);
-        } catch {
-            // @ts-expect-error - fallback legacy
-            mql.addListener(update);
-            // @ts-expect-error - fallback legacy
-            return () => mql.removeListener(update);
         }
+        mql.addListener(update);
+        return () => mql.removeListener(update);
     }, []);
 
     const headerNode = useMemo(() => (
@@ -338,15 +335,12 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
         const update = () => setIsDesktopWide(mql.matches);
         update();
 
-        try {
+        if ('addEventListener' in mql) {
             mql.addEventListener('change', update);
             return () => mql.removeEventListener('change', update);
-        } catch {
-            // @ts-expect-error - fallback legacy
-            mql.addListener(update);
-            // @ts-expect-error - fallback legacy
-            return () => mql.removeListener(update);
         }
+        mql.addListener(update);
+        return () => mql.removeListener(update);
     }, []);
 
     useEffect(() => {
