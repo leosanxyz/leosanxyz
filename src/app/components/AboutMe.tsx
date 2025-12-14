@@ -34,12 +34,16 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
         update();
 
         // Fallback legacy (Safari viejo): addListener/removeListener
-        if ('addEventListener' in mql) {
+        if (typeof mql.addEventListener === 'function') {
             mql.addEventListener('change', update);
             return () => mql.removeEventListener('change', update);
         }
-        mql.addListener(update);
-        return () => mql.removeListener(update);
+        const legacy = mql as unknown as {
+            addListener?: (listener: () => void) => void;
+            removeListener?: (listener: () => void) => void;
+        };
+        legacy.addListener?.(update);
+        return () => legacy.removeListener?.(update);
     }, []);
 
     const headerNode = useMemo(() => (
@@ -335,12 +339,16 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
         const update = () => setIsDesktopWide(mql.matches);
         update();
 
-        if ('addEventListener' in mql) {
+        if (typeof mql.addEventListener === 'function') {
             mql.addEventListener('change', update);
             return () => mql.removeEventListener('change', update);
         }
-        mql.addListener(update);
-        return () => mql.removeListener(update);
+        const legacy = mql as unknown as {
+            addListener?: (listener: () => void) => void;
+            removeListener?: (listener: () => void) => void;
+        };
+        legacy.addListener?.(update);
+        return () => legacy.removeListener?.(update);
     }, []);
 
     useEffect(() => {
