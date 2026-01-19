@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Nothing+You+Could+Do&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -37,6 +39,14 @@ body {
   will-change: opacity;
 }
 
+.about-bookstack-media {
+  position: fixed;
+  width: 280px;
+  z-index: 11;
+  transition: opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity;
+}
+
 .about-steve-wrap {
   position: relative;
   width: var(--steve-size, 240px);
@@ -58,6 +68,18 @@ body {
   display: flex;
   justify-content: center;
   margin-top: 12px;
+}
+
+.about-bookstack-media--inline {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  margin-bottom: 32px;
+  opacity: 1 !important;
+  left: auto !important;
+  top: auto !important;
 }
 
 .about-side-collage {
@@ -127,6 +149,13 @@ body {
     opacity: 1 !important;
   }
   .about-steve-media {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    width: 100%;
+    opacity: 1 !important;
+  }
+  .about-bookstack-media {
     position: relative;
     left: auto !important;
     top: auto !important;
@@ -590,3 +619,110 @@ body {
     padding-right: 0;
   }
 }
+
+/* Book Stack Component */
+.book-stack-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding-top: 10px;
+  /* Espacio para la expansión */
+  min-height: 240px; 
+}
+
+.book-stack-label {
+  font-family: 'Nothing You Could Do', 'Segoe Print', 'Comic Sans MS', sans-serif;
+  font-size: 1.1rem;
+  margin-bottom: 24px;
+  text-align: center;
+  transform: rotate(-3deg);
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.group:hover .book-stack-label {
+  transform: rotate(0deg) scale(1.05);
+  color: #111 !important; /* Force darker color on hover for better contrast if needed, or handle via JS props */
+}
+
+.book-stack-wrapper {
+  position: relative;
+  width: 140px; /* Ancho base del libro */
+  height: 210px;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.book-stack-item {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s ease;
+  transform-origin: center bottom;
+}
+
+/* Default Stacked State: Slight messiness */
+.book-stack-item--0 { transform: rotate(-2deg) translate(0, 0); }
+.book-stack-item--1 { transform: rotate(1deg) translate(0, -2px); }
+.book-stack-item--2 { transform: rotate(-1deg) translate(0, -4px); }
+.book-stack-item--3 { transform: rotate(3deg) translate(0, -6px); }
+
+/* Hover State: Fan out like cards */
+.group:hover .book-stack-item--0 { transform: rotate(-25deg) translate(-50px, 10px); }
+.group:hover .book-stack-item--1 { transform: rotate(-10deg) translate(-20px, -5px); }
+.group:hover .book-stack-item--2 { transform: rotate(10deg) translate(20px, -5px); }
+.group:hover .book-stack-item--3 { transform: rotate(25deg) translate(50px, 10px); }
+
+.book-stack-cover {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px 5px 5px 2px;
+  overflow: hidden;
+  box-shadow: 
+    -1px 2px 4px rgba(0,0,0,0.15),
+    -4px 4px 12px rgba(0,0,0,0.1);
+  background: #f5f5f5;
+  transition: box-shadow 0.3s ease;
+}
+
+.book-stack-cover--dark {
+  background: #333;
+  box-shadow: 
+    -1px 2px 4px rgba(0,0,0,0.3),
+    -4px 4px 12px rgba(0,0,0,0.2);
+}
+
+.book-stack-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.book-stack-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  background: linear-gradient(to right, 
+    rgba(255,255,255,0.3) 0%,
+    rgba(255,255,255,0) 20%,
+    rgba(0,0,0,0.1) 40%,
+    rgba(0,0,0,0.2) 100%
+  );
+  pointer-events: none;
+}
+
+/* 3D effect enhancement on hover */
+.group:hover .book-stack-cover {
+  box-shadow: 
+    -4px 6px 12px rgba(0,0,0,0.2),
+    -8px 12px 24px rgba(0,0,0,0.15);
+}
+
+

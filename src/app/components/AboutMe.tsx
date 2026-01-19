@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import BookStack from './BookStack';
 
 interface AboutMeProps {
     darkMode: boolean;
@@ -206,15 +207,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                 >
                     ¡hablemos!
                 </a>
-                {onGoToBooks && (
-                    <button
-                        className="about-cta-button"
-                        onClick={onGoToBooks}
-                        style={{ cursor: 'pointer', border: 'none' }}
-                    >
-                        mis libros
-                    </button>
-                )}
             </div>
         </div>,
 
@@ -276,10 +268,12 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const [sidePos, setSidePos] = useState<{ top: number; left: number; opacity: number }>({ top: 0, left: 0, opacity: 0 });
     const [stevePos, setStevePos] = useState<{ top: number; left: number; opacity: number }>({ top: 0, left: 0, opacity: 0 });
+    const [bookStackPos, setBookStackPos] = useState<{ top: number; left: number; opacity: number }>({ top: 0, left: 0, opacity: 0 });
     const [isDesktopWide, setIsDesktopWide] = useState<boolean | null>(null);
     const [mounted, setMounted] = useState(false);
     const [collageRevealed, setCollageRevealed] = useState(false);
     const [steveRevealed, setSteveRevealed] = useState(false);
+    const [bookStackRevealed, setBookStackRevealed] = useState(false);
 
     useEffect(() => {
         // Mantener el array sincronizado si cambia el número de bloques
@@ -329,6 +323,24 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
         }
 
         const t = window.setTimeout(() => setSteveRevealed(true), 300);
+        return () => window.clearTimeout(t);
+    }, [prefersReducedMotion, visible]);
+
+    useEffect(() => {
+        // Reveal logic for BookStack (anchored to p4, idx 5 in blockRefs logic)
+        if (prefersReducedMotion === null) return;
+        if (prefersReducedMotion) {
+            setBookStackRevealed(true);
+            return;
+        }
+
+        // P4 is index 4 in contentBlocks, so index 5 in blockRefs (0 is header)
+        if (!visible[5]) {
+            setBookStackRevealed(false);
+            return;
+        }
+
+        const t = window.setTimeout(() => setBookStackRevealed(true), 300);
         return () => window.clearTimeout(t);
     }, [prefersReducedMotion, visible]);
 
@@ -590,6 +602,85 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
         };
     }, [contentBlocks.length, isDesktopWide]);
 
+    useEffect(() => {
+        // Anclar BookStack al párrafo 1 - a la derecha, debajo del collage
+        if (isDesktopWide === false) return;
+
+        const getScrollParent = (el: HTMLElement | null): HTMLElement | null => {
+            let cur: HTMLElement | null = el?.parentElement ?? null;
+            while (cur) {
+                const style = window.getComputedStyle(cur);
+                const oy = style.overflowY;
+                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
+                cur = cur.parentElement;
+            }
+            return null;
+        };
+
+        const p1El = blockRefs.current[1] ?? null;
+        const scrollRoot = getScrollParent(p1El as HTMLElement | null);
+
+        let raf = 0;
+        const update = () => {
+            raf = 0;
+            const p1 = blockRefs.current[1] ?? null;
+            const aboutContainer = containerRef.current;
+            if (!p1 || !aboutContainer) return;
+
+            const p1Rect = p1.getBoundingClientRect();
+            const aboutRect = aboutContainer.getBoundingClientRect();
+            const rootRect = (scrollRoot ?? aboutContainer).getBoundingClientRect();
+
+            const gap = 56;
+            const width = 280;
+            const margin = 24;
+            const leftCandidate = aboutRect.right + gap;
+            const left = Math.round(Math.min(leftCandidate, window.innerWidth - width - margin));
+
+            const minTop = Math.round(rootRect.top + 24);
+            const collageHeight = 280;
+            const topCandidate = Math.round(p1Rect.top + collageHeight + 40);
+            const top = Math.max(topCandidate, minTop);
+
+            const hasSpace = window.innerWidth >= aboutRect.right + gap + Math.min(width, 200);
+            const fadeStart = minTop + 32;
+            const fadeRange = 160;
+            const alpha = Math.max(0, Math.min(1, (p1Rect.bottom + collageHeight - fadeStart) / fadeRange));
+
+            setBookStackPos({ left, top, opacity: hasSpace ? alpha : 0 });
+        };
+
+        const schedule = () => {
+            if (raf) return;
+            raf = window.requestAnimationFrame(update);
+        };
+
+        schedule();
+        window.addEventListener('resize', schedule);
+        scrollRoot?.addEventListener('scroll', schedule, { passive: true } as AddEventListenerOptions);
+
+        return () => {
+            if (raf) window.cancelAnimationFrame(raf);
+            window.removeEventListener('resize', schedule);
+            scrollRoot?.removeEventListener('scroll', schedule as EventListener);
+        };
+    }, [contentBlocks.length, isDesktopWide]);
+
+    useEffect(() => {
+        // Reveal BookStack after P4 is visible
+        if (prefersReducedMotion === null) return;
+        if (prefersReducedMotion) {
+            setBookStackRevealed(true);
+            return;
+        }
+        if (!visible[IDX.P1]) {
+            setBookStackRevealed(false);
+            return;
+        }
+        const t = window.setTimeout(() => setBookStackRevealed(true), 280);
+        return () => window.clearTimeout(t);
+    }, [prefersReducedMotion, visible, IDX.P4]);
+
     return (
         <div
             ref={containerRef}
@@ -677,6 +768,24 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                 document.body
             )}
 
+            {/* BookStack: desktop portal */}
+            {mounted && isDesktopWide && createPortal(
+                <div
+                    aria-hidden="true"
+                    className="about-bookstack-media"
+                    style={{
+                        top: bookStackPos.top,
+                        left: bookStackPos.left,
+                        opacity: bookStackPos.opacity,
+                    }}
+                >
+                    <div className={`about-reveal ${bookStackRevealed ? 'about-reveal--visible' : ''}`}>
+                        <BookStack onGoToBooks={onGoToBooks} darkMode={darkMode} />
+                    </div>
+                </div>,
+                document.body
+            )}
+
             {/* Main content - text blocks */}
             <div style={{
                 display: 'flex',
@@ -713,7 +822,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                                 </div>
                             )}
 
-                            {/* Mobile/tablet: show Steve in flow after quote */}
+                            {/* Mobile/tablet: show Steve in flow after quote (idx 2) */}
                             {i === 2 && isDesktopWide === false && (
                                 <div
                                     aria-hidden="true"
@@ -725,6 +834,18 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                                 >
                                     <div className={`about-reveal ${steveRevealed ? 'about-reveal--visible' : ''}`}>
                                         {steveNode}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Mobile/tablet: show BookStack in flow after p4 (idx 4) */}
+                            {i === 4 && isDesktopWide === false && (
+                                <div
+                                    aria-hidden="true"
+                                    className="about-bookstack-media about-bookstack-media--inline"
+                                >
+                                    <div className={`about-reveal ${bookStackRevealed ? 'about-reveal--visible' : ''}`}>
+                                        <BookStack onGoToBooks={onGoToBooks} darkMode={darkMode} />
                                     </div>
                                 </div>
                             )}
