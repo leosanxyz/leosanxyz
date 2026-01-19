@@ -1,7 +1,31 @@
 "use client";
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useMediaQuery } from '@/hooks';
 import BookStack from './BookStack';
+
+// Cache for getComputedStyle to avoid repeated style calculations
+const styleCache = new WeakMap<HTMLElement, CSSStyleDeclaration>();
+const getCachedStyle = (el: HTMLElement): CSSStyleDeclaration => {
+    let style = styleCache.get(el);
+    if (!style) {
+        style = window.getComputedStyle(el);
+        styleCache.set(el, style);
+    }
+    return style;
+};
+
+// Shared utility to find scrollable parent element
+const getScrollParent = (node: HTMLElement | null): HTMLElement | null => {
+    let cur: HTMLElement | null = node?.parentElement ?? null;
+    while (cur) {
+        const style = getCachedStyle(cur);
+        const oy = style.overflowY;
+        if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
+        cur = cur.parentElement;
+    }
+    return null;
+};
 
 interface AboutMeProps {
     darkMode: boolean;
@@ -22,31 +46,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
         P5: 6,
     } as const;
 
-    const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean | null>(null);
-
-    useEffect(() => {
-        // Resolver preferencia de motion solo en cliente
-        const mql = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-        if (!mql) {
-            setPrefersReducedMotion(false);
-            return;
-        }
-
-        const update = () => setPrefersReducedMotion(mql.matches);
-        update();
-
-        // Fallback legacy (Safari viejo): addListener/removeListener
-        if (typeof mql.addEventListener === 'function') {
-            mql.addEventListener('change', update);
-            return () => mql.removeEventListener('change', update);
-        }
-        const legacy = mql as unknown as {
-            addListener?: (listener: () => void) => void;
-            removeListener?: (listener: () => void) => void;
-        };
-        legacy.addListener?.(update);
-        return () => legacy.removeListener?.(update);
-    }, []);
+     const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
     const headerNode = useMemo(() => (
         <h1
@@ -269,80 +269,80 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
     const [sidePos, setSidePos] = useState<{ top: number; left: number; opacity: number }>({ top: 0, left: 0, opacity: 0 });
     const [stevePos, setStevePos] = useState<{ top: number; left: number; opacity: number }>({ top: 0, left: 0, opacity: 0 });
     const [bookStackPos, setBookStackPos] = useState<{ top: number; left: number; opacity: number }>({ top: 0, left: 0, opacity: 0 });
-    const [isDesktopWide, setIsDesktopWide] = useState<boolean | null>(null);
-    const [mounted, setMounted] = useState(false);
-    const [collageRevealed, setCollageRevealed] = useState(false);
-    const [steveRevealed, setSteveRevealed] = useState(false);
-    const [bookStackRevealed, setBookStackRevealed] = useState(false);
+     const isDesktopWide = useMediaQuery('(min-width: 1101px)');
+     const [mounted, setMounted] = useState(false);
+     const [collageRevealed, setCollageRevealed] = useState(false);
+     const [steveRevealed, setSteveRevealed] = useState(false);
+     const [bookStackRevealed, setBookStackRevealed] = useState(false);
 
-    useEffect(() => {
-        // Mantener el array sincronizado si cambia el número de bloques
-        setVisible((prev) => {
-            if (prev.length === totalBlocks) return prev;
-            const next = Array(totalBlocks).fill(false) as boolean[];
-            for (let i = 0; i < Math.min(prev.length, next.length); i++) next[i] = prev[i];
-            return next;
-        });
-    }, [totalBlocks]);
+     useEffect(() => {
+         // Mantener el array sincronizado si cambia el número de bloques
+         setVisible((prev) => {
+             if (prev.length === totalBlocks) return prev;
+             const next = Array(totalBlocks).fill(false) as boolean[];
+             for (let i = 0; i < Math.min(prev.length, next.length); i++) next[i] = prev[i];
+             return next;
+         });
+     }, [totalBlocks]);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+     useEffect(() => {
+         setMounted(true);
+     }, []);
 
-    useEffect(() => {
-        // Delay extra para que el collage entre después del texto (y no se vea "blurred" antes)
-        if (prefersReducedMotion === null) return;
-        if (prefersReducedMotion) {
-            setCollageRevealed(true);
-            return;
-        }
+     useEffect(() => {
+         // Delay extra para que el collage entre después del texto (y no se vea "blurred" antes)
+         if (prefersReducedMotion === null) return;
+         if (prefersReducedMotion) {
+             setCollageRevealed(true);
+             return;
+         }
 
-        if (!visible[1]) {
-            setCollageRevealed(false);
-            return;
-        }
+         if (!visible[1]) {
+             setCollageRevealed(false);
+             return;
+         }
 
-        const t = window.setTimeout(() => {
-            setCollageRevealed(true);
-        }, 260);
+         const t = window.setTimeout(() => {
+             setCollageRevealed(true);
+         }, 260);
 
-        return () => window.clearTimeout(t);
-    }, [prefersReducedMotion, visible]);
+         return () => window.clearTimeout(t);
+     }, [prefersReducedMotion, visible]);
 
-    useEffect(() => {
-        // Delay extra para que Steve entre después del quote
-        if (prefersReducedMotion === null) return;
-        if (prefersReducedMotion) {
-            setSteveRevealed(true);
-            return;
-        }
+     useEffect(() => {
+         // Delay extra para que Steve entre después del quote
+         if (prefersReducedMotion === null) return;
+         if (prefersReducedMotion) {
+             setSteveRevealed(true);
+             return;
+         }
 
-        if (!visible[IDX.QUOTE]) {
-            setSteveRevealed(false);
-            return;
-        }
+         if (!visible[IDX.QUOTE]) {
+             setSteveRevealed(false);
+             return;
+         }
 
-        const t = window.setTimeout(() => setSteveRevealed(true), 300);
-        return () => window.clearTimeout(t);
-    }, [prefersReducedMotion, visible]);
+         const t = window.setTimeout(() => setSteveRevealed(true), 300);
+         return () => window.clearTimeout(t);
+     }, [prefersReducedMotion, visible]);
 
-    useEffect(() => {
-        // Reveal logic for BookStack (anchored to p4, idx 5 in blockRefs logic)
-        if (prefersReducedMotion === null) return;
-        if (prefersReducedMotion) {
-            setBookStackRevealed(true);
-            return;
-        }
+     useEffect(() => {
+         // Reveal logic for BookStack (anchored to p4, idx 5 in blockRefs logic)
+         if (prefersReducedMotion === null) return;
+         if (prefersReducedMotion) {
+             setBookStackRevealed(true);
+             return;
+         }
 
-        // P4 is index 4 in contentBlocks, so index 5 in blockRefs (0 is header)
-        if (!visible[5]) {
-            setBookStackRevealed(false);
-            return;
-        }
+         // P4 is index 4 in contentBlocks, so index 5 in blockRefs (0 is header)
+         if (!visible[5]) {
+             setBookStackRevealed(false);
+             return;
+         }
 
-        const t = window.setTimeout(() => setBookStackRevealed(true), 300);
-        return () => window.clearTimeout(t);
-    }, [prefersReducedMotion, visible]);
+         const t = window.setTimeout(() => setBookStackRevealed(true), 300);
+         return () => window.clearTimeout(t);
+     }, [prefersReducedMotion, visible]);
 
     useEffect(() => {
         // Highlight amarillo en la frase final cuando realmente entra al viewport
@@ -355,17 +355,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
 
         const el = p5HighlightRef.current;
         if (!el) return;
-
-        const getScrollParent = (node: HTMLElement | null): HTMLElement | null => {
-            let cur: HTMLElement | null = node?.parentElement ?? null;
-            while (cur) {
-                const style = window.getComputedStyle(cur);
-                const oy = style.overflowY;
-                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
-                cur = cur.parentElement;
-            }
-            return null;
-        };
 
         const root = getScrollParent(el);
 
@@ -391,49 +380,15 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
             observer.disconnect();
             if (timeoutId) window.clearTimeout(timeoutId);
         };
-    }, [p5Highlight, prefersReducedMotion]);
+     }, [p5Highlight, prefersReducedMotion]);
 
-    useEffect(() => {
-        // Desktop threshold para usar el espacio a la derecha
-        const mql = window.matchMedia?.('(min-width: 1101px)');
-        if (!mql) {
-            setIsDesktopWide(true);
-            return;
-        }
-
-        const update = () => setIsDesktopWide(mql.matches);
-        update();
-
-        if (typeof mql.addEventListener === 'function') {
-            mql.addEventListener('change', update);
-            return () => mql.removeEventListener('change', update);
-        }
-        const legacy = mql as unknown as {
-            addListener?: (listener: () => void) => void;
-            removeListener?: (listener: () => void) => void;
-        };
-        legacy.addListener?.(update);
-        return () => legacy.removeListener?.(update);
-    }, []);
-
-    useEffect(() => {
+     useEffect(() => {
         // Revelar según scroll (lo que no está a la vista aparece al scrollear)
         if (prefersReducedMotion === null) return;
         if (prefersReducedMotion) {
             setVisible(Array(totalBlocks).fill(true));
             return;
         }
-
-        const getScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-            let cur: HTMLElement | null = el?.parentElement ?? null;
-            while (cur) {
-                const style = window.getComputedStyle(cur);
-                const oy = style.overflowY;
-                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
-                cur = cur.parentElement;
-            }
-            return null;
-        };
 
         const firstEl = blockRefs.current.find(Boolean) ?? null;
         const root = getScrollParent(firstEl as HTMLElement | null);
@@ -470,16 +425,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
     useEffect(() => {
         // Anclar el collage al inicio del primer párrafo (block index 1)
         if (isDesktopWide === false) return;
-        const getScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-            let cur: HTMLElement | null = el?.parentElement ?? null;
-            while (cur) {
-                const style = window.getComputedStyle(cur);
-                const oy = style.overflowY;
-                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
-                cur = cur.parentElement;
-            }
-            return null;
-        };
 
         const firstBlock = blockRefs.current[1] ?? null;
         const scrollRoot = getScrollParent(firstBlock as HTMLElement | null);
@@ -540,17 +485,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
         // Anclar imagen de Steve al quote (block index 3)
         if (isDesktopWide === false) return;
 
-        const getScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-            let cur: HTMLElement | null = el?.parentElement ?? null;
-            while (cur) {
-                const style = window.getComputedStyle(cur);
-                const oy = style.overflowY;
-                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
-                cur = cur.parentElement;
-            }
-            return null;
-        };
-
         const quoteEl = blockRefs.current[3] ?? null;
         const scrollRoot = getScrollParent(quoteEl as HTMLElement | null);
 
@@ -605,17 +539,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
     useEffect(() => {
         // Anclar BookStack al párrafo 1 - a la derecha, debajo del collage
         if (isDesktopWide === false) return;
-
-        const getScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-            let cur: HTMLElement | null = el?.parentElement ?? null;
-            while (cur) {
-                const style = window.getComputedStyle(cur);
-                const oy = style.overflowY;
-                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
-                cur = cur.parentElement;
-            }
-            return null;
-        };
 
         const p1El = blockRefs.current[1] ?? null;
         const scrollRoot = getScrollParent(p1El as HTMLElement | null);
@@ -811,7 +734,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                             </div>
 
                             {/* Mobile/tablet: show collage in flow after first paragraph */}
-                            {i === 0 && isDesktopWide === false && (
+                            {i === 0 && isDesktopWide === false ? (
                                 <div
                                     aria-hidden="true"
                                     className="about-side-media"
@@ -820,10 +743,10 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                                         {sideCollageNode}
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             {/* Mobile/tablet: show Steve in flow after quote (idx 2) */}
-                            {i === 2 && isDesktopWide === false && (
+                            {i === 2 && isDesktopWide === false ? (
                                 <div
                                     aria-hidden="true"
                                     className="about-steve-media about-steve-media--inline"
@@ -836,10 +759,10 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                                         {steveNode}
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             {/* Mobile/tablet: show BookStack in flow after p4 (idx 4) */}
-                            {i === 4 && isDesktopWide === false && (
+                            {i === 4 && isDesktopWide === false ? (
                                 <div
                                     aria-hidden="true"
                                     className="about-bookstack-media about-bookstack-media--inline"
@@ -848,7 +771,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                                         <BookStack onGoToBooks={onGoToBooks} darkMode={darkMode} />
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
                         </React.Fragment>
                     );
                 })}

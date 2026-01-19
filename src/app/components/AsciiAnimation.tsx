@@ -155,7 +155,7 @@ const AsciiAnimation: React.FC<AsciiAnimationProps> = ({ darkMode, customFrames,
       height: '400px',
     }}>
       {/* Matrix rain background - disabled for better ASCII visibility */}
-      {false && (
+      {false ? (
         <div style={{ position: 'absolute', inset: 0 }}>
           {matrixChars.map((char, i) => (
             <span
@@ -174,7 +174,7 @@ const AsciiAnimation: React.FC<AsciiAnimationProps> = ({ darkMode, customFrames,
             </span>
           ))}
         </div>
-      )}
+      ) : null}
       
       {/* ASCII character */}
       <div style={{ 

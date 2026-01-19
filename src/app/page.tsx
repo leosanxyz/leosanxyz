@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, startTransition } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
+import { useWindowSize } from '@/hooks';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
 import AnimatedPathText from './components/TextAlongPath';
@@ -80,25 +81,20 @@ export default function Home() {
   const bookGalleryRef = useRef<BookGalleryRef>(null);
   const bookDetailCoverRef = useRef<HTMLDivElement | null>(null);
   
-  const handleCoverRef = useCallback((el: HTMLDivElement | null) => {
-    bookDetailCoverRef.current = el;
-  }, []);
+   const handleCoverRef = useCallback((el: HTMLDivElement | null) => {
+     bookDetailCoverRef.current = el;
+   }, []);
 
-  // Detectar si es móvil después del montaje para evitar error de hidratación
-  useEffect(() => {
-    // Establecer soundEnabled dependiendo del ancho de la pantalla
-    const isMobile = window.innerWidth < 600;
-    setSoundEnabled(!isMobile); // Apagado en móviles, encendido en desktop
-    setIsDesktop(window.innerWidth >= 900);
+   // Get window size from hook
+   const windowSize = useWindowSize();
 
-    // Handle resize
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 900);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+   // Detectar si es móvil después del montaje para evitar error de hidratación
+   useEffect(() => {
+     // Establecer soundEnabled dependiendo del ancho de la pantalla
+     const isMobile = windowSize.width < 600;
+     setSoundEnabled(!isMobile); // Apagado en móviles, encendido en desktop
+     setIsDesktop(windowSize.width >= 900);
+   }, [windowSize.width]);
 
   // Aplicar cambios al body cuando cambia el modo oscuro
   useEffect(() => {
@@ -625,7 +621,7 @@ export default function Home() {
   }, [viewMode]);
 
   useEffect(() => {
-    if (viewMode !== 'books' && contentContainerRef.current) {
+    if (viewMode !== 'books' && viewMode !== 'book' && contentContainerRef.current) {
       contentContainerRef.current.scrollTop = 0;
     }
   }, [viewMode]);
@@ -634,12 +630,12 @@ export default function Home() {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
     e.preventDefault();
     if (target === '/blog') {
-      setViewMode('blog');
+      startTransition(() => setViewMode('blog'));
       // Clear selected post when going to blog list
       setSelectedSlug(null);
       setPostContent(null);
     } else if (target === '/about') {
-      setViewMode('about');
+      startTransition(() => setViewMode('about')); setLastExitedBookId(null);
       setSelectedSlug(null);
       setPostContent(null);
     } else {
@@ -651,14 +647,14 @@ export default function Home() {
   const handlePostClick = (e: React.MouseEvent<HTMLAnchorElement>, slug: string) => {
     e.preventDefault();
     setSelectedSlug(slug);
-    setViewMode('post'); // Switch to post view
+    startTransition(() => setViewMode('post')); // Switch to post view
   };
 
   // Handler para volver (depende del viewMode)
   const handleGoBack = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
     e.preventDefault();
     if (viewMode === 'post') {
-      setViewMode('blog');
+      startTransition(() => setViewMode('blog'));
       setSelectedSlug(null);
       setPostContent(null);
       setErrorLoadingContent(null);
@@ -667,11 +663,19 @@ export default function Home() {
       if (bookDetailCoverRef.current) {
         const rect = bookDetailCoverRef.current.getBoundingClientRect();
         const containerRect = contentContainerRef.current?.getBoundingClientRect();
-        const offsetTop = containerRect ? rect.top - containerRect.top : 0;
-        const offsetLeft = containerRect ? rect.left - containerRect.left : 0;
+        
+        // Get container padding to correctly offset position:fixed (which acts as absolute)
+        let paddingTop = 0;
+        let paddingLeft = 0;
+        if (contentContainerRef.current) {
+          const style = window.getComputedStyle(contentContainerRef.current);
+          paddingTop = parseFloat(style.paddingTop);
+          paddingLeft = parseFloat(style.paddingLeft);
+        }
+
         setBookDetailPosition({ 
-          top: offsetTop, 
-          left: offsetLeft, 
+          top: containerRect ? rect.top - containerRect.top - paddingTop : 0, 
+          left: containerRect ? rect.left - containerRect.left - paddingLeft : 0, 
           width: rect.width, 
           height: rect.height,
           viewportTop: rect.top,
@@ -679,17 +683,21 @@ export default function Home() {
         });
       }
       setIsExitingBook(true);
-      requestAnimationFrame(() => {
+      
+      const restoreScroll = () => {
         if (contentContainerRef.current) {
           contentContainerRef.current.scrollTop = savedScrollPosition;
         }
-      });
+      };
+      restoreScroll();
+      requestAnimationFrame(restoreScroll);
+      requestAnimationFrame(() => requestAnimationFrame(restoreScroll));
     } else if (viewMode === 'books') {
-      setViewMode('about');
+      startTransition(() => setViewMode('about')); setLastExitedBookId(null);
     } else if (viewMode === 'about') {
-      setViewMode('home');
+      startTransition(() => setViewMode('home'));
     } else if (viewMode === 'blog') {
-      setViewMode('home');
+      startTransition(() => setViewMode('home'));
       setPosts([]);
       setErrorLoadingPosts(null);
     }
@@ -701,19 +709,26 @@ export default function Home() {
     }
     setSelectedBook(data.book);
     setBookStartRect(data.rect);
-    setViewMode('book');
+    startTransition(() => setViewMode('book'));
   };
 
-  const handleGoToBooks = () => {
-    setViewMode('books');
+  const handleGoToBooks = () => { setLastExitedBookId(null);
+    startTransition(() => setViewMode('books'));
   };
 
   const handleBookExitComplete = () => {
     const exitedBookId = selectedBook?.id || null;
     setLastExitedBookId(exitedBookId);
-    setViewMode('books');
+    startTransition(() => setViewMode('books'));
     setSelectedBook(null);
     setIsExitingBook(false);
+    
+    // Ensure scroll is preserved after switching back to main gallery
+    requestAnimationFrame(() => {
+      if (contentContainerRef.current) {
+        contentContainerRef.current.scrollTop = savedScrollPosition;
+      }
+    });
   };
 
   const getExitTargetRect = useCallback(() => {
@@ -856,11 +871,11 @@ export default function Home() {
       `}</style>
 
       {/* Screensaver Component */}
-      {showScreensaver && (
+      {showScreensaver ? (
         <div onClick={() => setShowScreensaver(false)}>
           <Screensaver darkMode={darkMode} />
         </div>
-      )}
+      ) : null}
 
       <div
         ref={sceneRef}
@@ -869,7 +884,7 @@ export default function Home() {
           backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
         }}
       />
-      {slingPos && showStretchHint && !showScreensaver && (
+      {slingPos && showStretchHint && !showScreensaver ? (
         (() => {
           const BALL_RADIUS = 44; // mantener en sync con el radio de la bola
           const ringRadius = BALL_RADIUS + 12; // margen cercano al balón
@@ -906,7 +921,7 @@ export default function Home() {
             </div>
           );
         })()
-      )}
+      ) : null}
 
       {/* Dark Mode Switch */}
       <button
@@ -975,7 +990,7 @@ export default function Home() {
       </button>
 
       {/* Back Arrow Button - Visible in blog/post/about/books/book view */}
-      {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about' || viewMode === 'books' || viewMode === 'book') && (
+      {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about' || viewMode === 'books' || viewMode === 'book') ? (
         <button
           onClick={handleGoBack}
           className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
@@ -992,17 +1007,17 @@ export default function Home() {
         >
           ←
         </button>
-      )}
+      ) : null}
 
       {/* ASCII Animation - only on desktop in post view */}
-      {viewMode === 'post' && isDesktop && (
+      {viewMode === 'post' && isDesktop ? (
         <AsciiAnimation
           darkMode={darkMode}
           customFrames={asciiFrames || undefined}
           postTitle={selectedSlug || undefined}
           frameDelay={frameDelay}
         />
-      )}
+      ) : null}
 
       {/* Contenido central (Navegación o Posts) */}
       <div
@@ -1053,36 +1068,6 @@ export default function Home() {
             </ul>
           ) : viewMode === 'about' ? (
             <AboutMe darkMode={darkMode} onGoToBooks={handleGoToBooks} />
-          ) : viewMode === 'books' ? (
-            <BookGallery 
-              ref={bookGalleryRef} 
-              darkMode={darkMode} 
-              onBookClick={handleBookClick}
-              excludeFromAnimation={lastExitedBookId || undefined}
-            />
-          ) : viewMode === 'book' && selectedBook ? (
-            <>
-              {isExitingBook && (
-                <BookGallery 
-                  ref={bookGalleryRef} 
-                  darkMode={darkMode} 
-                  onBookClick={handleBookClick} 
-                  hideBook={selectedBook.id}
-                />
-              )}
-              <BookDetail
-                book={selectedBook}
-                darkMode={darkMode}
-                quotes={selectedBook.quotes || []}
-                isLoadingQuotes={false}
-                startRect={bookStartRect}
-                isExiting={isExitingBook}
-                onExitComplete={handleBookExitComplete}
-                getExitTargetRect={getExitTargetRect}
-                exitCoverPosition={isExitingBook ? bookDetailPosition : null}
-                onCoverRef={handleCoverRef}
-              />
-            </>
           ) : viewMode === 'blog' ? (
             // Vista Blog: Lista de posts
             <div
@@ -1132,91 +1117,112 @@ export default function Home() {
                 borderTopLeftRadius: '16px',
                 borderTopRightRadius: '16px',
               }} />
-              <div> {/* Inner div no longer needs scrolling/height/paddingTop limits */}
-                {isLoadingContent && <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando contenido...</p>}
-                {errorLoadingContent && <p style={{ color: 'red' }}>Error: {errorLoadingContent}</p>}
-                {postContent && (
-                  <div
-                    className="markdown-content"
-                    style={{
-                      textAlign: 'left',
-                      paddingBottom: '78px',
-                      height: '100%',
-                      overflowY: 'auto',
-                      boxSizing: 'border-box',
-                      // Desktop: alinea a la derecha
-                      ...(isDesktop
-                        ? {
-                          marginLeft: 'auto',
-                          marginRight: 0,
-                          maxWidth: '600px',
-                          paddingLeft: '120px', // grande a la izquierda
-                          paddingRight: '24px', // pequeño a la derecha
-                        }
-                        : {
-                          width: '100%',
-                          paddingLeft: '12px',
-                          paddingRight: '12px',
-                        }),
+              <div
+                className="markdown-content"
+                style={{
+                  textAlign: 'left',
+                  paddingBottom: '78px',
+                  height: '100%',
+                  overflowY: 'auto',
+                  boxSizing: 'border-box',
+                  // Desktop: alinea a la derecha
+                  ...(isDesktop
+                    ? {
+                      marginLeft: 'auto',
+                      marginRight: 0,
+                      maxWidth: '600px',
+                      paddingLeft: '120px', // grande a la izquierda
+                      paddingRight: '24px', // pequeño a la derecha
+                    }
+                    : {
+                      width: '100%',
+                      paddingLeft: '12px',
+                      paddingRight: '12px',
+                    }),
+                }}
+              >
+                {!postTyped ? (
+                  <>
+                    {!skipTypewriter ? (
+                      <div style={{
+                        marginBottom: '20px',
+                        display: 'flex',
+                        justifyContent: 'flex-end'
+                      }}>
+                        <button
+                          onClick={() => setSkipTypewriter(true)}
+                          className="px-4 py-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+                          style={{
+                            backgroundColor: darkMode ? '#444' : '#fff',
+                            color: darkMode ? '#fff' : '#333',
+                            border: `2px solid ${darkMode ? '#666' : '#ddd'}`,
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          Saltar →
+                        </button>
+                      </div>
+                    ) : null}
+                    <Typewriter
+                      text={postContent || ''}
+                      speed={25}
+                      onComplete={() => {
+                        setPostTyped(true);
+                        setSkipTypewriter(false);
+                      }}
+                      skip={skipTypewriter}
+                      className="w-full break-words"
+                    />
+                  </>
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children, ...props }) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props}>{children}</h1>,
+                      h2: ({ children, ...props }) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props}>{children}</h2>,
+                      p: ({ children, ...props }) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props}>{children}</p>,
+                      a: ({ children, ...props }) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props}>{children}</a>,
+                      li: ({ children, ...props }) => <li style={{ marginBottom: '0.5rem' }} {...props}>{children}</li>,
+                      blockquote: ({ children, ...props }) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props}>{children}</blockquote>,
+                      code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) =>
+                        inline ? (
+                          <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code>
+                        ) : (
+                          <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>
+                        ),
                     }}
                   >
-                    {!postTyped ? (
-                      <>
-                        {!skipTypewriter && (
-                          <div style={{
-                            marginBottom: '20px',
-                            display: 'flex',
-                            justifyContent: 'flex-end'
-                          }}>
-                            <button
-                              onClick={() => setSkipTypewriter(true)}
-                              className="px-4 py-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300"
-                              style={{
-                                backgroundColor: darkMode ? '#444' : '#fff',
-                                color: darkMode ? '#fff' : '#333',
-                                border: `2px solid ${darkMode ? '#666' : '#ddd'}`,
-                                fontSize: '14px',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Saltar →
-                            </button>
-                          </div>
-                        )}
-                        <Typewriter
-                          text={postContent}
-                          speed={25}
-                          onComplete={() => {
-                            setPostTyped(true);
-                            setSkipTypewriter(false);
-                          }}
-                          skip={skipTypewriter}
-                          className="w-full break-words"
-                        />
-                      </>
-                    ) : (
-                      <ReactMarkdown
-                        components={{
-                          h1: ({ children, ...props }) => <h1 style={{ color: darkMode ? '#f59e42' : '#d97706', marginBottom: '1.5rem', marginTop: '2rem' }} {...props}>{children}</h1>,
-                          h2: ({ children, ...props }) => <h2 style={{ color: darkMode ? '#eee' : '#111', borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '0.5rem', marginTop: '2.5rem', marginBottom: '1rem' }} {...props}>{children}</h2>,
-                          p: ({ children, ...props }) => <p style={{ textAlign: 'justify', lineHeight: '1.7', marginBottom: '1.2rem' }} {...props}>{children}</p>,
-                          a: ({ children, ...props }) => <a style={{ color: darkMode ? '#60a5fa' : '#2563eb' }} {...props}>{children}</a>,
-                          li: ({ children, ...props }) => <li style={{ marginBottom: '0.5rem' }} {...props}>{children}</li>,
-                          blockquote: ({ children, ...props }) => <blockquote style={{ borderLeft: `4px solid ${darkMode ? '#555' : '#ccc'}`, paddingLeft: '1rem', color: darkMode ? '#bbb' : '#555', fontStyle: 'italic', margin: '1.5rem 0' }} {...props}>{children}</blockquote>,
-                          code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) =>
-                            inline ? (
-                              <code className={className} style={{ background: darkMode ? '#333' : '#eee', padding: '0.2em 0.4em', borderRadius: '3px' }} {...props}>{children}</code>
-                            ) : (
-                              <pre className={className} style={{ background: darkMode ? '#222' : '#f5f5f5', padding: '1rem', borderRadius: '5px', overflowX: 'auto' }} {...props}><code>{children}</code></pre>
-                            ),
-                        }}
-                      >
-                        {postContent}
-                      </ReactMarkdown>
-                    )}
-                  </div>
+                    {postContent || ''}
+                  </ReactMarkdown>
                 )}
               </div>
+            </>
+          ) : (viewMode === 'books' || viewMode === 'book') ? (
+            <>
+              <div style={{ display: viewMode === 'books' || isExitingBook ? 'block' : 'none' }}>
+                <BookGallery 
+                  ref={bookGalleryRef} 
+                  darkMode={darkMode} 
+                  onBookClick={handleBookClick}
+                  excludeFromAnimation={lastExitedBookId || undefined}
+                  hideBook={(viewMode === 'book' && selectedBook) ? selectedBook.id : undefined}
+                />
+              </div>
+              {viewMode === 'book' && selectedBook ? (
+                <BookDetail
+                  key={selectedBook.id}
+                  book={selectedBook}
+                  darkMode={darkMode}
+                  quotes={selectedBook.quotes || []}
+                  isLoadingQuotes={false}
+                  startRect={bookStartRect}
+                  isExiting={isExitingBook}
+                  onExitComplete={handleBookExitComplete}
+                  getExitTargetRect={getExitTargetRect}
+                  exitCoverPosition={isExitingBook ? bookDetailPosition : null}
+                  onCoverRef={handleCoverRef}
+                />
+              ) : null}
             </>
           ) : null}
         </div>
