@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
@@ -12,6 +12,12 @@ const ReactMarkdown = dynamic(() => import('react-markdown'));
 const AsciiAnimation = dynamic(() => import('./components/AsciiAnimation'), { ssr: false });
 const Screensaver = dynamic(() => import('./components/Screensaver'), { ssr: false });
 const AboutMe = dynamic(() => import('./components/AboutMe'));
+const BookDetail = dynamic(() => import('./components/BookDetail'));
+
+import BookGallery from './components/BookGallery';
+import type { BookGalleryRef, BookClickData } from './components/BookGallery';
+
+import type { Book } from '@/data/books';
 
 // Define un tipo para las propiedades personalizadas de los bloques
 interface BouncingBlock extends Matter.Body {
@@ -45,7 +51,7 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const blocksRef = useRef<Matter.Body[]>([]);
   const playAnimationRef = useRef<(() => void) | null>(null);
-  const [viewMode, setViewMode] = useState<'home' | 'blog' | 'post' | 'about'>('home'); // 'home' or 'blog' or 'post' or 'about'
+  const [viewMode, setViewMode] = useState<'home' | 'blog' | 'post' | 'about' | 'books' | 'book'>('home');
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [errorLoadingPosts, setErrorLoadingPosts] = useState<string | null>(null);
@@ -61,6 +67,22 @@ export default function Home() {
   const [asciiFrames, setAsciiFrames] = useState<string[] | null>(null);
   const [frameDelay, setFrameDelay] = useState<number>(100);
   const [showScreensaver, setShowScreensaver] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [bookStartRect, setBookStartRect] = useState<DOMRect | null>(null);
+  const [isExitingBook, setIsExitingBook] = useState(false);
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0);
+  const [lastExitedBookId, setLastExitedBookId] = useState<string | null>(null);
+  const [bookDetailPosition, setBookDetailPosition] = useState<{ 
+    top: number; left: number; width: number; height: number;
+    viewportTop: number; viewportLeft: number;
+  } | null>(null);
+  const contentContainerRef = useRef<HTMLDivElement>(null);
+  const bookGalleryRef = useRef<BookGalleryRef>(null);
+  const bookDetailCoverRef = useRef<HTMLDivElement | null>(null);
+  
+  const handleCoverRef = useCallback((el: HTMLDivElement | null) => {
+    bookDetailCoverRef.current = el;
+  }, []);
 
   // Detectar si es móvil después del montaje para evitar error de hidratación
   useEffect(() => {
@@ -602,6 +624,12 @@ export default function Home() {
     }
   }, [viewMode]);
 
+  useEffect(() => {
+    if (viewMode !== 'books' && contentContainerRef.current) {
+      contentContainerRef.current.scrollTop = 0;
+    }
+  }, [viewMode]);
+
   // Handler para la navegación
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
     e.preventDefault();
@@ -630,19 +658,68 @@ export default function Home() {
   const handleGoBack = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
     e.preventDefault();
     if (viewMode === 'post') {
-      setViewMode('blog'); // Go back to list from post
+      setViewMode('blog');
       setSelectedSlug(null);
       setPostContent(null);
       setErrorLoadingContent(null);
       setAsciiFrames(null);
+    } else if (viewMode === 'book') {
+      if (bookDetailCoverRef.current) {
+        const rect = bookDetailCoverRef.current.getBoundingClientRect();
+        const containerRect = contentContainerRef.current?.getBoundingClientRect();
+        const offsetTop = containerRect ? rect.top - containerRect.top : 0;
+        const offsetLeft = containerRect ? rect.left - containerRect.left : 0;
+        setBookDetailPosition({ 
+          top: offsetTop, 
+          left: offsetLeft, 
+          width: rect.width, 
+          height: rect.height,
+          viewportTop: rect.top,
+          viewportLeft: rect.left,
+        });
+      }
+      setIsExitingBook(true);
+      requestAnimationFrame(() => {
+        if (contentContainerRef.current) {
+          contentContainerRef.current.scrollTop = savedScrollPosition;
+        }
+      });
+    } else if (viewMode === 'books') {
+      setViewMode('about');
     } else if (viewMode === 'about') {
       setViewMode('home');
     } else if (viewMode === 'blog') {
-      setViewMode('home'); // Go back to home from list
-      setPosts([]); // Opcional: limpiar la lista de posts al volver a home
+      setViewMode('home');
+      setPosts([]);
       setErrorLoadingPosts(null);
     }
   };
+
+  const handleBookClick = (data: BookClickData) => {
+    if (contentContainerRef.current) {
+      setSavedScrollPosition(contentContainerRef.current.scrollTop);
+    }
+    setSelectedBook(data.book);
+    setBookStartRect(data.rect);
+    setViewMode('book');
+  };
+
+  const handleGoToBooks = () => {
+    setViewMode('books');
+  };
+
+  const handleBookExitComplete = () => {
+    const exitedBookId = selectedBook?.id || null;
+    setLastExitedBookId(exitedBookId);
+    setViewMode('books');
+    setSelectedBook(null);
+    setIsExitingBook(false);
+  };
+
+  const getExitTargetRect = useCallback(() => {
+    if (!selectedBook || !bookGalleryRef.current) return null;
+    return bookGalleryRef.current.getBookRect(selectedBook.id);
+  }, [selectedBook]);
 
   // Efecto para cargar el contenido del post seleccionado
   useEffect(() => {
@@ -731,6 +808,20 @@ export default function Home() {
         transform: 'translateX(-50%)',
         width: '90%',
         maxWidth: '700px',
+      } : {}),
+    ...(viewMode === 'books'
+      ? {
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '95%',
+        maxWidth: '1100px',
+      } : {}),
+    ...(viewMode === 'book'
+      ? {
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '95%',
+        maxWidth: '1100px',
       } : {}),
     ...(viewMode === 'post'
       ? {
@@ -883,8 +974,8 @@ export default function Home() {
         )}
       </button>
 
-      {/* Back Arrow Button - Visible in blog/post/about view */}
-      {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about') && (
+      {/* Back Arrow Button - Visible in blog/post/about/books/book view */}
+      {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about' || viewMode === 'books' || viewMode === 'book') && (
         <button
           onClick={handleGoBack}
           className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
@@ -915,6 +1006,7 @@ export default function Home() {
 
       {/* Contenido central (Navegación o Posts) */}
       <div
+        ref={contentContainerRef}
         className={`${geist.className} no-scrollbar transition-opacity duration-500 ease-in-out`}
         style={styleMainContainer}
       >
@@ -960,7 +1052,37 @@ export default function Home() {
               </li>
             </ul>
           ) : viewMode === 'about' ? (
-            <AboutMe darkMode={darkMode} />
+            <AboutMe darkMode={darkMode} onGoToBooks={handleGoToBooks} />
+          ) : viewMode === 'books' ? (
+            <BookGallery 
+              ref={bookGalleryRef} 
+              darkMode={darkMode} 
+              onBookClick={handleBookClick}
+              excludeFromAnimation={lastExitedBookId || undefined}
+            />
+          ) : viewMode === 'book' && selectedBook ? (
+            <>
+              {isExitingBook && (
+                <BookGallery 
+                  ref={bookGalleryRef} 
+                  darkMode={darkMode} 
+                  onBookClick={handleBookClick} 
+                  hideBook={selectedBook.id}
+                />
+              )}
+              <BookDetail
+                book={selectedBook}
+                darkMode={darkMode}
+                quotes={selectedBook.quotes || []}
+                isLoadingQuotes={false}
+                startRect={bookStartRect}
+                isExiting={isExitingBook}
+                onExitComplete={handleBookExitComplete}
+                getExitTargetRect={getExitTargetRect}
+                exitCoverPosition={isExitingBook ? bookDetailPosition : null}
+                onCoverRef={handleCoverRef}
+              />
+            </>
           ) : viewMode === 'blog' ? (
             // Vista Blog: Lista de posts
             <div

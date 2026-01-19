@@ -4,9 +4,10 @@ import { createPortal } from 'react-dom';
 
 interface AboutMeProps {
     darkMode: boolean;
+    onGoToBooks?: () => void;
 }
 
-const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
+const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
     const textColor = darkMode ? '#eee' : '#111';
     const subTextColor = darkMode ? '#bbb' : '#555';
 
@@ -106,6 +107,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
     ), []);
 
     const [p5Highlight, setP5Highlight] = useState(false);
+    const p5HighlightRef = React.useRef<HTMLSpanElement | null>(null);
 
     const contentBlocks = useMemo(() => ([
         <p
@@ -182,7 +184,10 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
             }}
         >
             Quiero seguir creando grandes cosas. Me importa el progreso tecnológico y quiero mejorar lo existente.{' '}
-            <span className={`about-highlight ${p5Highlight ? 'about-highlight--on' : ''}`}>
+            <span
+                ref={p5HighlightRef}
+                className={`about-highlight ${p5Highlight ? 'about-highlight--on' : ''}`}
+            >
                 Estoy bastante seguro de que siempre será así.
             </span>
         </p>,
@@ -194,12 +199,23 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
                 viaje.
             </div>
 
-            <a
-                className="about-cta-button"
-                href="mailto:leonsanchez09@protonmail.com?subject=Hablemos&body=Hola%20Leo%2C%0A%0A"
-            >
-                ¡hablemos!
-            </a>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <a
+                    className="about-cta-button"
+                    href="mailto:leonsanchez09@protonmail.com?subject=Hablemos&body=Hola%20Leo%2C%0A%0A"
+                >
+                    ¡hablemos!
+                </a>
+                {onGoToBooks && (
+                    <button
+                        className="about-cta-button"
+                        onClick={onGoToBooks}
+                        style={{ cursor: 'pointer', border: 'none' }}
+                    >
+                        mis libros
+                    </button>
+                )}
+            </div>
         </div>,
 
         <div
@@ -252,7 +268,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
                 leonsanchez09@protonmail.com
             </a>
         </div>,
-    ]), [darkMode, subTextColor, textColor, p5Highlight]);
+    ]), [darkMode, subTextColor, textColor, p5Highlight, onGoToBooks]);
 
     const totalBlocks = 1 + contentBlocks.length; // header + contenido
     const [visible, setVisible] = useState<boolean[]>(() => Array(totalBlocks).fill(false));
@@ -317,16 +333,53 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode }) => {
     }, [prefersReducedMotion, visible]);
 
     useEffect(() => {
-        // Highlight amarillo en la frase final del bloque p5 cuando llega con el scroll
+        // Highlight amarillo en la frase final cuando realmente entra al viewport
         if (prefersReducedMotion === null) return;
         if (prefersReducedMotion) {
             setP5Highlight(true);
             return;
         }
-        if (!visible[IDX.P5]) return;
-        const t = window.setTimeout(() => setP5Highlight(true), 120);
-        return () => window.clearTimeout(t);
-    }, [prefersReducedMotion, visible]);
+        if (p5Highlight) return;
+
+        const el = p5HighlightRef.current;
+        if (!el) return;
+
+        const getScrollParent = (node: HTMLElement | null): HTMLElement | null => {
+            let cur: HTMLElement | null = node?.parentElement ?? null;
+            while (cur) {
+                const style = window.getComputedStyle(cur);
+                const oy = style.overflowY;
+                if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return cur;
+                cur = cur.parentElement;
+            }
+            return null;
+        };
+
+        const root = getScrollParent(el);
+
+        let timeoutId = 0;
+        const observer = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                // Dale un respiro al reveal antes de pintar el highlight
+                timeoutId = window.setTimeout(() => setP5Highlight(true), 220);
+                observer.disconnect();
+                break;
+            }
+        }, {
+            root,
+            threshold: 0.5,
+            // Disparar cuando ya está claramente dentro del contenedor (y no apenas tocando el fondo)
+            rootMargin: '0px 0px -25% 0px',
+        });
+
+        observer.observe(el);
+
+        return () => {
+            observer.disconnect();
+            if (timeoutId) window.clearTimeout(timeoutId);
+        };
+    }, [p5Highlight, prefersReducedMotion]);
 
     useEffect(() => {
         // Desktop threshold para usar el espacio a la derecha
