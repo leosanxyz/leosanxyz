@@ -541,7 +541,9 @@ body {
 }
 
 .book-detail-quotes--exiting {
-  animation: none;
+  animation: none !important;
+  opacity: 0 !important;
+  transition: opacity 100ms ease-out !important;
 }
 
 @keyframes bookDetailQuotesEnter {

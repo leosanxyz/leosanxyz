@@ -97,45 +97,19 @@ const BookDetail: React.FC<BookDetailProps> = ({
     
     const startAnimation = () => {
       const targetGalleryRect = getExitTargetRect?.();
-      if (!targetGalleryRect) {
-        if (!startRect) {
-          onExitComplete?.();
-          return;
-        }
-        
-        const currentRect = coverRef.current!.getBoundingClientRect();
-        const currentTop = currentRect.top;
-        const currentLeft = currentRect.left;
-        const currentWidth = currentRect.width;
-        const currentHeight = currentRect.height;
-
-        const scaleX = startRect.width / currentWidth;
-        const scaleY = startRect.height / currentHeight;
-        const translateX = startRect.left - currentLeft;
-        const translateY = startRect.top - currentTop;
-        
-        setIsAnimating(true);
-        setAnimationStyle({
-          transform: `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`,
-          transition: 'transform 450ms cubic-bezier(0.2, 0.9, 0.3, 1)',
-        });
-
-        setTimeout(() => {
-          onExitComplete?.();
-        }, 450);
+      if (!targetGalleryRect || !coverRef.current) {
+        onExitComplete?.();
         return;
       }
 
-      const currentRect = coverRef.current!.getBoundingClientRect();
-      const currentTop = currentRect.top;
-      const currentLeft = currentRect.left;
-      const currentWidth = currentRect.width;
-      const currentHeight = currentRect.height;
-
-      const scaleX = targetGalleryRect.width / currentWidth;
-      const scaleY = targetGalleryRect.height / currentHeight;
-      const translateX = targetGalleryRect.left - currentLeft;
-      const translateY = targetGalleryRect.top - currentTop;
+      // Capture current viewport position BEFORE applying target transform
+      const currentRect = coverRef.current.getBoundingClientRect();
+      
+      // Calculate exactly how much we need to move in viewport pixels
+      const scaleX = targetGalleryRect.width / currentRect.width;
+      const scaleY = targetGalleryRect.height / currentRect.height;
+      const translateX = targetGalleryRect.left - currentRect.left;
+      const translateY = targetGalleryRect.top - currentRect.top;
 
       setIsAnimating(true);
       setAnimationStyle({
@@ -194,7 +168,7 @@ const BookDetail: React.FC<BookDetailProps> = ({
             opacity: isAnimating || isExiting ? 0 : 1,
             transform: isAnimating || isExiting ? 'translateY(20px)' : 'translateY(0)',
             transition: isExiting 
-              ? 'opacity 200ms ease-out, transform 200ms ease-out'
+              ? 'opacity 150ms ease-out, transform 150ms ease-out'
               : 'opacity 300ms ease-out 200ms, transform 300ms ease-out 200ms',
           }}
         >
@@ -213,7 +187,7 @@ const BookDetail: React.FC<BookDetailProps> = ({
           opacity: isAnimating || isExiting ? 0 : 1,
           transform: isAnimating || isExiting ? 'translateX(30px)' : 'translateX(0)',
           transition: isExiting
-            ? 'opacity 200ms ease-out, transform 200ms ease-out'
+            ? 'opacity 150ms ease-out, transform 150ms ease-out'
             : 'opacity 350ms ease-out 250ms, transform 350ms ease-out 250ms',
         }}
       >

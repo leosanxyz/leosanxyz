@@ -704,12 +704,18 @@ export default function Home() {
   };
 
   const handleBookClick = (data: BookClickData) => {
+    const container = contentContainerRef.current;
+
     if (contentContainerRef.current) {
       setSavedScrollPosition(contentContainerRef.current.scrollTop);
     }
     setSelectedBook(data.book);
     setBookStartRect(data.rect);
     startTransition(() => setViewMode('book'));
+
+    if (container && windowSize.width <= 900) {
+      container.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleGoToBooks = () => { setLastExitedBookId(null);
@@ -1199,12 +1205,23 @@ export default function Home() {
             </>
           ) : (viewMode === 'books' || viewMode === 'book') ? (
             <>
-              <div style={{ display: viewMode === 'books' || isExitingBook ? 'block' : 'none' }}>
+              <div
+                style={{
+                  display:
+                    viewMode === 'books' ||
+                    isExitingBook ||
+                    (viewMode === 'book' && !selectedBook)
+                      ? 'block'
+                      : 'none',
+                }}
+              >
                 <BookGallery 
                   ref={bookGalleryRef} 
                   darkMode={darkMode} 
                   onBookClick={handleBookClick}
-                  excludeFromAnimation={lastExitedBookId || undefined}
+                  excludeFromAnimation={
+                    (isExitingBook && selectedBook ? selectedBook.id : lastExitedBookId) || undefined
+                  }
                   hideBook={(viewMode === 'book' && selectedBook) ? selectedBook.id : undefined}
                 />
               </div>
