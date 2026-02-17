@@ -606,6 +606,10 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 2rem;
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .book-detail-cover-wrapper {
@@ -619,6 +623,7 @@ body {
   .book-detail-quotes-list {
     max-height: none;
     padding-right: 0;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -726,5 +731,4 @@ body {
     -4px 6px 12px rgba(0,0,0,0.2),
     -8px 12px 24px rgba(0,0,0,0.15);
 }
-
 
