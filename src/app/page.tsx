@@ -843,6 +843,9 @@ export default function Home() {
         transform: 'translateX(-50%)',
         width: '95%',
         maxWidth: '1100px',
+        boxSizing: 'border-box',
+        overflowX: 'hidden',
+        overscrollBehaviorX: 'none',
       } : {}),
     ...(viewMode === 'post'
       ? {

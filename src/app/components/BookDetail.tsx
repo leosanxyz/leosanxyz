@@ -34,6 +34,7 @@ const BookDetail: React.FC<BookDetailProps> = ({
   const textColor = darkMode ? '#eee' : '#111';
   const subTextColor = darkMode ? '#bbb' : '#555';
   const coverRef = useRef<HTMLDivElement>(null);
+  const quotesListRef = useRef<HTMLDivElement>(null);
   
   const setCoverRef = useCallback((el: HTMLDivElement | null) => {
     (coverRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
@@ -128,7 +129,42 @@ const BookDetail: React.FC<BookDetailProps> = ({
         startAnimation();
       });
     });
-  }, [isExiting, startRect, onExitComplete, getExitTargetRect, exitCoverPosition]);
+  }, [isExiting, onExitComplete, getExitTargetRect]);
+
+  useEffect(() => {
+    const quotesList = quotesListRef.current;
+    if (!quotesList) return;
+
+    let startX = 0;
+    let startY = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+
+      const deltaX = Math.abs(touch.clientX - startX);
+      const deltaY = Math.abs(touch.clientY - startY);
+
+      if (deltaX > deltaY) {
+        event.preventDefault();
+      }
+    };
+
+    quotesList.addEventListener('touchstart', handleTouchStart, { passive: true });
+    quotesList.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      quotesList.removeEventListener('touchstart', handleTouchStart);
+      quotesList.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
 
   return (
     <div className="book-detail">
@@ -194,15 +230,15 @@ const BookDetail: React.FC<BookDetailProps> = ({
         <h3 className="book-detail-quotes-title" style={{ color: subTextColor }}>
           Quotes
         </h3>
-        <div className="book-detail-quotes-list">
+        <div ref={quotesListRef} className="book-detail-quotes-list">
           {isLoadingQuotes ? (
             <p className="book-detail-quotes-loading" style={{ color: subTextColor }}>
               Cargando quotes...
             </p>
           ) : quotes.length > 0 ? (
-            quotes.map((quote, index) => (
+            quotes.map((quote) => (
               <blockquote
-                key={index}
+                key={quote}
                 className="book-detail-quote"
                 style={{
                   color: textColor,
