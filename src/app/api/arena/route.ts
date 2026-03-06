@@ -11,10 +11,15 @@ const FALLBACK_TOTAL_PAGES = 3;
 
 type ArenaImageVariant = {
   src?: string;
+  url?: string;
 };
 
 type ArenaImage = {
   src?: string;
+  url?: string;
+  display?: ArenaImageVariant;
+  original?: ArenaImageVariant;
+  thumb?: ArenaImageVariant;
   small?: ArenaImageVariant;
   medium?: ArenaImageVariant;
   large?: ArenaImageVariant;
@@ -40,9 +45,19 @@ function shuffleUrls(urls: string[]) {
 function getArenaImageUrl(block: ArenaBlock): string | undefined {
   return (
     block.image?.large?.src ??
+    block.image?.large?.url ??
     block.image?.medium?.src ??
+    block.image?.medium?.url ??
     block.image?.small?.src ??
-    block.image?.src
+    block.image?.small?.url ??
+    block.image?.display?.src ??
+    block.image?.display?.url ??
+    block.image?.original?.src ??
+    block.image?.original?.url ??
+    block.image?.thumb?.src ??
+    block.image?.thumb?.url ??
+    block.image?.src ??
+    block.image?.url
   );
 }
 
