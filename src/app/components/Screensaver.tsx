@@ -6,6 +6,7 @@ import { getArenaImages, getCachedArenaImages } from '@/utils/arenaImages';
 
 interface ScreensaverProps {
   darkMode: boolean;
+  onClose?: () => void;
 }
 
 interface BouncingImage {
@@ -20,7 +21,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-export default function Screensaver({ darkMode }: ScreensaverProps) {
+export default function Screensaver({ darkMode, onClose }: ScreensaverProps) {
    const [bouncingImages, setBouncingImages] = useState<BouncingImage[]>([]);
    const [loading, setLoading] = useState(() => getCachedArenaImages() === null);
    const animationRef = useRef<number>(0);
@@ -211,7 +212,8 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: darkMode ? '#000' : '#fff',
-        zIndex: 9999
+        zIndex: 9999,
+        cursor: onClose ? 'pointer' : 'default',
       }}>
         <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '2rem' }}>
           Cargando...
@@ -231,7 +233,9 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
       zIndex: 9999,
       overflow: 'hidden',
       cursor: 'pointer'
-    }}>
+    }}
+    onClick={onClose}
+    >
       {/* Fixed text in center */}
       <div style={{
         position: 'absolute',

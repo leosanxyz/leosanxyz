@@ -30,9 +30,7 @@ export default function TestScreensaver() {
       </button>
       
       {showScreensaver && (
-        <div onClick={() => setShowScreensaver(false)} style={{ cursor: "pointer" }}>
-          <Screensaver darkMode={darkMode} />
-        </div>
+        <Screensaver darkMode={darkMode} onClose={() => setShowScreensaver(false)} />
       )}
     </div>
   );
