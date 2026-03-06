@@ -5,14 +5,15 @@ import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
 import { useWebHaptics } from "web-haptics/react";
 import { useWindowSize } from '@/hooks';
+import { prefetchArenaImages } from '@/utils/arenaImages';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
 import AnimatedPathText from './components/TextAlongPath';
+import Screensaver from './components/Screensaver';
 
 // Lazy-load heavy optional components
 const ReactMarkdown = dynamic(() => import('react-markdown'));
 const AsciiAnimation = dynamic(() => import('./components/AsciiAnimation'), { ssr: false });
-const Screensaver = dynamic(() => import('./components/Screensaver'), { ssr: false });
 const AboutMe = dynamic(() => import('./components/AboutMe'));
 const BookDetail = dynamic(() => import('./components/BookDetail'));
 
@@ -113,6 +114,16 @@ export default function Home() {
       document.documentElement.classList.remove('dark-mode');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      prefetchArenaImages();
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     // Audio setup for block bounce sounds
@@ -641,6 +652,7 @@ export default function Home() {
       setSelectedSlug(null);
       setPostContent(null);
     } else {
+      prefetchArenaImages();
       setShowScreensaver(true);
     }
   };
@@ -892,9 +904,7 @@ export default function Home() {
 
       {/* Screensaver Component */}
       {showScreensaver ? (
-        <div onClick={() => setShowScreensaver(false)}>
-          <Screensaver darkMode={darkMode} />
-        </div>
+        <Screensaver darkMode={darkMode} onClose={() => setShowScreensaver(false)} />
       ) : null}
 
       <div
