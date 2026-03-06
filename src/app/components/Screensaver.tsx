@@ -214,7 +214,9 @@ export default function Screensaver({ darkMode, onClose }: ScreensaverProps) {
         backgroundColor: darkMode ? '#000' : '#fff',
         zIndex: 9999,
         cursor: onClose ? 'pointer' : 'default',
-      }}>
+      }}
+      onClick={onClose}
+      >
         <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '2rem' }}>
           Cargando...
         </p>
@@ -232,7 +234,7 @@ export default function Screensaver({ darkMode, onClose }: ScreensaverProps) {
       backgroundColor: darkMode ? '#000' : '#fff',
       zIndex: 9999,
       overflow: 'hidden',
-      cursor: 'pointer'
+      cursor: onClose ? 'pointer' : 'default'
     }}
     onClick={onClose}
     >
