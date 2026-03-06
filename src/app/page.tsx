@@ -892,7 +892,17 @@ export default function Home() {
 
       {/* Screensaver Component */}
       {showScreensaver ? (
-        <div onClick={() => setShowScreensaver(false)}>
+        <div
+          onClick={() => setShowScreensaver(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: darkMode ? '#000' : '#fff',
+            zIndex: 9999,
+            overflow: 'hidden',
+            cursor: 'pointer',
+          }}
+        >
           <Screensaver darkMode={darkMode} />
         </div>
       ) : null}

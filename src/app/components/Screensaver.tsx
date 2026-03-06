@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useWindowSize } from '@/hooks';
 
@@ -13,11 +13,17 @@ interface BouncingImage {
   position: { x: number; y: number };
 }
 
+const TRAIL_STEP = 20;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export default function Screensaver({ darkMode }: ScreensaverProps) {
    const [bouncingImages, setBouncingImages] = useState<BouncingImage[]>([]);
    const [loading, setLoading] = useState(true);
-   const [velocity, setVelocity] = useState({ x: 3, y: 2 });
    const animationRef = useRef<number>(0);
+   const velocityRef = useRef({ x: 3, y: 2 });
    const positionHistory = useRef<{ x: number; y: number }[]>([]);
    const currentPosition = useRef({ x: 100, y: 100 });
    const allImages = useRef<string[]>([]);
@@ -25,63 +31,74 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
    const windowSize = useWindowSize();
    const isMobile = windowSize.width < 768;
 
-   const fetchArenaImages = useCallback(() => {
-     return fetch('/api/arena')
-       .then(res => res.json())
-       .then(data => {
-         if (data.images && data.images.length > 0) {
-           allImages.current = data.images;
-           
-           // Create multiple bouncing images
-           const bouncing: BouncingImage[] = [];
-           const numImages = isMobile ? Math.min(5, data.images.length) : Math.min(15, data.images.length); // 5 for mobile, 15 for desktop
-           const imageSize = isMobile ? 150 : 250; // Smaller size for mobile
-           
-           console.log('isMobile:', isMobile, 'numImages:', numImages, 'window width:', windowSize.width);
-           
-           // Initialize position history
-           const initialX = Math.random() * (windowSize.width - imageSize);
-           const initialY = Math.random() * (windowSize.height - imageSize);
-           currentPosition.current = { x: initialX, y: initialY };
-           
-           // Create initial positions for all images
-           for (let i = 0; i < numImages * 20; i++) {
-             positionHistory.current.push({ x: initialX, y: initialY });
-           }
-           
-           // Images are already shuffled by the API
-           for (let i = 0; i < numImages; i++) {
-             // Use images in order (already randomized), cycling through if needed
-             const imageIndex = i % data.images.length;
-             bouncing.push({
-               id: i,
-               imageUrl: data.images[imageIndex],
-               position: positionHistory.current[i * 20] || { x: initialX, y: initialY }
-             });
-           }
-           
-           setBouncingImages(bouncing);
-           
-           // Random initial velocity - slower for mobile
-           const speedMultiplier = isMobile ? 3 : 6;
-           setVelocity({
-             x: (Math.random() - 0.5) * speedMultiplier,
-             y: (Math.random() - 0.5) * speedMultiplier
+   useEffect(() => {
+     const controller = new AbortController();
+     let isActive = true;
+
+     const initializeScreensaver = async () => {
+       try {
+         const viewportWidth = window.innerWidth;
+         const viewportHeight = window.innerHeight;
+         const mobileLayout = viewportWidth < 768;
+
+         const response = await fetch('/api/arena', { signal: controller.signal });
+         const data = await response.json();
+
+         if (!isActive || !data.images || data.images.length === 0) {
+           return;
+         }
+
+         allImages.current = data.images;
+
+         const bouncing: BouncingImage[] = [];
+         const numImages = mobileLayout ? Math.min(5, data.images.length) : Math.min(15, data.images.length);
+         const imageSize = mobileLayout ? 150 : 250;
+         const maxX = Math.max(0, viewportWidth - imageSize);
+         const maxY = Math.max(0, viewportHeight - imageSize);
+         const initialX = Math.random() * maxX;
+         const initialY = Math.random() * maxY;
+         const speedMultiplier = mobileLayout ? 3 : 6;
+         const nextVelocity = {
+           x: (Math.random() - 0.5) * speedMultiplier || 1.5,
+           y: (Math.random() - 0.5) * speedMultiplier || 1,
+         };
+
+         currentPosition.current = { x: initialX, y: initialY };
+         velocityRef.current = nextVelocity;
+         positionHistory.current = Array.from({ length: numImages * TRAIL_STEP }, (_, index) => ({
+           x: clamp(initialX - nextVelocity.x * index, 0, maxX),
+           y: clamp(initialY - nextVelocity.y * index, 0, maxY),
+         }));
+
+         for (let i = 0; i < numImages; i++) {
+           const imageIndex = i % data.images.length;
+           bouncing.push({
+             id: i,
+             imageUrl: data.images[imageIndex],
+             position: positionHistory.current[i * TRAIL_STEP] || { x: initialX, y: initialY }
            });
          }
-         setLoading(false);
-         return data.images;
-       })
-       .catch(error => {
-         console.error('Error:', error);
-         setLoading(false);
-         return [];
-       });
-   }, [isMobile, windowSize.width, windowSize.height]);
 
-   useEffect(() => {
-     fetchArenaImages();
-   }, [fetchArenaImages]);
+         setBouncingImages(bouncing);
+       } catch (error) {
+         if (error instanceof DOMException && error.name === 'AbortError') {
+           return;
+         }
+         console.error('Error:', error);
+       } finally {
+         if (isActive) {
+           setLoading(false);
+         }
+       }
+     };
+
+     initializeScreensaver();
+
+     return () => {
+       isActive = false;
+       controller.abort();
+     };
+   }, []);
 
 
    useEffect(() => {
@@ -90,10 +107,11 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
      // Animation loop
      const animate = () => {
        const prev = currentPosition.current;
-       let newX = prev.x + velocity.x;
-       let newY = prev.y + velocity.y;
-       let newVelX = velocity.x;
-       let newVelY = velocity.y;
+       const currentVelocity = velocityRef.current;
+       let newX = prev.x + currentVelocity.x;
+       let newY = prev.y + currentVelocity.y;
+       let newVelX = currentVelocity.x;
+       let newVelY = currentVelocity.y;
 
          // Bounce off walls (adjusted for image size)
          const imageSize = isMobile ? 150 : 250;
@@ -136,14 +154,14 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
           });
         }
 
-      setVelocity({ x: newVelX, y: newVelY });
+      velocityRef.current = { x: newVelX, y: newVelY };
       
       // Update current position
       currentPosition.current = { x: newX, y: newY };
       
       // Update position history
       positionHistory.current.unshift({ x: newX, y: newY });
-      if (positionHistory.current.length > bouncingImages.length * 20) {
+      if (positionHistory.current.length > bouncingImages.length * TRAIL_STEP) {
         positionHistory.current.pop();
       }
       
@@ -151,7 +169,7 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
       setBouncingImages(prevImages => 
         prevImages.map((img, index) => ({
           ...img,
-          position: positionHistory.current[index * 20] || { x: newX, y: newY }
+          position: positionHistory.current[index * TRAIL_STEP] || { x: newX, y: newY }
         }))
       );
 
@@ -165,7 +183,7 @@ export default function Screensaver({ darkMode }: ScreensaverProps) {
          cancelAnimationFrame(animationRef.current);
        }
      };
-   }, [bouncingImages.length, velocity, isMobile, windowSize.width, windowSize.height]);
+   }, [bouncingImages.length, isMobile, windowSize.width, windowSize.height]);
 
   // Cleanup on unmount
   useEffect(() => {
