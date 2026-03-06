@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback, startTransition } from "react
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
+import { useWebHaptics } from "web-haptics/react";
 import { useWindowSize } from '@/hooks';
 import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
@@ -45,6 +46,7 @@ export default function Home() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
+  const { trigger: triggerHaptic } = useWebHaptics();
   const [darkMode, setDarkMode] = useState(false);
   const [slingPos, setSlingPos] = useState<{ x: number; y: number } | null>(null);
   const [showStretchHint, setShowStretchHint] = useState(true);
@@ -650,9 +652,15 @@ export default function Home() {
     startTransition(() => setViewMode('post')); // Switch to post view
   };
 
+  const triggerSideButtonHaptic = (pattern: 'selection' | 'nudge' = 'selection') => {
+    void triggerHaptic?.(pattern, { intensity: 0.45 });
+  };
+
   // Handler para volver (depende del viewMode)
   const handleGoBack = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
     e.preventDefault();
+    triggerSideButtonHaptic();
+
     if (viewMode === 'post') {
       startTransition(() => setViewMode('blog'));
       setSelectedSlug(null);
@@ -777,11 +785,14 @@ export default function Home() {
 
   // Toggle para cambiar entre modo claro y oscuro
   const toggleDarkMode = () => {
+    triggerSideButtonHaptic();
     setDarkMode(prev => !prev);
   };
 
   // Toggle para activar/desactivar sonido
   const toggleSound = () => {
+    triggerSideButtonHaptic();
+
     setSoundEnabled(prev => {
       const newState = !prev;
       if (newState && playAnimationRef.current) {
