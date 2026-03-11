@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useCallback, startTransition } from "react";
+import { useEffect, useRef, useState, useCallback, startTransition, type CSSProperties, type ReactNode } from "react";
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
@@ -42,6 +42,78 @@ type SpriteRender = { texture: string; xScale?: number; yScale?: number };
 type SpriteBody = Matter.Body & { render: Matter.Body['render'] & { sprite?: SpriteRender } };
 
 const geist = GeistSans;
+const CONTROL_BUTTON_PRESS_MS = 110;
+
+interface ControlButtonProps {
+  onPress: () => void;
+  className: string;
+  style: CSSProperties;
+  ariaLabel: string;
+  children: ReactNode;
+}
+
+function ControlButton({ onPress, className, style, ariaLabel, children }: ControlButtonProps) {
+  const [isPressed, setIsPressed] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const queuePress = useCallback(() => {
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      onPress();
+      timeoutRef.current = null;
+    }, CONTROL_BUTTON_PRESS_MS);
+  }, [onPress]);
+
+  const release = useCallback(() => {
+    setIsPressed(false);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onPointerDown={() => setIsPressed(true)}
+      onPointerUp={() => {
+        release();
+        queuePress();
+      }}
+      onPointerLeave={release}
+      onPointerCancel={release}
+      onClick={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setIsPressed(true);
+        }
+      }}
+      onKeyUp={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          release();
+          queuePress();
+        }
+      }}
+      className={className}
+      style={{
+        ...style,
+        transform: isPressed ? 'scale(0.94)' : 'scale(1)',
+      }}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function Home() {
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -954,9 +1026,10 @@ export default function Home() {
       ) : null}
 
       {/* Dark Mode Switch */}
-      <button
-        onClick={toggleDarkMode}
-        className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+      <ControlButton
+        onPress={toggleDarkMode}
+        ariaLabel={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
+        className="control-button fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
         style={{
           backgroundColor: darkMode ? '#333' : '#fff',
           color: darkMode ? '#fff' : '#333',
@@ -965,7 +1038,6 @@ export default function Home() {
           width: '48px',       // Tamaño grande
           height: '48px'       // Tamaño grande
         }}
-        aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
       >
         {darkMode ? (
           // Luna
@@ -986,12 +1058,13 @@ export default function Home() {
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         )}
-      </button>
+      </ControlButton>
 
       {/* Sound Toggle Button */}
-      <button
-        onClick={toggleSound}
-        className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+      <ControlButton
+        onPress={toggleSound}
+        ariaLabel={soundEnabled ? "Desactivar sonido" : "Activar sonido"}
+        className="control-button fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
         style={{
           backgroundColor: darkMode ? '#333' : '#fff',
           color: darkMode ? '#fff' : '#333',
@@ -1000,7 +1073,6 @@ export default function Home() {
           width: '48px',       // Mismo tamaño
           height: '48px'       // Mismo tamaño
         }}
-        aria-label={soundEnabled ? "Desactivar sonido" : "Activar sonido"}
       >
         {soundEnabled ? (
           // Icono de volumen alto
@@ -1017,13 +1089,14 @@ export default function Home() {
             <line x1="17" y1="9" x2="23" y2="15"></line>
           </svg>
         )}
-      </button>
+      </ControlButton>
 
       {/* Back Arrow Button - Visible in blog/post/about/books/book view */}
       {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about' || viewMode === 'books' || viewMode === 'book') ? (
-        <button
-          onClick={handleGoBack}
-          className="fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+        <ControlButton
+          onPress={() => handleGoBack({ preventDefault: () => {} } as React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>)}
+          ariaLabel="Volver"
+          className="control-button fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
           style={{
             backgroundColor: darkMode ? '#333' : '#fff',
             color: darkMode ? '#fff' : '#333',
@@ -1033,10 +1106,9 @@ export default function Home() {
             height: '48px',
             fontSize: '28px' // Adjust size of arrow
           }}
-          aria-label="Volver"
         >
           ←
-        </button>
+        </ControlButton>
       ) : null}
 
       {/* ASCII Animation - only on desktop in post view */}
