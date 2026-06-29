@@ -244,7 +244,7 @@ export default function Home() {
     let width = window.innerWidth;
     let height = window.innerHeight;
     const blockSize = 40;
-    const word = "leosanxyz";
+    const word = "leosan";
     const spacing = 5;
 
     // Setup Matter.js
@@ -297,10 +297,10 @@ export default function Home() {
     // Detectar si es móvil
     const isMobile = width < 600;
     // Palabra a mostrar
-    const displayWord = isMobile ? 'leosan' : word;
+    const displayWord = word;
     // Margen derecho proporcional para responsividad
     const rightMargin = isMobile ? Math.max(12, width * 0.04) : Math.max(24, width * 0.08);
-    // Bloques de 'leosanxyz' como estáticos en la parte superior derecha (más abajo)
+    // Bloques de 'leosan' como estáticos en la parte superior derecha (más abajo)
     const titleX = isMobile
       ? width - (displayWord.length * (blockSize + spacing)) - rightMargin
       : width - (displayWord.length * (blockSize + spacing)) - rightMargin;
@@ -342,13 +342,11 @@ export default function Home() {
       Bodies.rectangle(titleX + 40, titleY - 120, 40, 40, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
     ];
 
-    // Resortera y bola (posición responsiva)
-    // En desktop lo movemos un poco a la derecha para facilitar el arrastre
-    const slingX = isMobile ? 48 : 80; // Align with buttons on mobile, give more room on desktop
-    const slingY = height - 120; // Keep near bottom
-    const slingStart = { x: slingX, y: slingY };
+    // Resortera y bola (solo móvil)
+    let slingEnabled = isMobile;
+    let slingStart = { x: 48, y: height - 120 };
     // Guardar posición para overlays
-    setSlingPos({ x: slingStart.x, y: slingStart.y });
+    setSlingPos(slingEnabled ? { x: slingStart.x, y: slingStart.y } : null);
     // Texturas del slingshot
     const SLING_TEXTURES = {
       base: '/slingshot/base.png',
@@ -377,13 +375,15 @@ export default function Home() {
 
     // Permitir crear bola y resortera con mousedown cerca del círculo
     const handleInteraction = (x: number, y: number) => {
+      if (!slingEnabled) return;
+
       if (!ball && !sling) {
         const rect = render.canvas.getBoundingClientRect();
         // Convertir coordenadas de página a coordenadas de canvas
         const canvasX = x - rect.left;
         const canvasY = y - rect.top;
-        // Zona de detección más grande en móvil
-        const detectRadius = isMobile ? 120 : 60;
+        // Zona de detección móvil
+        const detectRadius = 120;
         const dist = Math.hypot(canvasX - slingStart.x, canvasY - slingStart.y);
         if (dist < detectRadius) {
           ball = Bodies.circle(slingStart.x, slingStart.y, ballRadius, {
@@ -488,7 +488,7 @@ export default function Home() {
         ctx.fillText(b.label || '', b.position.x, b.position.y + 2);
       }
       // Indicador visual para crear bola: mostrar el sprite base
-      if (!ball && !sling) {
+      if (slingEnabled && !ball && !sling) {
         const size = ballRadius * 2; // diámetro
         if (placeholderImg.complete) {
           ctx.drawImage(
@@ -657,9 +657,9 @@ export default function Home() {
       render.canvas.height = height;
       // Actualizar posición del slingshot para overlays
       const isMobileNow = width < 600;
-      const nx = isMobileNow ? 48 : 80;
-      const ny = height - 120;
-      setSlingPos({ x: nx, y: ny });
+      slingEnabled = isMobileNow;
+      slingStart = { x: 48, y: height - 120 };
+      setSlingPos(slingEnabled ? { x: slingStart.x, y: slingStart.y } : null);
     };
     window.addEventListener('resize', handleResize);
 
