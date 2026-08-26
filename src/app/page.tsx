@@ -299,18 +299,25 @@ export default function Home() {
     const isMobile = width < 600;
     // Palabra a mostrar
     const displayWord = word;
-    // Margen derecho proporcional para responsividad
-    const rightMargin = isMobile ? Math.max(12, width * 0.04) : Math.max(24, width * 0.08);
+    const getTitlePosition = (viewportWidth: number) => {
+      const mobile = viewportWidth < 600;
+      const rightMargin = mobile
+        ? Math.max(12, viewportWidth * 0.04)
+        : Math.max(24, viewportWidth * 0.08);
+
+      return {
+        x: viewportWidth - displayWord.length * (blockSize + spacing) - rightMargin,
+        y: mobile ? 100 : 120,
+      };
+    };
+
     // Bloques de 'leosan' como estáticos en la parte superior derecha (más abajo)
-    const titleX = isMobile
-      ? width - (displayWord.length * (blockSize + spacing)) - rightMargin
-      : width - (displayWord.length * (blockSize + spacing)) - rightMargin;
-    const titleY = isMobile ? 100 : 120;
+    let titlePosition = getTitlePosition(width);
     const blocks: Matter.Body[] = [];
     for (let i = 0; i < displayWord.length; i++) {
       const block = Bodies.rectangle(
-        titleX + i * (blockSize + spacing),
-        titleY,
+        titlePosition.x + i * (blockSize + spacing),
+        titlePosition.y,
         blockSize,
         blockSize,
         {
@@ -336,11 +343,11 @@ export default function Home() {
 
     // Figuras dinámicas apiladas encima de los bloques
     const figures: Matter.Body[] = [
-      Bodies.rectangle(titleX + 60, titleY - 60, 60, 30, { restitution: 0.5, render: { fillStyle: '#f59e42' } }),
-      Bodies.circle(titleX + 120, titleY - 100, 20, { restitution: 0.8, render: { fillStyle: '#10b981' } }),
-      Bodies.polygon(titleX + 180, titleY - 80, 3, 30, { restitution: 0.7, render: { fillStyle: '#fbbf24' } }),
-      Bodies.rectangle(titleX + 200, titleY - 60, 30, 70, { restitution: 0.4, render: { fillStyle: '#6366f1' } }),
-      Bodies.rectangle(titleX + 40, titleY - 120, 40, 40, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
+      Bodies.rectangle(titlePosition.x + 60, titlePosition.y - 60, 60, 30, { restitution: 0.5, render: { fillStyle: '#f59e42' } }),
+      Bodies.circle(titlePosition.x + 120, titlePosition.y - 100, 20, { restitution: 0.8, render: { fillStyle: '#10b981' } }),
+      Bodies.polygon(titlePosition.x + 180, titlePosition.y - 80, 3, 30, { restitution: 0.7, render: { fillStyle: '#fbbf24' } }),
+      Bodies.rectangle(titlePosition.x + 200, titlePosition.y - 60, 30, 70, { restitution: 0.4, render: { fillStyle: '#6366f1' } }),
+      Bodies.rectangle(titlePosition.x + 40, titlePosition.y - 120, 40, 40, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
     ];
 
     // Resortera y bola (solo móvil)
@@ -519,8 +526,6 @@ export default function Home() {
         const freq = block.noteFrequency ?? 261.63;
         playSound(freq);
       }
-      const origX = block.originX!;
-      const origY = block.originY!;
       const bounceHeight = 40; // stronger impulse
       const duration = 300;
       const half = duration / 2;
@@ -534,6 +539,8 @@ export default function Home() {
       function animateUp(time: number) {
         const elapsed = time - startTime;
         const progress = Math.min(elapsed / half, 1);
+        const origX = block.originX ?? block.position.x;
+        const origY = block.originY ?? block.position.y;
         const y = origY - bounceHeight * easeOutQuad(progress);
         Matter.Body.setPosition(block, { x: origX, y });
         if (progress < 1) {
@@ -543,6 +550,8 @@ export default function Home() {
           function animateDown(now: number) {
             const downElapsed = now - downStart;
             const downProgress = Math.min(downElapsed / half, 1);
+            const origX = block.originX ?? block.position.x;
+            const origY = block.originY ?? block.position.y;
             const y2 = origY - bounceHeight + bounceHeight * easeOutQuad(downProgress);
             Matter.Body.setPosition(block, { x: origX, y: y2 });
             if (downProgress < 1) {
@@ -650,12 +659,47 @@ export default function Home() {
 
     // Redimensionar el canvas al cambiar el tamaño de la ventana
     const handleResize = () => {
+      const previousWidth = width;
+      const previousHeight = height;
       width = window.innerWidth;
       height = window.innerHeight;
       render.options.width = width;
       render.options.height = height;
       render.canvas.width = width;
       render.canvas.height = height;
+
+      Matter.Body.scale(ground, width / previousWidth, 1);
+      Matter.Body.setPosition(ground, { x: width / 2, y: height + 40 });
+      Matter.Body.scale(leftWall, 1, height / previousHeight);
+      Matter.Body.setPosition(leftWall, { x: -20, y: height / 2 });
+      Matter.Body.scale(rightWall, 1, height / previousHeight);
+      Matter.Body.setPosition(rightWall, { x: width + 20, y: height / 2 });
+
+      const nextTitlePosition = getTitlePosition(width);
+      const titleShift = {
+        x: nextTitlePosition.x - titlePosition.x,
+        y: nextTitlePosition.y - titlePosition.y,
+      };
+
+      blocks.forEach((block, index) => {
+        const bouncingBlock = block as BouncingBlock;
+        const previousOriginY = bouncingBlock.originY ?? titlePosition.y;
+        const bounceOffsetY = block.position.y - previousOriginY;
+        const originX = nextTitlePosition.x + index * (blockSize + spacing);
+
+        bouncingBlock.originX = originX;
+        bouncingBlock.originY = nextTitlePosition.y;
+        Matter.Body.setPosition(block, {
+          x: originX,
+          y: nextTitlePosition.y + bounceOffsetY,
+        });
+      });
+
+      figures.forEach((figure) => {
+        Matter.Body.translate(figure, titleShift);
+      });
+      titlePosition = nextTitlePosition;
+
       // Actualizar posición del slingshot para overlays
       const isMobileNow = width < 600;
       slingEnabled = isMobileNow;
