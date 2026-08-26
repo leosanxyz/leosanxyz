@@ -18,6 +18,117 @@ body {
   display: none; /* Chrome/Safari */
 }
 
+/* Morphing hover lists */
+.morph-list-shell {
+  position: relative;
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+}
+
+.morph-list-shell--home {
+  margin: 10vh auto 0;
+}
+
+.morph-list {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+}
+
+.morph-list-shell--blog .morph-list {
+  text-align: left;
+}
+
+.morph-list__item {
+  margin: 0;
+  padding: 0;
+}
+
+.morph-list__link {
+  display: block;
+  padding: 0.5rem 0.25rem;
+  font-size: 2rem;
+  line-height: 1.2;
+  text-decoration: none;
+  opacity: 0.42;
+  transition: opacity 150ms ease;
+}
+
+.morph-list-shell--blog .morph-list__link {
+  padding-block: 0.75rem;
+  font-size: 1.8rem;
+  overflow-wrap: anywhere;
+}
+
+.morph-list__link[data-active="true"],
+.morph-list__link:focus-visible {
+  opacity: 1;
+}
+
+.morph-list__link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+.morph-list__indicator {
+  position: absolute;
+  top: 0;
+  left: -1.75rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, calc(var(--morph-list-indicator-y) - 50%), 0);
+  transition: opacity 120ms ease;
+  will-change: transform, opacity;
+}
+
+.morph-list__indicator[data-visible="true"] {
+  opacity: 1;
+}
+
+.morph-list__shape {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: morph-list-shape-spin 2.4s linear infinite;
+  animation-play-state: paused;
+  will-change: transform, clip-path;
+}
+
+.morph-list__indicator[data-morphing="true"] .morph-list__shape {
+  transition:
+    clip-path 140ms cubic-bezier(0.645, 0.045, 0.355, 1),
+    background-color 120ms ease;
+}
+
+.morph-list__indicator[data-visible="true"] .morph-list__shape {
+  animation-play-state: running;
+}
+
+@keyframes morph-list-shape-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .morph-list__link,
+  .morph-list__indicator,
+  .morph-list__indicator[data-morphing="true"] .morph-list__shape,
+  .morph-list__shape {
+    animation: none;
+    transition: none;
+  }
+}
+
 /* About: right-side collage (uses whitespace to the right) */
 .about-side-media {
   position: fixed;

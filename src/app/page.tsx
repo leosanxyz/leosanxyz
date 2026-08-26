@@ -6,10 +6,11 @@ import dynamic from 'next/dynamic';
 import { useWebHaptics } from "web-haptics/react";
 import { useWindowSize } from '@/hooks';
 import { prefetchArenaImages } from '@/utils/arenaImages';
-import ScrambleIn from './components/ScrambleIn';
 import Typewriter from './components/Typewriter';
 import AnimatedPathText from './components/TextAlongPath';
 import Screensaver from './components/Screensaver';
+import HomeNavigation from './components/HomeNavigation';
+import MorphingHoverList from './components/MorphingHoverList';
 
 // Lazy-load heavy optional components
 const ReactMarkdown = dynamic(() => import('react-markdown'));
@@ -1130,44 +1131,7 @@ export default function Home() {
         <div style={{ position: 'relative' }}>
           {viewMode === 'home' ? (
             // Vista Home: Navegación principal
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, marginTop: '10vh' }}>
-              <li style={{ margin: '1rem 0' }}>
-                <a
-                  href="/blog"
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
-                  onClick={(e) => handleNavClick(e, '/blog')}
-                >
-                  <ScrambleIn text="blog" />
-                </a>
-              </li>
-              <li style={{ margin: '1rem 0' }}>
-                <a
-                  href="/diseno"
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
-                  onClick={(e) => handleNavClick(e, '/diseno')}
-                >
-                  <ScrambleIn text="diseño" />
-                </a>
-              </li>
-              <li style={{ margin: '1rem 0' }}>
-                <a
-                  href="/proyectos"
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
-                  onClick={(e) => handleNavClick(e, '/proyectos')}
-                >
-                  <ScrambleIn text="proyectos" />
-                </a>
-              </li>
-              <li style={{ margin: '1rem 0' }}>
-                <a
-                  href="/about"
-                  style={{ fontSize: '2rem', color: darkMode ? '#fff' : '#333', textDecoration: 'none' }}
-                  onClick={(e) => handleNavClick(e, '/about')}
-                >
-                  <ScrambleIn text="sobre mi:)" />
-                </a>
-              </li>
-            </ul>
+            <HomeNavigation darkMode={darkMode} onNavigate={handleNavClick} />
           ) : viewMode === 'about' ? (
             <AboutMe darkMode={darkMode} onGoToBooks={handleGoToBooks} />
           ) : viewMode === 'blog' ? (
@@ -1184,19 +1148,17 @@ export default function Home() {
               ) : errorLoadingPosts ? (
                 <p style={{ color: 'red' }}>Error: {errorLoadingPosts}</p>
               ) : posts.length > 0 ? (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {posts.map((post) => (
-                    <li key={post.slug} style={{ margin: '1rem 0' }}>
-                      <a
-                        href="#"
-                        onClick={(e) => handlePostClick(e, post.slug)}
-                        style={{ fontSize: '1.8rem', color: darkMode ? '#eee' : '#111', textDecoration: 'none' }}
-                      >
-                        <ScrambleIn text={post.title} scrambleSpeed={25} />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                <MorphingHoverList
+                  darkMode={darkMode}
+                  items={posts.map((post) => ({
+                    id: post.slug,
+                    href: '#',
+                    label: post.title,
+                  }))}
+                  onItemClick={(event, item) => handlePostClick(event, item.id)}
+                  scrambleSpeed={25}
+                  variant="blog"
+                />
               ) : (
                 <p style={{ color: darkMode ? '#ccc' : '#555' }}>No hay posts todavía.</p>
               )}
