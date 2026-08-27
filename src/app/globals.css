@@ -18,7 +18,37 @@ body {
   display: none; /* Chrome/Safari */
 }
 
+/* Reserve the final text width while its characters scramble in. */
+.scramble-in {
+  position: relative;
+  display: block;
+}
+
+.scramble-in__sizer {
+  display: block;
+  visibility: hidden;
+}
+
+.scramble-in__animated {
+  position: absolute;
+  inset: 0;
+}
+
 /* Morphing hover lists */
+.blog-list {
+  width: 100%;
+  box-sizing: border-box;
+  padding-inline-start: 26px;
+}
+
+@media (min-width: 900px) {
+  .blog-list {
+    display: flex;
+    justify-content: center;
+    padding-inline-end: 26px;
+  }
+}
+
 .morph-list-shell {
   position: relative;
   display: inline-block;
@@ -28,6 +58,11 @@ body {
 
 .morph-list-shell--home {
   margin: 10vh auto 0;
+}
+
+.morph-list-shell--home .scramble-in__sizer,
+.morph-list-shell--home .scramble-in__animated {
+  white-space: nowrap;
 }
 
 .morph-list {
@@ -62,7 +97,7 @@ body {
 }
 
 .morph-list-shell--blog .morph-list__link {
-  padding-block: 0.75rem;
+  padding-block: 1rem;
   font-size: 1.8rem;
   overflow-wrap: anywhere;
 }

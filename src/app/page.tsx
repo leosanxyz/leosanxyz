@@ -1180,13 +1180,7 @@ export default function Home() {
             <AboutMe darkMode={darkMode} onGoToBooks={handleGoToBooks} />
           ) : viewMode === 'blog' ? (
             // Vista Blog: Lista de posts
-            <div
-              style={
-                isDesktop
-                  ? { display: 'flex', justifyContent: 'center', width: '100%' }
-                  : undefined
-              }
-            >
+            <div className="blog-list">
               {isLoadingPosts ? (
                 <p style={{ color: darkMode ? '#ccc' : '#555' }}>Cargando posts...</p>
               ) : errorLoadingPosts ? (

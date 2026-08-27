@@ -73,20 +73,25 @@ const ScrambleIn: React.FC<ScrambleInProps> = ({
   }, [text, autoStart, start]);
 
   return (
-    <span className={className}>
-      {display.map((char, i) => {
-        const isScrambled = char !== text[i];
-        return (
-          <span
-            key={i}
-            className={isScrambled ? scrambledClassName : undefined}
-          >
-            {char}
-          </span>
-        );
-      })}
+    <span className={`scramble-in${className ? ` ${className}` : ""}`} aria-label={text}>
+      <span className="scramble-in__sizer" aria-hidden="true">
+        {text}
+      </span>
+      <span className="scramble-in__animated" aria-hidden="true">
+        {display.map((char, i) => {
+          const isScrambled = char !== text[i];
+          return (
+            <span
+              key={i}
+              className={isScrambled ? scrambledClassName : undefined}
+            >
+              {char}
+            </span>
+          );
+        })}
+      </span>
     </span>
   );
 };
 
-export default ScrambleIn; 
+export default ScrambleIn;
