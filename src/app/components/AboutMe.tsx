@@ -203,6 +203,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <a
                     className="about-cta-button"
+                    data-gamepad-center="true"
                     href="mailto:leonsanchez09@protonmail.com?subject=Hablemos&body=Hola%20Leo%2C%0A%0A"
                 >
                     ¡hablemos!
@@ -233,6 +234,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                     <a
                         key={i}
                         className="about-social-link"
+                        data-gamepad-center="true"
                         href={item.href}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -250,6 +252,7 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
             <a
                 href="mailto:leonsanchez09@protonmail.com"
                 className="about-social-email"
+                data-gamepad-center="true"
                 style={{
                     color: subTextColor,
                     textDecoration: 'none',
@@ -644,7 +647,11 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                 <div
                     ref={(el) => { blockRefs.current[0] = el; }}
                     data-reveal-idx={0}
-                    className={`about-reveal ${visible[0] ? 'about-reveal--visible' : ''}`}
+                    data-gamepad-target="true"
+                    data-gamepad-center="true"
+                    data-gamepad-axis="vertical"
+                    tabIndex={-1}
+                    className={`about-reveal about-reading-block ${visible[0] ? 'about-reveal--visible' : ''}`}
                     style={{
                         transitionDelay: prefersReducedMotion ? '0ms' : '0ms',
                     }}
@@ -694,7 +701,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
             {/* BookStack: desktop portal */}
             {mounted && isDesktopWide && createPortal(
                 <div
-                    aria-hidden="true"
                     className="about-bookstack-media"
                     style={{
                         top: bookStackPos.top,
@@ -718,13 +724,18 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
             }}>
                 {contentBlocks.map((node, i) => {
                     const nodeKey = (node as { key?: React.Key })?.key ?? i;
+                    const isReadingBlock = i + 1 <= IDX.P5;
                     return (
                         <React.Fragment key={nodeKey}>
                             {/* index global = i + 1 (header es 0) */}
                             <div
                                 ref={(el) => { blockRefs.current[i + 1] = el; }}
                                 data-reveal-idx={i + 1}
-                                className={`about-reveal ${visible[i + 1] ? 'about-reveal--visible' : ''}`}
+                                data-gamepad-target={isReadingBlock ? 'true' : undefined}
+                                data-gamepad-center={isReadingBlock ? 'true' : undefined}
+                                data-gamepad-axis={isReadingBlock ? 'vertical' : undefined}
+                                tabIndex={isReadingBlock ? -1 : undefined}
+                                className={`about-reveal ${isReadingBlock ? 'about-reading-block ' : ''}${visible[i + 1] ? 'about-reveal--visible' : ''}`}
                                 style={{
                                     // Micro-stagger extra por si el navegador agrupa timeouts muy juntos
                                     transitionDelay: prefersReducedMotion ? '0ms' : `${Math.min((i + 1) * 20, 120)}ms`,
@@ -736,8 +747,13 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                             {/* Mobile/tablet: show collage in flow after first paragraph */}
                             {i === 0 && isDesktopWide === false ? (
                                 <div
-                                    aria-hidden="true"
-                                    className="about-side-media"
+                                    role="img"
+                                    aria-label="Objetos que me inspiran"
+                                    data-gamepad-target="true"
+                                    data-gamepad-center="true"
+                                    data-gamepad-axis="vertical"
+                                    tabIndex={-1}
+                                    className="about-side-media about-media-target"
                                 >
                                     <div className={`about-reveal ${collageRevealed ? 'about-reveal--visible' : ''}`}>
                                         {sideCollageNode}
@@ -748,8 +764,13 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                             {/* Mobile/tablet: show Steve in flow after quote (idx 2) */}
                             {i === 2 && isDesktopWide === false ? (
                                 <div
-                                    aria-hidden="true"
-                                    className="about-steve-media about-steve-media--inline"
+                                    role="img"
+                                    aria-label="Steve Jobs"
+                                    data-gamepad-target="true"
+                                    data-gamepad-center="true"
+                                    data-gamepad-axis="vertical"
+                                    tabIndex={-1}
+                                    className="about-steve-media about-steve-media--inline about-media-target"
                                     style={{
                                         // @ts-expect-error CSS custom prop
                                         ['--steve-size']: '280px',
@@ -764,7 +785,6 @@ const AboutMe: React.FC<AboutMeProps> = ({ darkMode, onGoToBooks }) => {
                             {/* Mobile/tablet: show BookStack in flow after p4 (idx 4) */}
                             {i === 4 && isDesktopWide === false ? (
                                 <div
-                                    aria-hidden="true"
                                     className="about-bookstack-media about-bookstack-media--inline"
                                 >
                                     <div className={`about-reveal ${bookStackRevealed ? 'about-reveal--visible' : ''}`}>

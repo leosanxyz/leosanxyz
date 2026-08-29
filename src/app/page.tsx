@@ -3,14 +3,13 @@ import { useEffect, useRef, useState, useCallback, startTransition, type CSSProp
 import Matter from "matter-js";
 import { GeistSans } from "geist/font/sans";
 import dynamic from 'next/dynamic';
-import { useWebHaptics } from "web-haptics/react";
 import { useWindowSize } from '@/hooks';
 import { prefetchArenaImages } from '@/utils/arenaImages';
 import Typewriter from './components/Typewriter';
-import AnimatedPathText from './components/TextAlongPath';
 import Screensaver from './components/Screensaver';
 import HomeNavigation from './components/HomeNavigation';
 import MorphingHoverList from './components/MorphingHoverList';
+import MobileGameControls, { type GameHaptic } from './components/MobileGameControls';
 
 // Lazy-load heavy optional components
 const ReactMarkdown = dynamic(() => import('react-markdown'));
@@ -38,22 +37,26 @@ interface Post {
   title: string;
 }
 
-// Body type with sprite render for texture swapping without using `any`
-type SpriteRender = { texture: string; xScale?: number; yScale?: number };
-type SpriteBody = Matter.Body & { render: Matter.Body['render'] & { sprite?: SpriteRender } };
-
 const geist = GeistSans;
 const CONTROL_BUTTON_PRESS_MS = 110;
+type WebHapticsInstance = InstanceType<(typeof import("web-haptics"))["WebHaptics"]>;
+
+const HAPTIC_FALLBACK_DURATION: Record<GameHaptic, number> = {
+  selection: 8,
+  medium: 25,
+  rigid: 10,
+};
 
 interface ControlButtonProps {
   onPress: () => void;
+  onFeedback?: () => void;
   className: string;
   style: CSSProperties;
   ariaLabel: string;
   children: ReactNode;
 }
 
-function ControlButton({ onPress, className, style, ariaLabel, children }: ControlButtonProps) {
+function ControlButton({ onPress, onFeedback, className, style, ariaLabel, children }: ControlButtonProps) {
   const [isPressed, setIsPressed] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -83,7 +86,10 @@ function ControlButton({ onPress, className, style, ariaLabel, children }: Contr
   return (
     <button
       type="button"
-      onPointerDown={() => setIsPressed(true)}
+      onPointerDown={() => {
+        onFeedback?.();
+        setIsPressed(true);
+      }}
       onPointerUp={() => {
         release();
         queuePress();
@@ -94,6 +100,7 @@ function ControlButton({ onPress, className, style, ariaLabel, children }: Contr
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
+          if (!event.repeat) onFeedback?.();
           setIsPressed(true);
         }
       }}
@@ -120,10 +127,9 @@ export default function Home() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
-  const { trigger: triggerHaptic } = useWebHaptics();
+  const hapticsRef = useRef<WebHapticsInstance | null>(null);
+  const [hapticsSupported, setHapticsSupported] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [slingPos, setSlingPos] = useState<{ x: number; y: number } | null>(null);
-  const [showStretchHint, setShowStretchHint] = useState(true);
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const blocksRef = useRef<Matter.Body[]>([]);
@@ -199,6 +205,27 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    void import("web-haptics").then(({ WebHaptics }) => {
+      const haptics = new WebHaptics();
+      if (cancelled) {
+        haptics.destroy();
+        return;
+      }
+
+      hapticsRef.current = haptics;
+      setHapticsSupported(WebHaptics.isSupported);
+    });
+
+    return () => {
+      cancelled = true;
+      hapticsRef.current?.destroy();
+      hapticsRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     // Audio setup for block bounce sounds
     // Se crea como referencia para poder accederlo de manera lazy al interactuar con la página
     let audioContext: AudioContext | null = null;
@@ -255,8 +282,7 @@ export default function Home() {
       Bodies = Matter.Bodies,
       Composite = Matter.Composite,
       Mouse = Matter.Mouse,
-      MouseConstraint = Matter.MouseConstraint,
-      Constraint = Matter.Constraint;
+      MouseConstraint = Matter.MouseConstraint;
 
     const engine = Engine.create();
     engineRef.current = engine;
@@ -295,8 +321,6 @@ export default function Home() {
       render: { visible: false },
     });
 
-    // Detectar si es móvil
-    const isMobile = width < 600;
     // Palabra a mostrar
     const displayWord = word;
     const getTitlePosition = (viewportWidth: number) => {
@@ -350,24 +374,6 @@ export default function Home() {
       Bodies.rectangle(titlePosition.x + 40, titlePosition.y - 120, 40, 40, { restitution: 0.8, render: { fillStyle: '#f43f5e' } }),
     ];
 
-    // Resortera y bola (solo móvil)
-    let slingEnabled = isMobile;
-    let slingStart = { x: 48, y: height - 120 };
-    // Guardar posición para overlays
-    setSlingPos(slingEnabled ? { x: slingStart.x, y: slingStart.y } : null);
-    // Texturas del slingshot
-    const SLING_TEXTURES = {
-      base: '/slingshot/base.png',
-      hold: '/slingshot/hold.png',
-    } as const;
-    // Tamaño de la pelota (duplicado respecto al anterior 22)
-    const ballRadius = 44; // antes: 22
-    // Escala para que el PNG (2100px) se vea del tamaño del círculo
-    const spriteScale = (ballRadius * 2) / 2100;
-    let ball: Matter.Body | null = null;
-    let sling: Matter.Constraint | null = null;
-    let activeBallId: number | null = null;
-
     Composite.add(engine.world, [ground, leftWall, rightWall, ...blocks, ...figures]);
 
     // Mouse control
@@ -381,107 +387,11 @@ export default function Home() {
     });
     Composite.add(engine.world, mouseConstraint);
 
-    // Permitir crear bola y resortera con mousedown cerca del círculo
-    const handleInteraction = (x: number, y: number) => {
-      if (!slingEnabled) return;
-
-      if (!ball && !sling) {
-        const rect = render.canvas.getBoundingClientRect();
-        // Convertir coordenadas de página a coordenadas de canvas
-        const canvasX = x - rect.left;
-        const canvasY = y - rect.top;
-        // Zona de detección móvil
-        const detectRadius = 120;
-        const dist = Math.hypot(canvasX - slingStart.x, canvasY - slingStart.y);
-        if (dist < detectRadius) {
-          ball = Bodies.circle(slingStart.x, slingStart.y, ballRadius, {
-            density: 0.004,
-            restitution: 0.8,
-            render: {
-              sprite: {
-                texture: SLING_TEXTURES.base,
-                xScale: spriteScale,
-                yScale: spriteScale,
-              },
-            },
-          });
-          sling = Constraint.create({
-            pointA: slingStart,
-            bodyB: ball,
-            stiffness: 0.05,
-            render: {
-              strokeStyle: '#f59e42',
-              lineWidth: 6,
-            },
-          });
-          Composite.add(engine.world, [ball, sling]);
-          activeBallId = ball.id;
-          setShowStretchHint(false);
-          if (process.env.NODE_ENV !== 'production') {
-            console.log("New ball created. Active ID:", activeBallId);
-          }
-        }
-      }
+    const initializeCanvasAudio = () => {
+      getAudioContext();
     };
-
-    // Eventos de mouse
-    render.canvas.addEventListener('mousedown', (e) => {
-      // Activar audio en la primera interacción del usuario
-      getAudioContext();
-      handleInteraction(e.clientX, e.clientY);
-    });
-
-    // Eventos touch para móvil
-    render.canvas.addEventListener('touchstart', (e) => {
-      // Activar audio en la primera interacción del usuario
-      getAudioContext();
-      if (e.touches.length > 0) {
-        handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    });
-
-    // Cambiar textura cuando se empieza a arrastrar la bola
-    type DragEvt = Matter.IEvent<Matter.MouseConstraint> & { body?: Matter.Body };
-    Matter.Events.on(mouseConstraint, 'startdrag', (event: DragEvt) => {
-      if (ball && event && event.body && event.body.id === ball.id) {
-        // Cambiar a textura de "hold" mientras se estira
-        const spr = (ball as SpriteBody).render.sprite;
-        if (spr) spr.texture = SLING_TEXTURES.hold;
-      }
-    });
-
-    // Lógica para soltar la bola de la resortera
-    Matter.Events.on(mouseConstraint, "enddrag", (event: DragEvt) => {
-      if (ball && sling && event.body === ball) {
-        // Volver a textura base al terminar el arrastre
-        const spr = (ball as SpriteBody).render.sprite;
-        if (spr) spr.texture = SLING_TEXTURES.base;
-        // Calcular vector de estiramiento
-        const dx = sling.pointA.x - ball.position.x;
-        const dy = sling.pointA.y - ball.position.y;
-        // Normalizar y escalar la fuerza
-        const forceScale = 0.002;
-        const fx = dx * forceScale;
-        const fy = dy * forceScale;
-        setTimeout(() => {
-          // Eliminar el constraint del mundo
-          Composite.remove(engine.world, sling!);
-          Matter.Body.applyForce(ball!, ball!.position, { x: fx, y: fy });
-          // Dejar referencias listas para la siguiente bola
-          ball = null;
-          sling = null;
-          setShowStretchHint(true);
-          if (process.env.NODE_ENV !== 'production') {
-            console.log("Ball launched. Active ID remains:", activeBallId);
-          }
-        }, 16);
-      }
-    });
-
-    // Renderizar letras sobre los bloques y la resortera si no hay bola
-    // Pre-cargar imagen base para el placeholder
-    const placeholderImg = new Image();
-    placeholderImg.src = SLING_TEXTURES.base;
+    render.canvas.addEventListener('mousedown', initializeCanvasAudio);
+    render.canvas.addEventListener('touchstart', initializeCanvasAudio, { passive: true });
 
     Matter.Events.on(render, "afterRender", () => {
       const ctx = render.context;
@@ -494,25 +404,6 @@ export default function Home() {
         const b = blocks[i];
         ctx.fillStyle = darkMode ? "#333" : "#fff";
         ctx.fillText(b.label || '', b.position.x, b.position.y + 2);
-      }
-      // Indicador visual para crear bola: mostrar el sprite base
-      if (slingEnabled && !ball && !sling) {
-        const size = ballRadius * 2; // diámetro
-        if (placeholderImg.complete) {
-          ctx.drawImage(
-            placeholderImg,
-            slingStart.x - size / 2,
-            slingStart.y - size / 2,
-            size,
-            size
-          );
-        } else {
-          // Fallback mínimo mientras carga la imagen
-          ctx.beginPath();
-          ctx.arc(slingStart.x, slingStart.y, ballRadius, 0, 2 * Math.PI);
-          ctx.fillStyle = '#f59e42';
-          ctx.fill();
-        }
       }
       ctx.restore();
     });
@@ -600,47 +491,6 @@ export default function Home() {
       playWormAnimation();
     }, 2000);
 
-    // Detectar colisión de la bola con los bloques y aplicar rebote si es desde abajo
-    Matter.Events.on(engine, 'collisionStart', (event) => {
-      if (!activeBallId) {
-        return;
-      }
-
-      for (const pair of event.pairs) {
-        let blockHit: BouncingBlock | null = null;
-        let projectile: Matter.Body | null = null;
-
-        if (blocks.some(b => b.id === pair.bodyA.id) && pair.bodyB.id === activeBallId) {
-          blockHit = pair.bodyA as BouncingBlock;
-          projectile = pair.bodyB;
-        } else if (blocks.some(b => b.id === pair.bodyB.id) && pair.bodyA.id === activeBallId) {
-          blockHit = pair.bodyB as BouncingBlock;
-          projectile = pair.bodyA;
-        }
-
-        if (blockHit && projectile) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log("\tCollision involves ball and block:", blockHit.label);
-          }
-          const ballY = projectile.position.y;
-          const blockY = blockHit.position.y;
-          if (process.env.NODE_ENV !== 'production') {
-            console.log(`\tBall Y: ${ballY.toFixed(2)}, Block Y: ${blockY.toFixed(2)}`);
-          }
-          if (ballY > blockY) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.log("\tCondition (ballY > blockY) met: Ball hit from below!");
-            }
-            bounceBlock(blockHit);
-          } else {
-            if (process.env.NODE_ENV !== 'production') {
-              console.log("\tCondition not met: Ball did not hit from below.");
-            }
-          }
-        }
-      }
-    });
-
     Render.run(render);
     const runner = Runner.create();
     Runner.run(runner, engine);
@@ -700,11 +550,6 @@ export default function Home() {
       });
       titlePosition = nextTitlePosition;
 
-      // Actualizar posición del slingshot para overlays
-      const isMobileNow = width < 600;
-      slingEnabled = isMobileNow;
-      slingStart = { x: 48, y: height - 120 };
-      setSlingPos(slingEnabled ? { x: slingStart.x, y: slingStart.y } : null);
     };
     window.addEventListener('resize', handleResize);
 
@@ -712,6 +557,8 @@ export default function Home() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('resize', handleResize);
+      render.canvas.removeEventListener('mousedown', initializeCanvasAudio);
+      render.canvas.removeEventListener('touchstart', initializeCanvasAudio);
       Render.stop(render);
       Runner.stop(runner);
       Composite.clear(engine.world, false);
@@ -781,15 +628,17 @@ export default function Home() {
     startTransition(() => setViewMode('post')); // Switch to post view
   };
 
-  const triggerSideButtonHaptic = (pattern: 'selection' | 'nudge' = 'selection') => {
-    void triggerHaptic?.(pattern, { intensity: 0.45 });
-  };
+  const triggerHapticFeedback = useCallback((pattern: GameHaptic, intensity = 0.45) => {
+    if (hapticsRef.current) {
+      void hapticsRef.current.trigger(pattern, { intensity });
+      return;
+    }
+
+    navigator.vibrate?.(HAPTIC_FALLBACK_DURATION[pattern]);
+  }, []);
 
   // Handler para volver (depende del viewMode)
-  const handleGoBack = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
-    e.preventDefault();
-    triggerSideButtonHaptic();
-
+  const handleGoBack = () => {
     if (viewMode === 'post') {
       startTransition(() => setViewMode('blog'));
       setSelectedSlug(null);
@@ -843,20 +692,27 @@ export default function Home() {
   const handleBookClick = (data: BookClickData) => {
     const container = contentContainerRef.current;
 
-    if (contentContainerRef.current) {
-      setSavedScrollPosition(contentContainerRef.current.scrollTop);
+    if (container) {
+      setSavedScrollPosition(container.scrollTop);
     }
     setSelectedBook(data.book);
     setBookStartRect(data.rect);
-    startTransition(() => setViewMode('book'));
+    setViewMode('book');
 
     if (container && windowSize.width <= 900) {
-      container.scrollTo({ top: 0, behavior: 'smooth' });
+      container.scrollTop = 0;
+      requestAnimationFrame(() => {
+        container.scrollTop = 0;
+      });
     }
   };
 
-  const handleGoToBooks = () => { setLastExitedBookId(null);
-    startTransition(() => setViewMode('books'));
+  const handleGoToBooks = () => {
+    setLastExitedBookId(null);
+    setViewMode('books');
+    requestAnimationFrame(() => {
+      if (contentContainerRef.current) contentContainerRef.current.scrollTop = 0;
+    });
   };
 
   const handleBookExitComplete = () => {
@@ -914,14 +770,11 @@ export default function Home() {
 
   // Toggle para cambiar entre modo claro y oscuro
   const toggleDarkMode = () => {
-    triggerSideButtonHaptic();
     setDarkMode(prev => !prev);
   };
 
   // Toggle para activar/desactivar sonido
   const toggleSound = () => {
-    triggerSideButtonHaptic();
-
     setSoundEnabled(prev => {
       const newState = !prev;
       if (newState && playAnimationRef.current) {
@@ -1031,48 +884,33 @@ export default function Home() {
           backgroundColor: darkMode ? '#1a1a1a' : '#f8fafc',
         }}
       />
-      {slingPos && showStretchHint && !showScreensaver ? (
-        (() => {
-          const BALL_RADIUS = 44; // mantener en sync con el radio de la bola
-          const ringRadius = BALL_RADIUS + 12; // margen cercano al balón
-          const padding = 24; // separa el borde del SVG para que no corte el texto
-          const size = ringRadius * 2 + padding * 2;
-          const cx = ringRadius + padding;
-          const cy = ringRadius + padding;
-          const r = ringRadius;
-          const circlePath = `M ${cx} ${cy} m -${r}, 0 a ${r},${r} 0 1,1 ${2 * r},0 a ${r},${r} 0 1,1 -${2 * r},0`;
-          return (
-            <div
-              className="fixed"
-              style={{
-                left: slingPos.x,
-                top: slingPos.y,
-                transform: 'translate(-50%, -50%)',
-                width: `${size}px`,
-                height: `${size}px`,
-                zIndex: 12,
-                color: darkMode ? '#f59e42' : '#d97706',
-                pointerEvents: 'none',
-              }}
-            >
-              <AnimatedPathText
-                path={circlePath}
-                viewBox={`0 0 ${size} ${size}`}
-                width={size}
-                height={size}
-                text={"estírame • estírame • estírame • estírame • "}
-                textStyle={{ fontSize: 14, letterSpacing: 1.2 }}
-                duration={8}
-                textAnchor="start"
-              />
-            </div>
-          );
-        })()
-      ) : null}
+
+      <MobileGameControls
+        darkMode={darkMode}
+        hapticsSupported={hapticsSupported}
+        navigationEnabled={windowSize.width > 0 && windowSize.width < 600 && !showScreensaver}
+        navigationKey={`${viewMode}:${selectedSlug ?? ''}:${selectedBook?.id ?? ''}:${showScreensaver}`}
+        navigationRootRef={contentContainerRef}
+        smoothScroll={
+          viewMode === 'about' ||
+          viewMode === 'post' ||
+          viewMode === 'books' ||
+          viewMode === 'book'
+        }
+        onBack={() => {
+          if (showScreensaver) {
+            setShowScreensaver(false);
+          } else {
+            handleGoBack();
+          }
+        }}
+        onHaptic={triggerHapticFeedback}
+      />
 
       {/* Dark Mode Switch */}
       <ControlButton
         onPress={toggleDarkMode}
+        onFeedback={() => triggerHapticFeedback('selection')}
         ariaLabel={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
         className="control-button fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
         style={{
@@ -1108,6 +946,7 @@ export default function Home() {
       {/* Sound Toggle Button */}
       <ControlButton
         onPress={toggleSound}
+        onFeedback={() => triggerHapticFeedback('selection')}
         ariaLabel={soundEnabled ? "Desactivar sonido" : "Activar sonido"}
         className="control-button fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
         style={{
@@ -1139,9 +978,10 @@ export default function Home() {
       {/* Back Arrow Button - Visible in blog/post/about/books/book view */}
       {(viewMode === 'blog' || viewMode === 'post' || viewMode === 'about' || viewMode === 'books' || viewMode === 'book') ? (
         <ControlButton
-          onPress={() => handleGoBack({ preventDefault: () => {} } as React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>)}
+          onPress={handleGoBack}
+          onFeedback={() => triggerHapticFeedback('selection')}
           ariaLabel="Volver"
-          className="control-button fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+          className="control-button desktop-side-back fixed z-20 flex items-center justify-center rounded-full shadow-md hover:shadow-lg transition-all duration-300"
           style={{
             backgroundColor: darkMode ? '#333' : '#fff',
             color: darkMode ? '#fff' : '#333',
@@ -1169,7 +1009,7 @@ export default function Home() {
       {/* Contenido central (Navegación o Posts) */}
       <div
         ref={contentContainerRef}
-        className={`${geist.className} no-scrollbar transition-opacity duration-500 ease-in-out`}
+        className={`${geist.className} main-content-shell no-scrollbar transition-opacity duration-500 ease-in-out`}
         style={styleMainContainer}
       >
         <div style={{ position: 'relative' }}>
@@ -1319,6 +1159,7 @@ export default function Home() {
                     (isExitingBook && selectedBook ? selectedBook.id : lastExitedBookId) || undefined
                   }
                   hideBook={(viewMode === 'book' && selectedBook) ? selectedBook.id : undefined}
+                  initialBookId={lastExitedBookId ?? undefined}
                 />
               </div>
               {viewMode === 'book' && selectedBook ? (

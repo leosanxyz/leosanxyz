@@ -17,9 +17,10 @@ interface BookGalleryProps {
   onBookClick: (data: BookClickData) => void;
   excludeFromAnimation?: string;
   hideBook?: string;
+  initialBookId?: string;
 }
 
-const BookGallery = forwardRef<BookGalleryRef, BookGalleryProps>(({ darkMode, onBookClick, excludeFromAnimation, hideBook }, ref) => {
+const BookGallery = forwardRef<BookGalleryRef, BookGalleryProps>(({ darkMode, onBookClick, excludeFromAnimation, hideBook, initialBookId }, ref) => {
   const bookRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useImperativeHandle(ref, () => ({
@@ -33,27 +34,21 @@ const BookGallery = forwardRef<BookGalleryRef, BookGalleryProps>(({ darkMode, on
   const textColor = darkMode ? '#eee' : '#111';
   const subTextColor = darkMode ? '#bbb' : '#555';
 
-  const handleBookClick = (book: Book, event: React.MouseEvent<HTMLDivElement>) => {
-    const wrapper = event.currentTarget.querySelector('.book-cover-wrapper');
-    if (wrapper) {
-      const rect = wrapper.getBoundingClientRect();
+  const handleBookClick = (
+    book: Book,
+    event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    const cover = event.currentTarget.querySelector('.book-cover');
+    if (cover) {
+      const rect = cover.getBoundingClientRect();
       onBookClick({ book, rect });
     }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        paddingTop: '1rem',
-      }}
-    >
+    <div className="book-gallery">
       <div
-        style={{
-          marginBottom: '3rem',
-          textAlign: 'center',
-        }}
+        className="book-gallery-heading"
       >
         <p
           style={{
@@ -77,7 +72,7 @@ const BookGallery = forwardRef<BookGalleryRef, BookGalleryProps>(({ darkMode, on
         </h1>
       </div>
 
-      <div className="book-grid">
+      <div className="book-grid" data-gamepad-grid="true">
         {books.map((book, index) => {
           const isHidden = hideBook === book.id;
           const skipAnimation = excludeFromAnimation === book.id || isHidden;
@@ -89,6 +84,19 @@ const BookGallery = forwardRef<BookGalleryRef, BookGalleryProps>(({ darkMode, on
             }}
             className={`book-item ${isHidden ? 'book-item--hidden' : ''} ${skipAnimation && !isHidden ? 'book-item--no-animation' : ''}`}
             onClick={(e) => handleBookClick(book, e)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleBookClick(book, event);
+              }
+            }}
+            role="button"
+            tabIndex={isHidden ? -1 : 0}
+            data-gamepad-grid-index={index}
+            data-gamepad-default={book.id === (initialBookId ?? books[0]?.id) ? 'true' : undefined}
+            data-gamepad-scroll-top={index < 2 ? 'true' : undefined}
+            data-gamepad-center="true"
+            aria-label={`Abrir ${book.title}, de ${book.author}`}
             style={{
               cursor: 'pointer',
               animationDelay: skipAnimation ? undefined : `${index * 80}ms`,

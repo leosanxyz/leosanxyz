@@ -130,6 +130,9 @@ export default function MorphingHoverList<T extends MorphingHoverItem>({
     selectItem(index, event.currentTarget);
   };
 
+  const hasGamepadSelection = (list: HTMLElement) =>
+    list.querySelector('[data-gamepad-active="true"]') !== null;
+
   return (
     <div className={`morph-list-shell morph-list-shell--${variant}`}>
       <span
@@ -153,9 +156,19 @@ export default function MorphingHoverList<T extends MorphingHoverItem>({
 
       <ul
         className="morph-list"
-        onPointerLeave={clearSelection}
+        onPointerLeave={(event) => {
+          if (event.pointerType === "touch") return;
+          if (window.matchMedia("(max-width: 599px)").matches) return;
+          if (event.currentTarget.contains(document.activeElement)) return;
+          if (hasGamepadSelection(event.currentTarget)) return;
+          clearSelection();
+        }}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
+          if (window.matchMedia("(max-width: 599px)").matches) return;
+          if (
+            !event.currentTarget.contains(event.relatedTarget) &&
+            !hasGamepadSelection(event.currentTarget)
+          ) {
             clearSelection();
           }
         }}
@@ -170,6 +183,7 @@ export default function MorphingHoverList<T extends MorphingHoverItem>({
             <a
               className="morph-list__link"
               data-active={activeIndex === index}
+              data-gamepad-default={index === 0 ? "true" : undefined}
               href={item.href}
               onClick={(event) => onItemClick(event, item)}
               style={{ color: linkColor }}

@@ -168,7 +168,14 @@ const BookDetail: React.FC<BookDetailProps> = ({
 
   return (
     <div className="book-detail">
-      <div className="book-detail-cover">
+      <div
+        className="book-detail-cover"
+        data-gamepad-target="true"
+        data-gamepad-default="true"
+        data-gamepad-scroll-top="true"
+        data-gamepad-axis="vertical"
+        tabIndex={-1}
+      >
         <div
           ref={setCoverRef}
           className="book-detail-cover-wrapper"
@@ -240,6 +247,10 @@ const BookDetail: React.FC<BookDetailProps> = ({
               <blockquote
                 key={quote}
                 className="book-detail-quote"
+                data-gamepad-target="true"
+                data-gamepad-center="true"
+                data-gamepad-axis="vertical"
+                tabIndex={-1}
                 style={{
                   color: textColor,
                   borderLeftColor: darkMode ? '#444' : '#ddd',

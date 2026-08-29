@@ -18,6 +18,9 @@ const BookStack: React.FC<BookStackProps> = ({ onGoToBooks, darkMode }) => {
       className="book-stack-container group" 
       onClick={onGoToBooks}
       role="button"
+      aria-label="Abrir mis recomendaciones de lectura"
+      data-gamepad-center="true"
+      data-gamepad-axis="vertical"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
