@@ -210,6 +210,7 @@ body {
   .mobile-game-controls {
     --game-control-ink: #242424;
     --game-control-arrow: rgba(255, 255, 255, 0.52);
+    --game-control-arrow-active: rgba(255, 255, 255, 0.86);
     position: fixed;
     inset: 0;
     z-index: 10001;
@@ -220,6 +221,7 @@ body {
   .mobile-game-controls--dark {
     --game-control-ink: #e5e7eb;
     --game-control-arrow: rgba(17, 24, 39, 0.55);
+    --game-control-arrow-active: rgba(17, 24, 39, 0.86);
   }
 
   .game-dpad,
@@ -233,6 +235,7 @@ body {
   }
 
   .game-dpad {
+    --game-dpad-travel: clamp(13px, 3.8vw, 16px);
     left: max(16px, env(safe-area-inset-left));
     width: clamp(128px, 36vw, 144px);
     aspect-ratio: 1;
@@ -255,102 +258,88 @@ body {
     justify-content: center;
     padding: 0;
     color: var(--game-control-arrow);
-    background: var(--game-control-ink);
+    background: transparent;
     transform: translateZ(0);
-    transition: transform 260ms cubic-bezier(0.34, 1.42, 0.64, 1);
-    will-change: transform;
+    isolation: isolate;
+  }
+
+  .game-dpad__shape {
+    position: absolute;
+    z-index: 0;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: var(--game-control-ink);
+    pointer-events: none;
+    transform: translate3d(-50%, -50%, 0) rotate(var(--game-dpad-shape-rotation));
+    transform-origin: center;
   }
 
   .game-dpad__button--up,
   .game-dpad__button--down {
-    left: 30%;
-    width: 40%;
-    height: 52%;
+    left: 32%;
+    width: 36%;
+    height: 43.5%;
   }
 
   .game-dpad__button--left,
   .game-dpad__button--right {
-    top: 30%;
-    width: 52%;
-    height: 40%;
+    top: 32%;
+    width: 43.5%;
+    height: 36%;
   }
 
   .game-dpad__button--up {
+    --game-dpad-shape-rotation: 180deg;
+    --game-dpad-arrow-rest-transform: translate3d(0, -7px, 0) rotate(0deg);
+    --game-dpad-arrow-press-transform: translate3d(0, calc(-7px - var(--game-dpad-travel)), 0) rotate(0deg);
     top: 0;
-    border-radius: 9px 9px 0 0;
     transform-origin: center bottom;
   }
 
   .game-dpad__button--right {
+    --game-dpad-shape-rotation: -90deg;
+    --game-dpad-arrow-rest-transform: translate3d(7px, 0, 0) rotate(90deg);
+    --game-dpad-arrow-press-transform: translate3d(calc(7px + var(--game-dpad-travel)), 0, 0) rotate(90deg);
     right: 0;
-    border-radius: 0 9px 9px 0;
     transform-origin: left center;
   }
 
   .game-dpad__button--down {
+    --game-dpad-shape-rotation: 0deg;
+    --game-dpad-arrow-rest-transform: translate3d(0, 7px, 0) rotate(180deg);
+    --game-dpad-arrow-press-transform: translate3d(0, calc(7px + var(--game-dpad-travel)), 0) rotate(180deg);
     bottom: 0;
-    border-radius: 0 0 9px 9px;
     transform-origin: center top;
   }
 
   .game-dpad__button--left {
+    --game-dpad-shape-rotation: 90deg;
+    --game-dpad-arrow-rest-transform: translate3d(-7px, 0, 0) rotate(-90deg);
+    --game-dpad-arrow-press-transform: translate3d(calc(-7px - var(--game-dpad-travel)), 0, 0) rotate(-90deg);
     left: 0;
-    border-radius: 9px 0 0 9px;
     transform-origin: right center;
   }
 
-  .game-dpad__button:active,
-  .game-dpad__button[data-pressed="true"],
-  .game-dpad[data-joystick-direction="up"] .game-dpad__button--up,
-  .game-dpad[data-joystick-direction="right"] .game-dpad__button--right,
-  .game-dpad[data-joystick-direction="down"] .game-dpad__button--down,
-  .game-dpad[data-joystick-direction="left"] .game-dpad__button--left {
-    transition-duration: 115ms;
-    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .game-dpad__button--up[data-pressed="true"],
-  .game-dpad[data-joystick-direction="up"] .game-dpad__button--up {
-    transform: scale3d(0.93, 1.09, 1);
-  }
-
-  .game-dpad__button--right[data-pressed="true"],
-  .game-dpad[data-joystick-direction="right"] .game-dpad__button--right {
-    transform: scale3d(1.09, 0.93, 1);
-  }
-
-  .game-dpad__button--down[data-pressed="true"],
-  .game-dpad[data-joystick-direction="down"] .game-dpad__button--down {
-    transform: scale3d(0.93, 1.09, 1);
-  }
-
-  .game-dpad__button--left[data-pressed="true"],
-  .game-dpad[data-joystick-direction="left"] .game-dpad__button--left {
-    transform: scale3d(1.09, 0.93, 1);
+  .game-dpad__button--right .game-dpad__shape,
+  .game-dpad__button--left .game-dpad__shape {
+    width: 82.759%;
+    height: 120.833%;
   }
 
   .game-dpad__arrow {
-    font-size: 0.56rem;
-    line-height: 1;
-    scale: 1;
-    transition: scale 230ms cubic-bezier(0.34, 1.5, 0.64, 1);
-    will-change: scale;
-  }
-
-  .game-dpad__button--up .game-dpad__arrow {
-    transform: translateY(-8px);
-  }
-
-  .game-dpad__button--right .game-dpad__arrow {
-    transform: translateX(8px);
-  }
-
-  .game-dpad__button--down .game-dpad__arrow {
-    transform: translateY(8px);
-  }
-
-  .game-dpad__button--left .game-dpad__arrow {
-    transform: translateX(-8px);
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 16px;
+    height: 10px;
+    overflow: visible;
+    transform: var(--game-dpad-arrow-rest-transform);
+    transition:
+      color 110ms ease,
+      transform 250ms cubic-bezier(0.34, 1.9, 0.64, 1);
   }
 
   .game-dpad__button[data-pressed="true"] .game-dpad__arrow,
@@ -358,20 +347,20 @@ body {
   .game-dpad[data-joystick-direction="right"] .game-dpad__button--right .game-dpad__arrow,
   .game-dpad[data-joystick-direction="down"] .game-dpad__button--down .game-dpad__arrow,
   .game-dpad[data-joystick-direction="left"] .game-dpad__button--left .game-dpad__arrow {
-    scale: 1.32;
-    transition-duration: 115ms;
-    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    color: var(--game-control-arrow-active);
+    transform: var(--game-dpad-arrow-press-transform);
+    transition-duration: 110ms, 250ms;
+    transition-timing-function: ease, cubic-bezier(0.42, 0, 0.58, 1.15);
   }
 
   .game-dpad__center {
     position: absolute;
     z-index: 2;
-    top: 30%;
-    left: 30%;
-    width: 40%;
-    height: 40%;
-    border-radius: 5px;
-    background: var(--game-control-ink);
+    top: 32%;
+    left: 32%;
+    width: 36%;
+    height: 36%;
+    background: transparent;
     border: 0;
     padding: 0;
     appearance: none;
@@ -443,9 +432,28 @@ body {
 @media (max-width: 599px) and (prefers-reduced-motion: reduce) {
   .game-action,
   .game-action__label,
-  .game-dpad__button,
   .game-dpad__arrow {
     transition: none;
+  }
+
+  .game-dpad__shape {
+    transition: opacity 110ms ease;
+  }
+
+  .game-dpad__button[data-pressed="true"] .game-dpad__shape,
+  .game-dpad[data-joystick-direction="up"] .game-dpad__button--up .game-dpad__shape,
+  .game-dpad[data-joystick-direction="right"] .game-dpad__button--right .game-dpad__shape,
+  .game-dpad[data-joystick-direction="down"] .game-dpad__button--down .game-dpad__shape,
+  .game-dpad[data-joystick-direction="left"] .game-dpad__button--left .game-dpad__shape {
+    opacity: 0.76;
+  }
+
+  .game-dpad__button[data-pressed="true"] .game-dpad__arrow,
+  .game-dpad[data-joystick-direction="up"] .game-dpad__button--up .game-dpad__arrow,
+  .game-dpad[data-joystick-direction="right"] .game-dpad__button--right .game-dpad__arrow,
+  .game-dpad[data-joystick-direction="down"] .game-dpad__button--down .game-dpad__arrow,
+  .game-dpad[data-joystick-direction="left"] .game-dpad__button--left .game-dpad__arrow {
+    transform: var(--game-dpad-arrow-rest-transform);
   }
 }
 

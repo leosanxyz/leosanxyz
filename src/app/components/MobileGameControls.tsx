@@ -40,6 +40,11 @@ const ACTIONABLE_TARGET_SELECTOR = [
   "textarea:not([disabled])",
 ].join(",");
 
+const DPAD_PRESS_PHASE_MS = 250;
+const DPAD_REST_PATH = "M35.59 3.48L59.69 26.83Q64 31 64 37L64 68Q64 78 54 78L10 78Q0 78 0 68L0 37Q0 31 4.31 26.83L28.41 3.48Q32 0 35.59 3.48Z";
+const DPAD_PRESS_PATH = "M35.59 3.48L59.69 26.83Q64 31 64 37L64 73Q64 98 39 98L25 98Q0 98 0 73L0 37Q0 31 4.31 26.83L28.41 3.48Q32 0 35.59 3.48Z";
+const DPAD_UNDERSHOOT_PATH = "M35.59 3.48L59.69 26.83Q64 31 64 37L64 66Q64 74 56 74L8 74Q0 74 0 66L0 37Q0 31 4.31 26.83L28.41 3.48Q32 0 35.59 3.48Z";
+
 const DEFAULT_CELEBRATION_THEME = {
   id: "stars",
   emojis: ["⭐", "💫", "✨", "🙂‍↕️"],
@@ -253,7 +258,8 @@ interface GameControlButtonProps {
   ariaLabel: string;
   className: string;
   onPress: () => void;
-  children?: ReactNode;
+  pulseOnPress?: boolean;
+  children?: ReactNode | ((isPressed: boolean) => ReactNode);
 }
 
 interface JoystickGesture {
@@ -267,10 +273,34 @@ function GameControlButton({
   ariaLabel,
   className,
   onPress,
+  pulseOnPress = false,
   children,
 }: GameControlButtonProps) {
   const [isPressed, setIsPressed] = useState(false);
   const pointerPressRef = useRef(false);
+  const pulseTimeoutRef = useRef<number | null>(null);
+
+  const startVisualPress = useCallback(() => {
+    if (pulseOnPress && pulseTimeoutRef.current !== null) return;
+
+    setIsPressed(true);
+    if (!pulseOnPress) return;
+
+    pulseTimeoutRef.current = window.setTimeout(() => {
+      pulseTimeoutRef.current = null;
+      setIsPressed(false);
+    }, DPAD_PRESS_PHASE_MS);
+  }, [pulseOnPress]);
+
+  const finishVisualPress = useCallback(() => {
+    if (!pulseOnPress) setIsPressed(false);
+  }, [pulseOnPress]);
+
+  useEffect(() => () => {
+    if (pulseTimeoutRef.current !== null) {
+      window.clearTimeout(pulseTimeoutRef.current);
+    }
+  }, []);
 
   return (
     <button
@@ -286,35 +316,118 @@ function GameControlButton({
         event.preventDefault();
         event.stopPropagation();
         pointerPressRef.current = true;
-        setIsPressed(true);
+        startVisualPress();
       }}
       onPointerUp={(event) => {
         event.preventDefault();
         event.stopPropagation();
         if (!pointerPressRef.current) return;
         pointerPressRef.current = false;
-        setIsPressed(false);
+        finishVisualPress();
         onPress();
       }}
       onPointerCancel={(event) => {
         event.stopPropagation();
         pointerPressRef.current = false;
-        setIsPressed(false);
+        finishVisualPress();
       }}
       onPointerLeave={(event) => {
         event.stopPropagation();
         pointerPressRef.current = false;
-        setIsPressed(false);
+        finishVisualPress();
       }}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        setIsPressed(false);
+        finishVisualPress();
         if (event.detail === 0) onPress();
       }}
     >
-      {children}
+      {typeof children === "function" ? children(isPressed) : children}
     </button>
+  );
+}
+
+function DpadArrow() {
+  return (
+    <svg
+      className="game-dpad__arrow"
+      viewBox="0 0 16 10"
+      aria-hidden="true"
+    >
+      <path
+        d="M2 8 8 2l6 6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="3.25"
+      />
+    </svg>
+  );
+}
+
+interface DpadShapeProps {
+  pressed: boolean;
+}
+
+function DpadShape({ pressed }: DpadShapeProps) {
+  const extendAnimationRef = useRef<SVGAnimateElement | null>(null);
+  const retractAnimationRef = useRef<SVGAnimateElement | null>(null);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      if (!pressed) return;
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const animation = pressed
+      ? extendAnimationRef.current
+      : retractAnimationRef.current;
+    animation?.beginElement();
+  }, [pressed]);
+
+  return (
+    <svg
+      className="game-dpad__shape"
+      viewBox="0 0 64 78"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <path
+        className="game-dpad__shape-path"
+        d={DPAD_REST_PATH}
+      >
+        <animate
+          ref={extendAnimationRef}
+          attributeName="d"
+          from={DPAD_REST_PATH}
+          to={DPAD_PRESS_PATH}
+          dur={`${DPAD_PRESS_PHASE_MS}ms`}
+          begin="indefinite"
+          fill="freeze"
+          restart="always"
+          calcMode="spline"
+          keyTimes="0;1"
+          keySplines="0.42 0 0.58 1"
+        />
+        <animate
+          ref={retractAnimationRef}
+          attributeName="d"
+          values={`${DPAD_PRESS_PATH};${DPAD_UNDERSHOOT_PATH};${DPAD_REST_PATH}`}
+          dur={`${DPAD_PRESS_PHASE_MS}ms`}
+          begin="indefinite"
+          fill="freeze"
+          restart="always"
+          calcMode="spline"
+          keyTimes="0;0.52;1"
+          keySplines="0.42 0 0.58 1;0.25 0.46 0.45 0.94"
+        />
+      </path>
+    </svg>
   );
 }
 
@@ -334,9 +447,28 @@ export default function MobileGameControls({
   const scrollDestinationRef = useRef<number | null>(null);
   const selectionSuspendedRef = useRef(false);
   const joystickGestureRef = useRef<JoystickGesture | null>(null);
+  const joystickPulseTimeoutRef = useRef<number | null>(null);
   const celebrationAnimationRef = useRef<Animation | null>(null);
   const starBurstsRef = useRef<Set<HTMLDivElement>>(new Set());
   const [joystickDirection, setJoystickDirection] = useState<GameDirection | null>(null);
+
+  const pulseJoystickDirection = useCallback((direction: GameDirection) => {
+    if (joystickPulseTimeoutRef.current !== null) {
+      window.clearTimeout(joystickPulseTimeoutRef.current);
+    }
+
+    setJoystickDirection(direction);
+    joystickPulseTimeoutRef.current = window.setTimeout(() => {
+      joystickPulseTimeoutRef.current = null;
+      setJoystickDirection(null);
+    }, DPAD_PRESS_PHASE_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (joystickPulseTimeoutRef.current !== null) {
+      window.clearTimeout(joystickPulseTimeoutRef.current);
+    }
+  }, []);
 
   const clearStarBursts = useCallback(() => {
     starBurstsRef.current.forEach((burst) => burst.remove());
@@ -668,7 +800,6 @@ export default function MobileGameControls({
       startY: event.clientY,
       direction: null,
     };
-    setJoystickDirection(null);
   }, []);
 
   const handleJoystickPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -685,7 +816,6 @@ export default function MobileGameControls({
     if (Math.hypot(dx, dy) < threshold) {
       if (gesture.direction !== null) {
         gesture.direction = null;
-        setJoystickDirection(null);
       }
       return;
     }
@@ -696,9 +826,9 @@ export default function MobileGameControls({
 
     if (direction === gesture.direction) return;
     gesture.direction = direction;
-    setJoystickDirection(direction);
+    pulseJoystickDirection(direction);
     pressDirection(direction);
-  }, [pressDirection]);
+  }, [pressDirection, pulseJoystickDirection]);
 
   const finishJoystickGesture = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const gesture = joystickGestureRef.current;
@@ -707,7 +837,6 @@ export default function MobileGameControls({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     joystickGestureRef.current = null;
-    setJoystickDirection(null);
   }, []);
 
   const celebrateTarget = useCallback((target: HTMLElement) => {
@@ -1014,29 +1143,53 @@ export default function MobileGameControls({
           ariaLabel="Mover arriba"
           className="game-dpad__button game-dpad__button--up"
           onPress={() => pressDirection("up")}
+          pulseOnPress
         >
-          <span className="game-dpad__arrow" aria-hidden="true">▲</span>
+          {(isPressed) => (
+            <>
+              <DpadShape pressed={isPressed || joystickDirection === "up"} />
+              <DpadArrow />
+            </>
+          )}
         </GameControlButton>
         <GameControlButton
           ariaLabel="Mover a la derecha"
           className="game-dpad__button game-dpad__button--right"
           onPress={() => pressDirection("right")}
+          pulseOnPress
         >
-          <span className="game-dpad__arrow" aria-hidden="true">▶</span>
+          {(isPressed) => (
+            <>
+              <DpadShape pressed={isPressed || joystickDirection === "right"} />
+              <DpadArrow />
+            </>
+          )}
         </GameControlButton>
         <GameControlButton
           ariaLabel="Mover abajo"
           className="game-dpad__button game-dpad__button--down"
           onPress={() => pressDirection("down")}
+          pulseOnPress
         >
-          <span className="game-dpad__arrow" aria-hidden="true">▼</span>
+          {(isPressed) => (
+            <>
+              <DpadShape pressed={isPressed || joystickDirection === "down"} />
+              <DpadArrow />
+            </>
+          )}
         </GameControlButton>
         <GameControlButton
           ariaLabel="Mover a la izquierda"
           className="game-dpad__button game-dpad__button--left"
           onPress={() => pressDirection("left")}
+          pulseOnPress
         >
-          <span className="game-dpad__arrow" aria-hidden="true">◀</span>
+          {(isPressed) => (
+            <>
+              <DpadShape pressed={isPressed || joystickDirection === "left"} />
+              <DpadArrow />
+            </>
+          )}
         </GameControlButton>
         <button
           type="button"
@@ -1051,7 +1204,6 @@ export default function MobileGameControls({
           onPointerCancel={finishJoystickGesture}
           onLostPointerCapture={() => {
             joystickGestureRef.current = null;
-            setJoystickDirection(null);
           }}
           onClick={(event) => {
             event.preventDefault();
