@@ -39,6 +39,7 @@ const IPAD_TOOLS = [
 	{ id: 'select', label: 'Seleccionar' },
 	{ id: 'draw', label: 'Lápiz' },
 	{ id: 'eraser', label: 'Borrador' },
+	{ id: 'laser', label: 'Puntero láser' },
 	{ id: 'line', label: 'Línea' },
 	{ id: 'arrow', label: 'Flecha' },
 	{ id: 'rectangle', label: 'Rectángulo' },

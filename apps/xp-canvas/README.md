@@ -93,6 +93,12 @@ El Pencil usa la herramienta elegida. Un dedo sobre una figura la selecciona y p
 
 El seguimiento táctil actualiza la cámara directamente, sin transiciones ni renders de React por cada movimiento. La validación automatizada usa eventos táctiles y de lápiz de Chromium. Queda pendiente comprobar la sensación y la secuencia física en Safari con Apple Pencil.
 
+## Puntero láser
+
+Selecciona **Puntero láser** en la barra del iPad, junto al borrador, y señala con el Apple Pencil. En escritorio está disponible en las herramientas de tldraw y con la tecla **K**. El trazo es temporal, lo ven los demás participantes del canvas y desaparece después de soltar. No añade objetos al documento ni al historial de Deshacer. El dedo conserva la selección y el desplazamiento del lienzo.
+
+`npm run smoke:laser --workspace=apps/xp-canvas` comprueba selección desde la barra, Pencil, visibilidad en otro cliente, desaparición del trazo, ausencia de cambios en el documento y atajo de teclado. Usa un servidor aislado en 5175.
+
 ## QuickShape
 
 QuickShape muestra una figura fantasma cuando el Apple Pencil permanece quieto al final del trazo durante unos 500 ms. El dibujo original sigue ahí mientras mantienes el contacto. Al soltar, se sustituye por la figura y Deshacer elimina el gesto completo en un paso. Si vuelves a mover el Pencil o se cancela el contacto, desaparece la previsualización. Reconoce solo resultados claros:
