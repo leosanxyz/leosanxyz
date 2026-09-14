@@ -103,6 +103,7 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	})
 	.get('/api/library', handleLibraryRequest)
 	.post('/api/boards', handleLibraryRequest)
+	.post('/api/boards/:boardId/copy', handleLibraryRequest)
 	.get('/api/boards/:boardId', handleBoardRequest)
 	.patch('/api/boards/:boardId', handleLibraryRequest)
 	.post('/api/folders', handleLibraryRequest)

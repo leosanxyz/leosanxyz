@@ -72,6 +72,16 @@ export default function BoardManager() {
 		} catch (cause) { setError(message(cause)) }
 		finally { setBusy(false) }
 	}
+	async function copyBoard(source: Board) {
+		if (busy) return
+		setBusy(true); setError('')
+		try {
+			const copy = await boardRequest<Board>(`boards/${source.id}/copy`, 'POST')
+			if (view === 'favorites') setView(copy.folderId ?? 'all')
+			await load()
+		} catch (cause) { setError(message(cause)) }
+		finally { setBusy(false) }
+	}
 	async function submitDialog(event: FormEvent) {
 		event.preventDefault()
 		if (!dialog || busy) return
@@ -143,6 +153,7 @@ export default function BoardManager() {
 					<DropdownMenu.Root><DropdownMenu.Trigger className="xp-icon-button board-card-menu" aria-label={`Opciones de ${board.name}`}><Icon name="more" size={20} /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu" align="end">
 						{board.trashedAt ? <DropdownMenu.Item className="xp-menu-item" onSelect={() => void updateBoard(board, { trashed: false })}>Restaurar</DropdownMenu.Item> : <>
 							<DropdownMenu.Item className="xp-menu-item" onSelect={() => setDialog({ kind: 'rename-board', id: board.id, name: board.name, folderId: board.folderId })}>Renombrar</DropdownMenu.Item>
+							<DropdownMenu.Item className="xp-menu-item" disabled={busy} onSelect={() => void copyBoard(board)}>Duplicar canvas</DropdownMenu.Item>
 							<DropdownMenu.Item className="xp-menu-item" onSelect={() => setDialog({ kind: 'move-board', id: board.id, name: board.name, folderId: board.folderId })}>Mover a carpeta</DropdownMenu.Item>
 							<DropdownMenu.Item className="xp-menu-item" onSelect={() => void updateBoard(board, { favorite: !board.favorite })}>{board.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}</DropdownMenu.Item>
 							<DropdownMenu.Separator className="xp-menu-separator" /><DropdownMenu.Item className="xp-menu-item xp-menu-item--danger" onSelect={() => void updateBoard(board, { trashed: true })}>Mover a la papelera</DropdownMenu.Item>

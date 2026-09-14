@@ -95,7 +95,7 @@ try {
 			await page.locator(`[data-shape-id="${shape.id}"] video`).evaluate((video) => video.load())
 			await page.waitForFunction((id) => document.querySelector(`[data-shape-id="${id}"] video`)?.readyState >= 2, shape.id)
 			const playback = await page.locator(`[data-shape-id="${shape.id}"] video`).evaluate(async (video) => {
-				if (!video.muted || !video.loop) throw new Error('Video should start muted and loop')
+				if (video.muted || video.loop) throw new Error('Video should start with sound and without looping')
 				await video.play()
 				await new Promise((resolve) => setTimeout(resolve, 150))
 				video.pause()

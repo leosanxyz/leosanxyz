@@ -10,7 +10,7 @@ class CatalogError extends Error {
 }
 
 /** Only board/folder metadata lives here. Each board keeps its own existing sync database. */
-export class BoardCatalog extends DurableObject {
+export class BoardCatalog extends DurableObject<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
 		ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS catalog (id TEXT PRIMARY KEY, kind TEXT NOT NULL, data TEXT NOT NULL)')
@@ -41,11 +41,34 @@ export class BoardCatalog extends DurableObject {
 		return value.trim()
 	}
 
+	private async copyBoard(id: string): Promise<Response> {
+		const source = isBoardId(id) ? this.read<Board>(id, 'board') : null
+		if (!source || source.trashedAt) throw new CatalogError(404, 'Este canvas no está disponible.')
+		const copyId = crypto.randomUUID()
+		const rooms = this.env.TLDRAW_DURABLE_OBJECT
+		const snapshot = await rooms.get(rooms.idFromName(id)).getDocumentSnapshot()
+		await rooms.get(rooms.idFromName(copyId)).initializeCopy(snapshot)
+		const thumbnail = source.thumbnailAt ? await this.env.TLDRAW_BUCKET.get(`boards/${id}/thumbnail.png`) : null
+		if (thumbnail) await this.env.TLDRAW_BUCKET.put(`boards/${copyId}/thumbnail.png`, thumbnail.body, { httpMetadata: { contentType: 'image/png' } })
+		// Publish metadata only after the independent document and preview are saved.
+		// Recheck after the awaits in case another editor trashed the original.
+		const current = this.read<Board>(id, 'board')
+		if (!current || current.trashedAt) throw new CatalogError(404, 'Este canvas no está disponible.')
+		const now = Date.now()
+		const copy: Board = {
+			id: copyId, name: `Copia de ${current.name}`.slice(0, 120), folderId: current.folderId,
+			favorite: false, createdAt: now, updatedAt: now, thumbnailAt: thumbnail ? now : null, trashedAt: null,
+		}
+		this.write('board', copy)
+		return Response.json(copy, { status: 201 })
+	}
+
 	override async fetch(request: Request): Promise<Response> {
 		try {
 			const url = new URL(request.url)
 			const parts = url.pathname.split('/').filter(Boolean)
 			const collection = parts[1], id = parts[2]
+			if (request.method === 'POST' && collection === 'boards' && id && parts[3] === 'copy' && parts.length === 4) return await this.copyBoard(id)
 			if (request.method === 'GET') {
 				if (collection === 'library') return Response.json({ boards: this.list<Board>('board'), folders: this.list<BoardFolder>('folder') })
 				if (collection === 'resource-folders') return Response.json({

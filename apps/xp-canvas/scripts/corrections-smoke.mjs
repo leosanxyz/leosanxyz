@@ -117,7 +117,7 @@ try {
 	await video.tap()
 	assert.equal(await video.evaluate((element) => element.controls), true, 'Native controls appear only after a tap')
 	assert.equal(await play.count(), 0, 'Never duplicate native and custom transport controls')
-	assert.deepEqual(await video.evaluate(element => ({ muted: element.muted, loop: element.loop })), { muted: true, loop: true })
+	assert.deepEqual(await video.evaluate(element => ({ muted: element.muted, loop: element.loop })), { muted: false, loop: false })
 	await video.evaluate(element => element.pause())
 	assert.equal(await play.count(), 0, 'Paused native controls remain without a duplicate Play button')
 	assert.equal(await video.count(), 1, 'Pausing retains the decoded frame and player')

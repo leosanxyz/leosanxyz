@@ -59,7 +59,7 @@ try {
 	})
 	console.log('Before media data arrives:', JSON.stringify(loading))
 	unblock()
-	if (!process.env.REPORT_ONLY) assert.deepEqual(loading, { posterRetained: true, readyState: 0, muted: true, loop: true })
+	if (!process.env.REPORT_ONLY) assert.deepEqual(loading, { posterRetained: true, readyState: 0, muted: false, loop: false })
 	await page.waitForFunction(() => document.querySelector('[data-shape-id="shape:video-start"] video')?.currentTime > .1)
 	if (!process.env.REPORT_ONLY) {
 		assert.equal(await image.evaluate(img => img === window.__videoPosterBeforePlay), true, 'The decoded poster node survives Play until first-frame notification')
@@ -71,35 +71,24 @@ try {
 		assert.deepEqual(layers, { sameBox: true, overlay: true }, 'Poster covers the player without layout shifts')
 		await page.evaluate(() => window.__releaseFirstVideoFrame())
 		await image.waitFor({ state: 'detached' })
-		const looped = await video.evaluate(async video => {
-			let previous = video.currentTime, wraps = 0, callback
-			await new Promise(resolve => {
-				const done = () => { clearTimeout(timeout); video.cancelVideoFrameCallback(callback); resolve() }
-				const sample = () => {
-					if (video.currentTime < previous - .5) wraps++
-					previous = video.currentTime
-					if (wraps === 2) done()
-					else callback = video.requestVideoFrameCallback(sample)
-				}
-				const timeout = setTimeout(done, 5500)
-				callback = video.requestVideoFrameCallback(sample)
-			})
-			return { wraps, connected: video.isConnected, playing: !video.paused, muted: video.muted, loop: video.loop }
-		})
-		assert.deepEqual(looped, { wraps: 2, connected: true, playing: true, muted: true, loop: true })
+		await page.waitForFunction(() => document.querySelector('[data-shape-id="shape:video-start"] video')?.ended, undefined, { timeout: 6000 })
+		assert.deepEqual(await video.evaluate(video => ({ paused: video.paused, muted: video.muted, loop: video.loop, atEnd: video.currentTime === video.duration, volume: video.volume })),
+			{ paused: true, muted: false, loop: false, atEnd: true, volume: 1 }, 'The clip stops at its end with audio enabled')
+		await page.getByTestId('video-play-shape:video-start').tap()
+		await page.waitForFunction(() => { const v = document.querySelector('[data-shape-id="shape:video-start"] video'); return v && !v.paused && !v.ended && v.currentTime < v.duration })
 		await video.tap(); assert.equal(await video.evaluate(video => video.controls), true)
 		await video.evaluate(video => video.pause()); assert.equal(await video.evaluate(video => video.paused), true)
 		assert.equal(await image.count(), 0, 'Pause keeps the decoded frame, not the thumbnail')
-		await video.evaluate(video => { video.muted = false })
+		await video.evaluate(video => { video.muted = true })
 		await page.evaluate(async () => {
 			window.__xpCanvasEditor.updateShape({ id: 'shape:video-start', type: 'video', x: 351 })
 			await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 		})
-		assert.equal(await video.evaluate(video => video.muted), false, 'A manual unmute survives shape renders')
+		assert.equal(await video.evaluate(video => video.muted), true, 'A manual mute survives shape renders')
 		await video.evaluate(video => video.play())
 		assert.equal(await video.evaluate(video => video.paused), false, 'Native controls can resume playback')
 		await video.evaluate(video => video.pause())
-		console.log('Stable poster through loading and first-frame handoff, mute, two loop boundaries, pause/resume and manual unmute passed.')
+		console.log('Stable first-frame handoff, sound by default, stop at end, replay, pause/resume and manual mute passed.')
 	}
 	assert.deepEqual(errors, [])
 } finally { await browser.close(); await rm(fixture, { recursive: true }) }

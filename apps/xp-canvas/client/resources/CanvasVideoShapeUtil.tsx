@@ -62,7 +62,7 @@ function CanvasVideo({ shape }: { shape: TLVideoShape }) {
 	}
 	return <HTMLContainer className="canvas-video">
 		{poster && !frameReady && <img className="canvas-video__poster" src={poster} alt={asset?.props.name ?? 'Video'} draggable={false} decoding="async" />}
-		{url && (activated || !poster) && <video ref={videoRef} src={url} poster={poster} playsInline muted loop preload={poster ? 'none' : 'metadata'} controls={controls} draggable={false}
+		{url && (activated || !poster) && <video ref={videoRef} src={url} poster={poster} playsInline preload={poster ? 'none' : 'metadata'} controls={controls} draggable={false}
 			aria-label={asset?.props.name ?? 'Video'} tabIndex={playing || controls ? 0 : -1} className={playing || controls ? 'canvas-video__media is-interactive' : 'canvas-video__media'}
 			onPointerDown={stop} onTouchStart={stop} onTouchEnd={stop} onDoubleClick={stop}
 			onClick={(event) => { event.stopPropagation(); if (playing && !controls) setControls(true) }}

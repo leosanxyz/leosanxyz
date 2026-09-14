@@ -38,6 +38,12 @@ EDITOR_CODE="un-codigo-privado"
 EDITOR_SESSION_SECRET="otro-secreto-largo-y-distinto"
 ```
 
+## Copiar canvases
+
+En el menú de tres puntos de cada canvas, **Duplicar canvas** crea **Copia de …** en la misma carpeta. Copia todas las páginas, objetos, grupos, conexiones, recortes del borrador y miniatura. El nuevo canvas tiene su propia URL y documento; los cambios posteriores en uno no afectan al otro. Los archivos de imágenes y videos se reutilizan, sin añadir entradas repetidas a Recursos.
+
+Solo los editores pueden duplicar. Los canvases de la papelera deben restaurarse primero. La copia aparece en el administrador cuando termina de guardarse y no hereda la marca de favorito.
+
 ## Recursos
 
 Entra como editor y pulsa **Recursos** en la cabecera o en la barra del iPad.
@@ -51,7 +57,7 @@ Entra como editor y pulsa **Recursos** en la cabecera o en la barra del iPad.
 - Soltar o pegar un archivo directamente sobre el lienzo también lo añade a Recursos.
 - **Emojis** tiene su propio botón en la barra. Abre el catálogo completo por categorías y toca para insertar. No hace falta guardar el emoji como recurso. Los emojis que ya estaban en tus canvases se conservan.
 
-Las imágenes y los videos usan las figuras de tldraw. Los emojis nuevos son imágenes PNG transparentes; los emojis antiguos de un solo símbolo ya no abren el editor de texto. Los documentos y el audio aparecen como tarjetas que pueden moverse, redimensionarse, rotarse, agruparse, duplicarse, conectarse con flechas y deshacerse. Cada video muestra su miniatura y un botón de reproducción en una esquina. El reproductor se crea al tocar Play, sin entrar en edición ni hacer doble clic. Empieza en mute y repite en loop. La miniatura permanece encima hasta que el navegador entrega el primer fotograma, sin una transición ni un cambio de tamaño. Al reproducir, desaparece el botón Play. Los controles nativos aparecen cuando tocas el video y permiten pausarlo o activar el sonido. Al pausar conserva el fotograma actual. No empieza a reproducirse por abrir el canvas. Los documentos se abren o descargan mediante un enlace, no se editan dentro del canvas.
+Las imágenes y los videos usan las figuras de tldraw. Los emojis nuevos son imágenes PNG transparentes; los emojis antiguos de un solo símbolo ya no abren el editor de texto. Los documentos y el audio aparecen como tarjetas que pueden moverse, redimensionarse, rotarse, agruparse, duplicarse, conectarse con flechas y deshacerse. Cada video muestra su miniatura y un botón de reproducción en una esquina. El reproductor se crea al tocar Play, sin entrar en edición ni hacer doble clic. Empieza con sonido y se detiene al terminar, sin loop. Puedes volver a reproducirlo con Play. La miniatura permanece encima hasta que el navegador entrega el primer fotograma, sin una transición ni un cambio de tamaño. Al reproducir, desaparece el botón Play. Los controles nativos aparecen cuando tocas el video y permiten pausarlo o silenciarlo. Al pausar conserva el fotograma actual. No empieza a reproducirse por abrir el canvas. Los documentos se abren o descargan mediante un enlace, no se editan dentro del canvas.
 
 Al seleccionar objetos aparece una papelera encima de la selección. En imágenes y videos comparte la toolbar existente. Los elimina del canvas, no de Recursos. Deshacer los recupera. Los objetos bloqueados mantienen su protección.
 
@@ -131,7 +137,9 @@ El smoke de refinamientos comprueba emojis PNG, doble clic sin edición, papeler
 
 `npm run smoke:eraser --workspace=apps/xp-canvas` verifica la identidad del SVG y del trazo durante una pasada, la ausencia de imágenes de máscara regeneradas y los píxeles del recorte a 1× y 8×. Usa datos aislados en el puerto 5175. Esta regresión no sustituye una prueba física de Safari con Apple Pencil.
 
-`npm run smoke:video --workspace=apps/xp-canvas` bloquea la descarga del video y retrasa la notificación de su primer fotograma para comprobar que la miniatura siga visible y no cambie de tamaño. Verifica mute, dos vueltas reales del loop, pausa, reanudación y activación manual del sonido. Requiere el servidor aislado en 5175, Chromium y FFmpeg.
+`npm run smoke:video --workspace=apps/xp-canvas` bloquea la descarga del video y retrasa la notificación de su primer fotograma para comprobar que la miniatura siga visible y no cambie de tamaño. Verifica sonido por defecto, parada al terminar, repetición manual, pausa, reanudación y silencio manual. Requiere el servidor aislado en 5175, Chromium y FFmpeg.
+
+`npm run smoke:board-copy --workspace=apps/xp-canvas` comprueba el menú de duplicación, reintento tras error, carpetas anidadas, copia completa del documento y miniatura, permisos, cambios independientes, persistencia y reutilización de archivos. Usa datos de prueba en el servidor aislado de 5175.
 
 `npm run smoke:video-preview --workspace=apps/xp-canvas` simula una copia negra si se captura antes de un fotograma disponible. Comprueba los píxeles de las miniaturas, clips con inicio negro, rechazo de capturas vacías, cancelación y sustitución de una miniatura reparada en Recursos y en dos clientes del canvas. Usa medios sintéticos y datos aislados en 5175.
 

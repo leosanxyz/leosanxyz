@@ -1,5 +1,6 @@
 import {
 	DurableObjectSqliteSyncWrapper,
+	type RoomSnapshot,
 	type SessionStateSnapshot,
 	SQLiteSyncStorage,
 	TLSocketRoom,
@@ -103,6 +104,18 @@ export class TldrawDurableObject extends DurableObject {
 		'/api/connect/:roomId',
 		(request) => this.handleConnect(request)
 	)
+
+	// Binding-only RPC methods. The public Worker exposes neither method over HTTP.
+	getDocumentSnapshot(): RoomSnapshot {
+		return this.getOrCreateRoom().getCurrentSnapshot()
+	}
+
+	initializeCopy(snapshot: RoomSnapshot): void {
+		// A copy may initialize a fresh room, never replace an existing document.
+		const tables = this.ctx.storage.sql.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'documents'").toArray()
+		if (this.room || tables.length) throw new Error('El canvas de destino ya existe.')
+		this.getOrCreateRoom().loadSnapshot(snapshot)
+	}
 
 	// Entry point for all requests to the Durable Object
 	fetch(request: Request): Response | Promise<Response> {
