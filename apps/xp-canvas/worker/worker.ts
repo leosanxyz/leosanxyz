@@ -4,6 +4,7 @@ import {
 	clearEditorCookies,
 	createEditorCookie,
 	editorCodeMatches,
+	editorAuthRequired,
 	getEditorSession,
 	INTERNAL_ROLE_HEADER,
 	isSameOrigin,
@@ -44,10 +45,11 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	})
 	.get('/api/editor-session', async (request, env) => {
 		const role = (await getEditorSession(request, env)) ? 'editor' : 'viewer'
-		return Response.json({ role }, { headers: { 'cache-control': 'no-store' } })
+		return Response.json({ role, authRequired: editorAuthRequired(env) }, { headers: { 'cache-control': 'no-store' } })
 	})
 	.post('/api/editor-session', async (request, env) => {
 		if (!isSameOrigin(request)) return error(403, 'Invalid origin')
+		if (!editorAuthRequired(env)) return Response.json({ role: 'editor', authRequired: false }, { status: 201, headers: { 'cache-control': 'no-store' } })
 		const contentLength = Number(request.headers.get('content-length'))
 		if (Number.isFinite(contentLength) && contentLength > 1024) return error(413, 'Request is too large')
 
@@ -73,11 +75,11 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 			}
 		)
 	})
-	.post('/api/editor-session/logout', (request) => {
+	.post('/api/editor-session/logout', (request, env) => {
 		if (!isSameOrigin(request)) return error(403, 'Invalid origin')
 		const headers = new Headers({ 'cache-control': 'no-store' })
 		for (const cookie of clearEditorCookies()) headers.append('set-cookie', cookie)
-		return Response.json({ role: 'viewer' }, { status: 200, headers })
+		return Response.json({ role: editorAuthRequired(env) ? 'viewer' : 'editor', authRequired: editorAuthRequired(env) }, { status: 200, headers })
 	})
 	.get('/api/connect/:roomId', async (request, env) => {
 		if (!isValidRoomId(request.params.roomId)) return error(404, 'Room not found')
@@ -96,7 +98,7 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 		const editorSession = await getEditorSession(request, env)
 		const headers = withoutCredentials(request)
 		headers.set(INTERNAL_ROLE_HEADER, editorSession ? 'editor' : 'viewer')
-		if (editorSession) headers.set(AUTH_EXPIRY_HEADER, String(editorSession.expires))
+		if (editorSession?.expires != null) headers.set(AUTH_EXPIRY_HEADER, String(editorSession.expires))
 
 		const id = env.TLDRAW_DURABLE_OBJECT.idFromName(request.params.roomId)
 		return env.TLDRAW_DURABLE_OBJECT.get(id).fetch(request.url, { headers })

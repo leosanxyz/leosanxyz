@@ -1,6 +1,7 @@
 import { isBoardId } from '../shared/boards'
 
 export interface CanvasEnv extends Env {
+	EDITOR_AUTH_REQUIRED?: string
 	EDITOR_CODE?: string
 	EDITOR_SESSION_SECRET?: string
 }
@@ -65,6 +66,8 @@ export async function editorCodeMatches(code: string | null, env: CanvasEnv) {
 }
 
 export async function getEditorSession(request: Request, env: CanvasEnv) {
+	// Open editing is explicit; missing or misspelled config keeps authentication on.
+	if (!editorAuthRequired(env)) return { expires: null }
 	const secret = env.EDITOR_SESSION_SECRET?.trim()
 	if (!secret) return null
 
@@ -80,6 +83,10 @@ export async function getEditorSession(request: Request, env: CanvasEnv) {
 	return (await tokensMatch(signature, await sign(`editor:${expires}:${ROOM_ID}`, secret)))
 		? { expires }
 		: null
+}
+
+export function editorAuthRequired(env: CanvasEnv) {
+	return env.EDITOR_AUTH_REQUIRED !== 'false'
 }
 
 export async function requestCanEdit(request: Request, env: CanvasEnv) {

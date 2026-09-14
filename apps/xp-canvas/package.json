@@ -12,6 +12,7 @@
 		"smoke:redesign": "node scripts/redesign-smoke.mjs",
 		"smoke:board-copy": "node scripts/board-copy-smoke.mjs",
 		"smoke:laser": "node scripts/laser-smoke.mjs",
+		"smoke:open-editing": "node scripts/open-editing-smoke.mjs",
 		"smoke:corrections": "node scripts/corrections-smoke.mjs",
 		"smoke:refinements": "node scripts/refinements-smoke.mjs",
 		"smoke:eraser": "node scripts/eraser-render-smoke.mjs",

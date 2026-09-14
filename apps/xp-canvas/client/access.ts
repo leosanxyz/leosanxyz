@@ -1,8 +1,8 @@
 export async function getEditorSession() {
 	const response = await fetch('/api/editor-session', { cache: 'no-store' })
 	if (!response.ok) throw new Error('No se pudo comprobar la sesión')
-	const data = (await response.json()) as { role?: string }
-	return data.role === 'editor'
+	const data = (await response.json()) as { role?: string; authRequired?: boolean }
+	return { isEditor: data.role === 'editor', authRequired: data.authRequired !== false }
 }
 
 export async function openEditorSession(code: string) {

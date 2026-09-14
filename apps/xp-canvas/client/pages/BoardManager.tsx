@@ -15,6 +15,7 @@ const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'sh
 
 export default function BoardManager() {
 	const [isEditor, setIsEditor] = useState<boolean | null>(null)
+	const [authRequired, setAuthRequired] = useState(true)
 	const [unlock, setUnlock] = useState(false)
 	const [library, setLibrary] = useState<BoardLibrary>(emptyLibrary)
 	const [view, setView] = useState('all')
@@ -27,7 +28,7 @@ export default function BoardManager() {
 
 	useEffect(() => {
 		let active = true
-		void getEditorSession().then((value) => { if (active) setIsEditor(value) }).catch(() => { if (active) { setIsEditor(false); setError('No pude conectar con el servidor.') } })
+		void getEditorSession().then(({ isEditor, authRequired }) => { if (active) { setIsEditor(isEditor); setAuthRequired(authRequired) } }).catch(() => { if (active) { setIsEditor(false); setError('No pude conectar con el servidor.') } })
 		return () => { active = false }
 	}, [])
 
@@ -139,7 +140,7 @@ export default function BoardManager() {
 						<DropdownMenu.Item className="xp-menu-item" onSelect={() => setDialog({ kind: 'new-folder', name: '', folderId: selectedFolder.id })}>Nueva subcarpeta</DropdownMenu.Item>
 					</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>}
 					<button className="xp-icon-button board-new" aria-label="Nuevo canvas" title="Nuevo canvas" disabled={busy} onClick={() => void createBoard()}><Icon name="edit" /></button>
-					<DropdownMenu.Root><DropdownMenu.Trigger className="xp-icon-button" aria-label="Opciones del administrador"><Icon name="more" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu" align="end"><DropdownMenu.Item className="xp-menu-item" onSelect={() => { void closeEditorSession().then(() => setIsEditor(false)).catch((cause) => setError(message(cause))) }}>Salir de edición</DropdownMenu.Item></DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
+					{authRequired && <DropdownMenu.Root><DropdownMenu.Trigger className="xp-icon-button" aria-label="Opciones del administrador"><Icon name="more" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu" align="end"><DropdownMenu.Item className="xp-menu-item" onSelect={() => { void closeEditorSession().then(() => setIsEditor(false)).catch((cause) => setError(message(cause))) }}>Salir de edición</DropdownMenu.Item></DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>}
 				</div>
 			</header>
 			{error && <p className="xp-error board-error" role="alert">{error}</p>}

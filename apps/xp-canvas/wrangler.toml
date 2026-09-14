@@ -6,6 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 upload_source_maps = true
 preview_urls = false
 
+[vars]
+# Temporary open editing: anyone who can reach the server can edit.
+EDITOR_AUTH_REQUIRED = "false"
+
 [observability]
 enabled = true
 

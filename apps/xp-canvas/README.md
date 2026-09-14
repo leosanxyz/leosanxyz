@@ -4,20 +4,24 @@ Canvas infinito colaborativo para dibujar desde un iPad con Apple Pencil. Usa tl
 
 La primera pantalla es un administrador de canvases con carpetas anidadas, favoritos y miniaturas. Cada canvas tiene su propio documento persistente y una URL `/board/<id>`. El canvas original permanece en `/board/principal`, con sus objetos y archivos intactos.
 
-El administrador requiere el código de editor. Quien tenga el enlace directo de un canvas puede observarlo y ver cursores en vivo, pero necesita el código para dibujar. La papelera es reversible y no borra los documentos.
+Por ahora no se pide contraseña. Cualquier persona que pueda acceder al servidor puede administrar canvases, dibujar y modificar recursos. Compartir un enlace también da acceso de edición. La papelera es reversible y no borra los documentos.
 
 ## Desarrollo local
 
 Desde la raíz del monorepo:
 
-Primero copia `apps/xp-canvas/.dev.vars.example` a `apps/xp-canvas/.dev.vars` y define un código de editor y un secreto de sesión distintos. Si el archivo ya existe, conserva sus valores. Git ignora este archivo.
+Usa Node.js 24 LTS y npm. No necesitas credenciales de Cloudflare ni un archivo `.dev.vars` para el desarrollo local con edición abierta. Si ese archivo ya existe, conserva sus valores.
 
 ```bash
-npm install
+npm ci
 npm run dev:xp-canvas
 ```
 
-Abre `http://localhost:5174` e introduce el código que definiste en `.dev.vars`.
+Abre `http://localhost:5174`. Entras directamente al administrador.
+
+En macOS se usan los mismos comandos, desde esta rama. Instala las dependencias allí con `npm ci`, no copies `node_modules` desde Linux. Wrangler requiere macOS 13.5 o posterior y admite Apple Silicon. Para acceder desde el iPad, usa la IP LAN o Tailscale de la Mac con el puerto 5174; el firewall debe permitirlo y la Mac debe permanecer despierta.
+
+Cada servidor local tiene sus propios datos en `apps/xp-canvas/.wrangler/state`, que Git no incluye. Clonar la rama en la Mac crea una instancia nueva, no copia los canvases ni los archivos de Linux. Para trabajar con los mismos datos sin migrarlos, abre la dirección del servidor Linux desde la Mac. No ejecutes dos servidores sobre una carpeta de estado compartida.
 
 El canvas se ejecuta localmente. Subir esta rama a GitHub no publica el servicio ni sus datos. El `vercel.json` de la raíz desactiva los despliegues automáticos de `codex/tldraw-canvas`, sin cambiar los de `main`.
 
@@ -27,9 +31,13 @@ En iPads compatibles, Safari también muestra un aro en la posición de hover de
 
 ## Acceso
 
-El código se envía una vez al Worker. Si es correcto, el servidor crea una cookie firmada, `HttpOnly` y `SameSite=Strict`, válida por 12 horas. El código y la cookie no se guardan en `localStorage` ni forman parte de la URL.
+`EDITOR_AUTH_REQUIRED = "false"` en `wrangler.toml` habilita la edición abierta, sin cookies ni caducidad de sesión. Se mantienen las comprobaciones de origen de las escrituras y los WebSockets. Esto no reemplaza un control de acceso: cualquiera que alcance el servidor puede editar. No lo publiques en Internet si no quieres ese acceso.
 
-El Worker decide el permiso de cada WebSocket. Un cliente modificado no puede convertir una sesión de espectador en editor. Las sesiones de espectador reciben presencia y cambios del documento, pero tldraw sync descarta sus intentos de escritura.
+Para volver a pedir contraseña, cambia esa variable a `"true"` y configura `EDITOR_CODE` y `EDITOR_SESSION_SECRET`. En desarrollo puedes definirlos en `.dev.vars`, usando `.dev.vars.example` como referencia. Git ignora ese archivo. La ausencia de `EDITOR_AUTH_REQUIRED` también exige contraseña.
+
+Con contraseña activa, el código se envía una vez al Worker. Si es correcto, el servidor crea una cookie firmada, `HttpOnly` y `SameSite=Strict`, válida por 12 horas. El código y la cookie no se guardan en `localStorage` ni forman parte de la URL.
+
+En ese modo, el Worker decide el permiso de cada WebSocket. Un cliente modificado no puede convertir una sesión de espectador en editor. Las sesiones de espectador reciben presencia y cambios del documento, pero tldraw sync descarta sus intentos de escritura.
 
 Las variables de `.dev.vars` tienen esta forma:
 
@@ -127,15 +135,23 @@ npm run smoke:corrections --workspace=apps/xp-canvas
 npm run smoke:refinements --workspace=apps/xp-canvas
 ```
 
-El smoke test necesita que `npm run dev:xp-canvas` siga abierto en otra terminal. Abre dos clientes reales contra el servidor local y comprueba permisos, presencia, cursores suavizados, hover del Pencil, Snap, sincronización, persistencia, imágenes, QuickShape y Undo.
+`npm run smoke:open-editing --workspace=apps/xp-canvas` prueba el modo actual sin contraseña. Comprueba entrada directa, edición entre dos clientes sin cookies, persistencia, cargas, duplicación, papelera y rechazo de escrituras desde otro origen. Usa un servidor con datos aislados en otra terminal, desde `apps/xp-canvas`:
+
+```bash
+XP_CANVAS_STATE_PATH=$(mktemp -d /tmp/xp-canvas-open-qa.XXXXXX) npm run dev -- --host 127.0.0.1 --port 5175 --strictPort
+```
+
+Los smokes anteriores conservan pruebas de permisos del modo con contraseña. Para ejecutarlos, usa `vite.auth-qa.config.ts`, que exige una carpeta de estado aislada y activa la contraseña sin cambiar la configuración del servidor habitual. Define el código y el secreto en `.dev.vars`, sin `EDITOR_AUTH_REQUIRED`, y usa este servidor:
+
+```bash
+XP_CANVAS_STATE_PATH=$(mktemp -d /tmp/xp-canvas-auth-qa.XXXXXX) npm run dev -- --config vite.auth-qa.config.ts --host 127.0.0.1 --port 5176 --strictPort
+```
+
+Ejecuta esos smokes con `BASE_URL=http://127.0.0.1:5176`. El smoke general abre dos clientes contra el servidor local y comprueba permisos, presencia, cursores suavizados, hover del Pencil, Snap, sincronización, persistencia, imágenes, QuickShape y Undo.
 
 El smoke de recursos necesita Chromium y FFmpeg. Prueba cargas, miniaturas, reproducción y avance de videos, permisos, arrastre con zoom, inserción táctil sintética, emojis directos, reutilización, Deshacer/Rehacer, flechas, grupos, persistencia y sincronización. Usa una página temporal propia y la elimina al terminar.
 
-El smoke del rediseño comprueba administrador, carpetas anidadas, aislamiento entre documentos, permisos, carga de archivos, reproducción con un toque, emojis, selección y desplazamiento con un dedo, vuelta al Pencil, zoom de dos dedos, previsualización QuickShape y miniaturas persistentes. Crea datos de prueba, por lo que debe ejecutarse contra un servidor aislado. Por ejemplo, desde `apps/xp-canvas`:
-
-```bash
-XP_CANVAS_STATE_PATH=$(mktemp -d /tmp/xp-canvas-qa.XXXXXX) npm run dev -- --host 127.0.0.1 --port 5175 --strictPort
-```
+El smoke del rediseño comprueba administrador, carpetas anidadas, aislamiento entre documentos, permisos, carga de archivos, reproducción con un toque, emojis, selección y desplazamiento con un dedo, vuelta al Pencil, zoom de dos dedos, previsualización QuickShape y miniaturas persistentes. Crea datos de prueba, por lo que debe ejecutarse contra el servidor aislado con contraseña.
 
 El smoke de correcciones también usa el servidor aislado. Comprueba carpetas de recursos, permisos, miniaturas de videos nuevos y antiguos, controles de reproducción sin duplicar y el paso de uno a dos dedos con contactos de pulgar de 60px y demoras de 0, 250 y 1200ms.
 
@@ -151,7 +167,7 @@ El smoke de refinamientos comprueba emojis PNG, doble clic sin edición, papeler
 
 `npm run smoke:resource-delete --workspace=apps/xp-canvas` comprueba confirmación, cancelación, reintento tras error, eliminación en Recursos y dentro de carpetas, permisos y persistencia. Verifica que las copias del canvas y sus archivos sigan intactos. Solo elimina entradas de prueba en el servidor aislado de 5175.
 
-Los scripts aceptan `BASE_URL`, `EDITOR_CODE` y `CHROMIUM_PATH`. Si no defines `EDITOR_CODE` en el entorno, lo leen del archivo local `.dev.vars`. El smoke general y el de recursos usan 5174 por defecto; los demás usan 5175. Para ejecutar los anteriores contra los datos aislados, establece `BASE_URL=http://127.0.0.1:5175`. Ninguno sustituye una prueba física con Safari y Apple Pencil.
+Los scripts aceptan `BASE_URL`, `EDITOR_CODE` y `CHROMIUM_PATH`. Si no defines `EDITOR_CODE` en el entorno, lo leen del archivo local `.dev.vars`; el smoke de edición abierta no necesita código. El smoke general y el de recursos usan 5174 por defecto; los demás usan 5175. Establece siempre `BASE_URL` al puerto del servidor aislado correspondiente. Ninguno sustituye una prueba física con Safari y Apple Pencil.
 
 `npm run build:site` verifica por separado que la página personal siga compilando.
 

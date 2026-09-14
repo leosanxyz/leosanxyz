@@ -13,7 +13,7 @@ import {
 } from '@tldraw/tlschema'
 import { DurableObject } from 'cloudflare:workers'
 import { AutoRouter, error, IRequest } from 'itty-router'
-import { INTERNAL_ROLE_HEADER } from './access'
+import { type CanvasEnv, editorAuthRequired, INTERNAL_ROLE_HEADER } from './access'
 import { resourceShapeProps } from '../shared/resourceShape'
 
 // add custom shapes and bindings here if needed:
@@ -41,12 +41,12 @@ function getAttachment(ws: WebSocket): SocketAttachment | null {
 // persisted automatically to SQLite via ctx.storage. When all clients are
 // idle, the DO hibernates (freeing memory) while WebSocket connections
 // stay alive at the Cloudflare layer.
-export class TldrawDurableObject extends DurableObject {
+export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	private room: TLSocketRoom<TLRecord, void> | null = null
 	/** Map sessionId → ws so onSessionSnapshot can serialize to the right socket. */
 	private readonly sessionIdToWs = new Map<string, WebSocket>()
 
-	constructor(ctx: DurableObjectState, env: Env) {
+	constructor(ctx: DurableObjectState, env: CanvasEnv) {
 		super(ctx, env)
 		// Respond to ping messages at the platform level without waking the DO.
 		// The TLSyncClient sends {"type":"ping"} every 5s; without this, each
@@ -201,6 +201,7 @@ export class TldrawDurableObject extends DurableObject {
 
 	private hasExpired(attachment: SocketAttachment) {
 		return (
+			editorAuthRequired(this.env) &&
 			!attachment.isReadonly &&
 			(attachment.authExpiresAt === null ||
 				attachment.authExpiresAt <= Math.floor(Date.now() / 1000))

@@ -50,6 +50,7 @@ type AccessState = 'checking' | 'viewer' | 'editor'
 
 export function Room({ roomId }: { roomId: string }) {
 	const [access, setAccess] = useState<AccessState>('checking')
+	const [authRequired, setAuthRequired] = useState(true)
 	const [board, setBoard] = useState<Board | null>(null)
 	const [error, setError] = useState('')
 	const onAccessChange = useCallback((isEditor: boolean) => setAccess(isEditor ? 'editor' : 'viewer'), [])
@@ -57,8 +58,8 @@ export function Room({ roomId }: { roomId: string }) {
 	useEffect(() => {
 		let cancelled = false
 		getEditorSession()
-			.then((isEditor) => {
-				if (!cancelled) setAccess(isEditor ? 'editor' : 'viewer')
+			.then(({ isEditor, authRequired }) => {
+				if (!cancelled) { setAccess(isEditor ? 'editor' : 'viewer'); setAuthRequired(authRequired) }
 			})
 			.catch(() => {
 				if (!cancelled) setAccess('viewer')
@@ -84,6 +85,7 @@ export function Room({ roomId }: { roomId: string }) {
 			board={board}
 			onBoardChange={setBoard}
 			isEditor={access === 'editor'}
+			authRequired={authRequired}
 			onAccessChange={onAccessChange}
 		/>
 	)
@@ -93,11 +95,13 @@ function CanvasRoom({
 	board,
 	onBoardChange,
 	isEditor,
+	authRequired,
 	onAccessChange,
 }: {
 	board: Board
 	onBoardChange: (board: Board) => void
 	isEditor: boolean
+	authRequired: boolean
 	onAccessChange: (isEditor: boolean) => void
 }) {
 	const roomId = board.id
@@ -141,7 +145,7 @@ function CanvasRoom({
 		let disposed = false
 		const check = async () => {
 			if (document.hidden) return
-			try { if (!(await getEditorSession()) && !disposed) onAccessChange(false) }
+			try { if (!(await getEditorSession()).isEditor && !disposed) onAccessChange(false) }
 			catch { /* A network failure should not masquerade as logging out. */ }
 		}
 		const interval = window.setInterval(check, 60_000)
@@ -235,7 +239,7 @@ function CanvasRoom({
 
 	const handleMount = useCallback((nextEditor: Editor) => {
 		const preferences = getUserPreferences()
-		const name = isEditor ? 'Leo' : preferences.name?.trim() || 'Visitante'
+		const name = isEditor && authRequired ? 'Leo' : preferences.name?.trim() || 'Visitante'
 		if (preferences.name !== name || preferences.locale !== 'es') {
 			setUserPreferences({ ...preferences, name, locale: 'es' })
 		}
@@ -253,7 +257,7 @@ function CanvasRoom({
 				} catch (cause) { setNotice(cause instanceof Error ? cause.message : 'No pude guardar el archivo.') }
 			}
 		})
-	}, [isEditor])
+	}, [isEditor, authRequired])
 
 	return (
 		<div className="canvas-room">
@@ -294,7 +298,7 @@ function CanvasRoom({
 					<button
 						type="button"
 						className="canvas-action--share"
-						onClick={() => copy(getViewerUrl(), 'Enlace para observar copiado')}
+						onClick={() => copy(getViewerUrl(), authRequired ? 'Enlace para observar copiado' : 'Enlace para editar copiado')}
 					>
 						Compartir
 					</button>
@@ -306,7 +310,7 @@ function CanvasRoom({
 					>
 						Guardar copia
 					</button>
-					{isEditor ? (
+					{authRequired && (isEditor ? (
 						<details className="access-menu">
 							<summary data-testid="editor-menu.trigger">Editor</summary>
 							<div className="access-menu__panel">
@@ -326,7 +330,7 @@ function CanvasRoom({
 						<button type="button" className="primary-action" onClick={() => setShowUnlock(true)}>
 							Editar
 						</button>
-					)}
+					))}
 				</nav>
 			</header>
 

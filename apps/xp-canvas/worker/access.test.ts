@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
 	createEditorCookie,
 	editorCodeMatches,
+	editorAuthRequired,
+	getEditorSession,
 	isValidRoomId,
 	requestCanEdit,
 	type CanvasEnv,
@@ -13,6 +15,19 @@ const env = {
 } as CanvasEnv
 
 describe('editor access', () => {
+	it('allows editing without cookies or secrets only when explicitly configured', async () => {
+		const request = new Request('http://localhost/api/editor-session')
+		const openEnv = { EDITOR_AUTH_REQUIRED: 'false' } as CanvasEnv
+		expect(editorAuthRequired(openEnv)).toBe(false)
+		expect(await requestCanEdit(request, openEnv)).toBe(true)
+		expect(await getEditorSession(request, openEnv)).toEqual({ expires: null })
+		for (const value of [undefined, 'true', 'False', '']) {
+			const protectedEnv = { EDITOR_AUTH_REQUIRED: value } as CanvasEnv
+			expect(editorAuthRequired(protectedEnv)).toBe(true)
+			expect(await requestCanEdit(request, protectedEnv)).toBe(false)
+		}
+	})
+
 	it('exchanges the code for a signed session without exposing the code', async () => {
 		const request = new Request('http://localhost/api/editor-session')
 		const cookie = await createEditorCookie(request, env)
