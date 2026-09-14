@@ -1,0 +1,637 @@
+@import url('tldraw/tldraw.css');
+
+:root {
+	font-family:
+		Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	color: #1b1a18;
+	background: #f4f2ed;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
+}
+
+body {
+	overscroll-behavior: none;
+}
+
+button,
+input,
+summary {
+	font: inherit;
+}
+
+button,
+summary {
+	-webkit-tap-highlight-color: transparent;
+}
+
+.canvas-room {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	background: #f7f6f2;
+}
+
+.canvas-header {
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: calc(52px + env(safe-area-inset-top));
+	padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 6px
+		max(10px, env(safe-area-inset-left));
+	gap: 12px;
+	border-bottom: 1px solid rgba(34, 32, 28, 0.12);
+	background: rgba(250, 249, 246, 0.94);
+	box-shadow: 0 1px 8px rgba(38, 34, 27, 0.04);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+}
+
+.canvas-actions {
+	display: flex;
+	align-items: center;
+}
+
+.canvas-mark {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border: 3px solid #20201e;
+	border-radius: 50%;
+	box-shadow: inset 0 0 0 2px #f8be36;
+	background: #f8be36;
+}
+
+.canvas-actions {
+	flex: 0 0 auto;
+	min-width: 0;
+	gap: 6px;
+	overflow: visible;
+}
+
+.canvas-actions button,
+.access-menu summary,
+.quick-shape-toggle {
+	min-height: 44px;
+	padding: 0 11px;
+	border: 1px solid rgba(31, 30, 27, 0.14);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.82);
+	color: #2a2926;
+	font-size: 12px;
+	font-weight: 650;
+	white-space: nowrap;
+}
+
+.canvas-actions button,
+.access-menu summary {
+	cursor: pointer;
+}
+
+.canvas-actions button:disabled {
+	cursor: default;
+	opacity: 0.42;
+}
+
+.canvas-actions button:focus-visible,
+.access-menu summary:focus-visible,
+.quick-shape-toggle:focus-within,
+.editor-dialog input:focus-visible {
+	outline: 3px solid rgba(43, 105, 220, 0.28);
+	outline-offset: 1px;
+}
+
+.snap-hold {
+	min-width: 48px;
+	min-height: 48px;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.snap-hold__glyph {
+	display: inline-block;
+	margin-right: 5px;
+	font-size: 16px;
+	line-height: 1;
+}
+
+.snap-hold[aria-pressed='true'] {
+	border-color: #25241f;
+	background: #f8be36;
+	box-shadow: inset 0 0 0 1px #25241f;
+	transform: translateY(1px);
+}
+
+.canvas-actions .primary-action,
+.editor-dialog .primary-action {
+	border-color: #25241f;
+	background: #25241f;
+	color: #fff;
+}
+
+.quick-shape-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	cursor: pointer;
+}
+
+.quick-shape-toggle input {
+	width: 15px;
+	height: 15px;
+	margin: 0;
+	accent-color: #25241f;
+}
+
+.access-menu {
+	position: relative;
+}
+
+.access-menu summary {
+	display: flex;
+	align-items: center;
+	list-style: none;
+}
+
+.access-menu summary::-webkit-details-marker {
+	display: none;
+}
+
+.access-menu__panel {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	display: grid;
+	width: 210px;
+	padding: 6px;
+	gap: 4px;
+	border: 1px solid rgba(31, 30, 27, 0.14);
+	border-radius: 12px;
+	background: #fbfaf7;
+	box-shadow: 0 16px 40px rgba(24, 22, 18, 0.16);
+}
+
+.access-menu__panel button {
+	justify-content: flex-start;
+	border: 0;
+	background: transparent;
+	text-align: left;
+}
+
+.canvas-stage {
+	position: relative;
+	min-height: 0;
+}
+
+.canvas-stage .tl-container {
+	position: absolute;
+	inset: 0;
+}
+
+.ipad-toolbar {
+	display: none;
+}
+
+.canvas-selection-delete {
+	flex: 0 0 44px;
+	width: 44px;
+	height: 44px;
+	display: grid;
+	place-items: center;
+	pointer-events: auto;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: #b33f31;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+/* tldraw sends presence at 30 Hz. Fill the gaps on 60/120 Hz screens without extra renders. */
+@media (prefers-reduced-motion: no-preference) {
+	.canvas-stage .tl-collaborator__cursor {
+		transition: transform 40ms linear;
+	}
+}
+
+.pencil-hover-preview {
+	position: absolute;
+	z-index: 260;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+	transform: translate3d(-100px, -100px, 0);
+	transition: opacity 45ms ease-out;
+	will-change: transform, opacity;
+}
+
+.pencil-hover-preview[data-visible='true'] {
+	opacity: 1;
+}
+
+.pencil-hover-preview span {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: block;
+	width: 16px;
+	height: 16px;
+	border: 2px solid #24231f;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.68);
+	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.82);
+	transform: translate(-50%, -50%);
+}
+
+.dialog-backdrop {
+	position: fixed;
+	z-index: 1000;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: 20px;
+	background: rgba(24, 23, 20, 0.34);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+
+.editor-dialog {
+	display: grid;
+	width: min(400px, 100%);
+	padding: 22px;
+	gap: 18px;
+	border: 1px solid rgba(31, 30, 27, 0.14);
+	border-radius: 18px;
+	background: #fffdfa;
+	box-shadow: 0 24px 70px rgba(26, 23, 17, 0.24);
+}
+
+.editor-dialog h1,
+.editor-dialog p {
+	margin: 0;
+}
+
+.editor-dialog h1 {
+	font-size: 20px;
+	letter-spacing: -0.035em;
+}
+
+.editor-dialog p {
+	margin-top: 6px;
+	color: #6b6861;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.editor-dialog label {
+	display: grid;
+	gap: 7px;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.editor-dialog input {
+	width: 100%;
+	min-height: 44px;
+	padding: 0 12px;
+	border: 1px solid #cbc7be;
+	border-radius: 10px;
+	background: #fff;
+	font-size: 16px;
+}
+
+.editor-dialog .dialog-error {
+	margin: -8px 0 0;
+	color: #b93829;
+}
+
+.dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.dialog-actions button {
+	min-height: 44px;
+	padding: 0 14px;
+	border: 1px solid rgba(31, 30, 27, 0.14);
+	border-radius: 10px;
+	background: #fff;
+	font-weight: 650;
+	cursor: pointer;
+}
+
+.canvas-notice {
+	position: fixed;
+	z-index: 1100;
+	left: 50%;
+	bottom: calc(22px + env(safe-area-inset-bottom));
+	transform: translateX(-50%);
+	padding: 10px 14px;
+	border-radius: 999px;
+	background: #24231f;
+	box-shadow: 0 10px 32px rgba(20, 18, 14, 0.22);
+	color: #fff;
+	font-size: 13px;
+	font-weight: 650;
+	pointer-events: none;
+}
+
+.app-loading {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	background: #f7f6f2;
+	color: #5e5b54;
+	font-size: 14px;
+}
+
+@media (max-width: 760px) {
+	.canvas-header {
+		gap: 8px;
+	}
+
+
+	.canvas-action--secondary {
+		display: none;
+	}
+}
+
+@media (min-width: 600px) and (any-pointer: coarse) {
+	.header-resources,
+	.header-quick-shape,
+	.canvas-actions > .snap-hold,
+	.canvas-action--secondary {
+		display: none;
+	}
+
+	.ipad-toolbar {
+		position: absolute;
+		z-index: var(--tl-layer-panels);
+		top: 8px;
+		bottom: max(8px, env(safe-area-inset-bottom));
+		left: max(8px, env(safe-area-inset-left));
+		display: block;
+		width: 60px;
+		border: 1px solid var(--tl-color-divider);
+		border-radius: 16px;
+		background: var(--tl-color-panel);
+		box-shadow: var(--tl-shadow-2);
+		color: var(--tl-color-text-1);
+		pointer-events: all;
+		touch-action: pan-y;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.ipad-toolbar__body {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+		overflow: visible;
+	}
+
+	.ipad-toolbar__tools-scroll {
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow-x: hidden;
+		overflow-y: auto;
+		overscroll-behavior-y: contain;
+		scrollbar-width: none;
+		touch-action: pan-y;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.ipad-toolbar__tools-scroll::-webkit-scrollbar {
+		display: none;
+	}
+
+	.ipad-toolbar__tools {
+		width: 100%;
+		padding: 6px;
+		gap: 4px;
+		touch-action: pan-y;
+	}
+
+	.ipad-toolbar__properties,
+	.ipad-toolbar__footer {
+		flex: 0 0 auto;
+		width: 100%;
+		background: var(--tl-color-panel);
+		touch-action: none;
+	}
+
+	.ipad-toolbar__properties {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 6px;
+		gap: 4px;
+		margin-bottom: auto;
+		border-top: 1px solid var(--tl-color-divider);
+		border-bottom: 1px solid var(--tl-color-divider);
+	}
+
+	.ipad-toolbar__footer {
+		padding: 6px;
+		gap: 4px;
+	}
+
+	.ipad-toolbar button.tlui-button__tool,
+	.ipad-toolbar button.tlui-button__icon,
+	.ipad-toolbar .snap-hold--compact {
+		width: 46px;
+		min-width: 46px;
+		height: 46px;
+		min-height: 46px;
+		padding: 0;
+	}
+
+	/* The icon shares tlui-button__icon with its button. Size only the glyph here. */
+	.ipad-toolbar .tlui-icon {
+		width: 20px;
+		height: 20px;
+		min-width: 0;
+		min-height: 0;
+		pointer-events: none;
+	}
+
+	.ipad-toolbar__tools button {
+		touch-action: pan-y;
+	}
+
+	.ipad-toolbar__properties .tlui-button,
+	.ipad-toolbar__footer .tlui-button,
+	.ipad-toolbar .snap-hold--compact {
+		touch-action: none;
+	}
+
+	.ipad-toolbar .snap-hold--compact {
+		margin: 0;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+		color: var(--tl-color-text-1);
+		font-size: 12px;
+	}
+
+	.ipad-toolbar .snap-hold--compact::after {
+		display: block;
+		content: '';
+		position: absolute;
+		inset: 4px;
+		border-radius: var(--tl-radius-2);
+		background: var(--tl-color-selected);
+		opacity: 0;
+	}
+
+	.ipad-toolbar .snap-hold--compact[aria-pressed='true'] {
+		color: var(--tl-color-selected-contrast);
+		transform: none;
+	}
+
+	.ipad-toolbar .snap-hold--compact[aria-pressed='true']::after {
+		opacity: 1;
+	}
+
+	.ipad-toolbar .snap-hold--compact:disabled {
+		color: var(--tl-color-text-disabled);
+		opacity: 1;
+	}
+
+	.ipad-toolbar .snap-hold--compact .snap-hold__glyph {
+		position: relative;
+		z-index: var(--tl-layer-above);
+		margin: 0;
+		font-size: 20px;
+	}
+
+	.ipad-toolbar .snap-hold__label {
+		display: none;
+	}
+
+	.canvas-stage .tlui-menu-zone,
+	.canvas-stage .tlui-helper-buttons {
+		margin-left: calc(max(8px, env(safe-area-inset-left)) + 64px);
+	}
+
+	.canvas-stage .tlui-navigation-panel {
+		left: calc(max(8px, env(safe-area-inset-left)) + 68px);
+		bottom: max(8px, env(safe-area-inset-bottom));
+	}
+}
+
+@media (max-width: 520px) {
+	.quick-shape-toggle span {
+		display: none;
+	}
+
+	.snap-hold {
+		padding-inline: 9px;
+	}
+}
+
+.canvas-header-settings {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.canvas-identity { display: flex; align-items: center; min-width: 0; gap: 8px; }
+.canvas-board-title { max-width: 220px; min-width: 0; min-height: 44px; border: 0; padding: 0 5px; background: transparent; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; color: #242b30; font: inherit; font-size: 17px; font-weight: 650; cursor: pointer; }
+.canvas-board-title:disabled { cursor: default; }
+@media (max-width: 1100px) { .canvas-board-title { max-width: 160px; }.canvas-header { gap: 6px; } }
+@media (max-width: 650px) { .canvas-board-title { max-width: 100px; font-size: 14px; }.canvas-identity { gap: 2px; } }
+
+.canvas-header .canvas-page-settings {
+	position: relative;
+	width: fit-content;
+	max-width: 100%;
+	height: auto;
+	overflow: visible;
+	background: transparent;
+	font-family: inherit;
+}
+
+.canvas-page-settings .tlui-menu-zone {
+	margin: 0;
+	max-width: 100%;
+	box-shadow: none;
+	border: 0;
+	background: transparent;
+}
+
+.canvas-page-settings .tlui-button {
+	min-height: 44px;
+}
+
+.canvas-page-settings .tlui-page-menu__trigger {
+	min-width: 0;
+}
+
+.snap-hold[data-latched='true'] .snap-hold__glyph::after {
+	content: '';
+	position: absolute;
+	width: 4px;
+	height: 4px;
+	right: -6px;
+	top: -2px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.canvas-grid-toggle {
+	position: absolute;
+	right: max(12px, env(safe-area-inset-right));
+	bottom: calc(44px + env(safe-area-inset-bottom));
+	display: grid;
+	place-items: center;
+	width: 46px;
+	height: 46px;
+	padding: 0;
+	border: 1px solid var(--tl-color-divider);
+	border-radius: 12px;
+	background: var(--tl-color-panel);
+	color: var(--tl-color-text-1);
+	box-shadow: var(--tl-shadow-2);
+	pointer-events: auto;
+	touch-action: manipulation;
+	cursor: pointer;
+}
+
+.canvas-grid-toggle[aria-pressed='true'] {
+	background: var(--tl-color-selected);
+	color: var(--tl-color-selected-contrast);
+}
+
+.canvas-grid-toggle:focus-visible {
+	outline: 2px solid var(--tl-color-focus);
+	outline-offset: 3px;
+}
+
+.canvas-grid-toggle svg {
+	pointer-events: none;
+}

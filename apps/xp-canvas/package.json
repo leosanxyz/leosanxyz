@@ -1,0 +1,46 @@
+{
+	"name": "xp-canvas",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host",
+		"build": "tsc && vite build",
+		"smoke": "node scripts/smoke.mjs",
+		"smoke:resources": "node scripts/resources-smoke.mjs",
+		"smoke:resource-delete": "node scripts/resource-delete-smoke.mjs",
+		"smoke:redesign": "node scripts/redesign-smoke.mjs",
+		"smoke:corrections": "node scripts/corrections-smoke.mjs",
+		"smoke:refinements": "node scripts/refinements-smoke.mjs",
+		"smoke:eraser": "node scripts/eraser-render-smoke.mjs",
+		"smoke:video": "node scripts/video-playback-smoke.mjs",
+		"smoke:video-preview": "node scripts/video-preview-smoke.mjs",
+		"profile:pan": "node scripts/pan-profile.mjs",
+		"test": "vitest run --config vitest.config.ts",
+		"typecheck": "tsc --noEmit",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@tldraw/sync": "5.4.0",
+		"@tldraw/sync-core": "5.4.0",
+		"@tldraw/tlschema": "5.4.0",
+		"@tldraw/validate": "5.4.0",
+		"itty-router": "^5.0.18",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1",
+		"radix-ui": "1.6.7",
+		"tldraw": "5.4.0"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "^1.29.1",
+		"@types/node": "20.19.43",
+		"@types/react": "^19.2.7",
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "^6.0.1",
+		"playwright-core": "^1.62.1",
+		"typescript": "^5.8.3",
+		"vite": "^8.0.16",
+		"vitest": "^4.1.11",
+		"wrangler": "^4.75.0"
+	}
+}

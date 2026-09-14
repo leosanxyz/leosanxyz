@@ -1,0 +1,39 @@
+
+name = "xp-canvas"
+main = "worker/worker.ts"
+compatibility_date = "2025-05-08"
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true
+preview_urls = false
+
+[observability]
+enabled = true
+
+[assets]
+not_found_handling = "single-page-application"
+directory = "./dist/client"
+run_worker_first = ["/api/*"]
+
+# Set up the durable object used for each tldraw room
+[durable_objects]
+bindings = [
+  { name = "TLDRAW_DURABLE_OBJECT", class_name = "TldrawDurableObject" },
+  { name = "BOARD_CATALOG", class_name = "BoardCatalog" }
+]
+
+# Durable objects require migrations to create/modify/delete them
+# Using new_sqlite_classes for SQLite-backed storage
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TldrawDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["BoardCatalog"]
+
+# We store asset uploads (images, videos) in an R2 bucket.
+# Room data is stored in Durable Object SQLite storage.
+[[r2_buckets]]
+binding = 'TLDRAW_BUCKET'
+bucket_name = 'xp-canvas-assets'
+preview_bucket_name = 'xp-canvas-assets-preview'

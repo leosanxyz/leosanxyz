@@ -1,0 +1,33 @@
+.resource-library { position: absolute; z-index: 400; top: 12px; left: 12px; width: min(320px, calc(100% - 24px)); max-height: calc(100% - 24px); display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid #e0e3e4; border-radius: 22px; background: #fafafa; color: #24282b; box-shadow: 0 14px 45px #1b252520; pointer-events: auto; font-size: 13px; outline: none; }
+.resource-library__heading { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.resource-library__heading h2 { margin: 0 0 0 6px; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+.resource-library__heading button { flex-shrink: 0; }
+.resource-entry { position: relative; min-width: 0; }
+.resource-entry > .resource-card { width: 100%; }
+.resource-entry__menu { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; background: #ffffffe8; }
+.resource-folder { cursor: pointer; }
+.resource-folder .resource-card__preview { color: #629cb2; background: #edf5f8; border-color: transparent; }
+.resource-upload { min-height: 44px; border: 0; border-radius: 12px; padding: 10px; background: #e8edef; color: #263940; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.resource-upload:disabled { opacity: .5; cursor: default; }
+.resource-library :focus-visible { outline: 2px solid #078ea8; outline-offset: 1px; }
+.resource-library__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-height: 90px; overflow: auto; overscroll-behavior: contain; align-content: start; }
+.resource-card { display: flex; flex-direction: column; gap: 7px; padding: 0 0 5px; min-width: 0; border: 0; border-radius: 10px; background: transparent; color: inherit; text-align: center; font: inherit; cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.resource-card:active { cursor: grabbing; }
+.resource-card__preview { display: grid; place-items: center; width: 100%; height: 112px; border: 1px solid #e7e9ea; border-radius: 12px; background: white; overflow: hidden; color: #788c95; }
+.resource-card__preview img { width: 100%; height: 100%; object-fit: contain; }
+.resource-card__preview { position: relative; }
+.resource-card__kind { position: absolute; left: 6px; bottom: 6px; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 6px; background: #fffef5ed; color: #344550; }
+.resource-card__preview video { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.resource-card__name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #68777f; }
+.resource-library__sentinel { height: 1px; grid-column: 1 / -1; }
+.resource-library__error { color: #a32e24; margin: 0; padding: 8px; max-height: 90px; overflow: auto; flex-shrink: 0; }
+.resource-delete-message { display: grid; gap: 12px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.resource-delete-message p { margin: 0; }
+.resource-drag-ghost { position: fixed; top: 0; left: 0; z-index: 1000; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; border-radius: 10px; padding: 10px 14px; background: #29373e; color: white; box-shadow: 0 4px 18px #0003; }
+.resource-shape { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 16px; border: 1px solid #d4dadd; border-radius: 12px; background: #fff; color: #242b30; overflow: hidden; }
+.resource-shape strong { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.resource-shape small { color: #777f84; font-size: 11px; }
+.resource-shape__icon { position: absolute; right: 12px; top: 10px; color: #939da3; }
+.resource-shape a { font-size: 13px; color: #07839b; pointer-events: all; width: fit-content; min-height: 44px; padding: 10px 0; }
+.resource-shape audio { width: 100%; height: 40px; min-height: 40px; pointer-events: all; }
+@media (min-width: 600px) and (any-pointer: coarse) { .resource-library { left: 76px; width: min(320px, calc(100% - 92px)); }.header-resources, .header-emojis { display: none; } }
+@media (hover: hover) and (pointer: fine) { .resource-card:hover .resource-card__preview { border-color: #afc5ce; }.resource-upload:hover { background: #dce6e9; } }

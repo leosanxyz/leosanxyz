@@ -1,0 +1,8 @@
+.canvas-video { width: 100%; height: 100%; border-radius: 14px; background: #e8edef; overflow: hidden; box-shadow: 0 2px 8px #172b3215; }
+.canvas-video__media { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; border-radius: inherit; pointer-events: none; }
+.canvas-video__poster { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain; background: #e8edef; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.canvas-video__media.is-interactive { pointer-events: all; }
+.canvas-video__play { position: absolute; z-index: 2; right: 10px; bottom: 10px; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 0; border-radius: 50%; background: #223d42a6; color: white; pointer-events: all; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.canvas-video__play svg { fill: currentColor; stroke-width: 1; }
+.canvas-video__play:focus-visible { outline: 3px solid #26b9d4; outline-offset: 2px; }
+.canvas-video__error { position: absolute; z-index: 2; top: 12px; left: 12px; right: 64px; padding: 8px; border-radius: 8px; background: #fff9; font-size: 13px; color: #663333; }

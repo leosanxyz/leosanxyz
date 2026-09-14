@@ -1,0 +1,21 @@
+.xp-icon-button { display: inline-grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.xp-icon-button:focus-visible, .xp-menu-item:focus-visible { outline: 2px solid #079ab5; outline-offset: 2px; }
+.xp-dialog-overlay { position: fixed; inset: 0; z-index: 10000; background: #13232d40; }
+.xp-dialog { position: fixed; z-index: 10001; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 20px; border-radius: 22px; background: white; color: #20252a; box-shadow: 0 18px 70px #12232d25; }
+.xp-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.xp-dialog-heading h2 { margin: 0; font-size: 20px; font-weight: 650; }
+.xp-form { display: grid; gap: 16px; }
+.xp-form label { display: grid; gap: 8px; font-size: 14px; }
+.xp-form input, .xp-form select { min-height: 46px; padding: 10px 12px; border: 1px solid #dce1e3; border-radius: 10px; background: white; color: #20252a; width: 100%; font: inherit; font-size: 16px; }
+.xp-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.xp-dialog-actions button, button.xp-primary { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 10px; background: #eef2f3; color: #20252a; font: inherit; cursor: pointer; }
+.xp-dialog-actions button.xp-primary, button.xp-primary { background: #078aa3; color: white; }
+.xp-dialog-actions button.xp-danger { background: #ad3530; color: white; }
+.xp-form button:disabled { opacity: .5; cursor: default; }
+.xp-error { color: #a6332d; font-size: 13px; }
+.xp-menu { z-index: 10002; min-width: 200px; max-height: min(440px, var(--radix-dropdown-menu-content-available-height)); overflow: auto; padding: 6px; border: 1px solid #dde2e5; border-radius: 14px; background: white; color: #20252a; box-shadow: 0 8px 30px #14212c20; }
+.xp-menu-item { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; outline: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.xp-menu-item[data-highlighted] { background: #edf4f5; }
+.xp-menu-item--danger { color: #ad3530; }
+.xp-menu-separator { height: 1px; margin: 4px 8px; background: #e5e8ea; }
+@media (hover: hover) and (pointer: fine) { .xp-icon-button:hover { background: #142c3a0a; } }

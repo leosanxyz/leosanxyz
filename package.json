@@ -2,11 +2,23 @@
   "name": "personal-site",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:site": "npm run dev",
+    "build:site": "npm run build",
+    "start:site": "npm run start",
+    "dev:xp-canvas": "npm run dev --workspace=apps/xp-canvas",
+    "build:xp-canvas": "npm run build --workspace=apps/xp-canvas",
+    "smoke:xp-canvas": "npm run smoke --workspace=apps/xp-canvas",
+    "test:xp-canvas": "npm run test --workspace=apps/xp-canvas",
+    "typecheck:xp-canvas": "npm run typecheck --workspace=apps/xp-canvas",
+    "preview:xp-canvas": "npm run preview --workspace=apps/xp-canvas"
   },
   "dependencies": {
     "@types/matter-js": "^0.19.8",
