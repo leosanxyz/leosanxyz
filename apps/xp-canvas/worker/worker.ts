@@ -14,6 +14,9 @@ import {
 import { handleAssetDownload, handleAssetUpload } from './assetUploads'
 import { listResources, removeResource, saveEmoji, saveExistingResource, moveResource, saveResourcePreview } from './resources'
 import { handleLibraryRequest, handleBoardRequest, handleThumbnail, readBoard } from './boards'
+import { handlePortalRequest, portalGate } from './portal'
+import { getPortalSession, portalEnabled, PORTAL_IDENTITY_HEADER } from './portalAuth'
+import { exportBoard, importBoard } from './boardTransfer'
 
 export { TldrawDurableObject } from './TldrawDurableObject'
 export { BoardCatalog } from './BoardCatalog'
@@ -26,6 +29,7 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 		return error(500, 'Internal server error')
 	},
 })
+	.all('/api/portal/*', handlePortalRequest)
 	.get('/api/health', () =>
 		Response.json(
 			{ ok: true, service: 'xp-canvas' },
@@ -99,12 +103,20 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 		const headers = withoutCredentials(request)
 		headers.set(INTERNAL_ROLE_HEADER, editorSession ? 'editor' : 'viewer')
 		if (editorSession?.expires != null) headers.set(AUTH_EXPIRY_HEADER, String(editorSession.expires))
+		if (portalEnabled(env)) {
+			const session = await getPortalSession(request, env)
+			if (!session) return error(401, 'Inicia sesión para continuar.')
+			headers.set(PORTAL_IDENTITY_HEADER, session.tokenHash)
+			headers.set(AUTH_EXPIRY_HEADER, String(Math.floor(session.expiresAt / 1000)))
+		}
 
 		const id = env.TLDRAW_DURABLE_OBJECT.idFromName(request.params.roomId)
 		return env.TLDRAW_DURABLE_OBJECT.get(id).fetch(request.url, { headers })
 	})
 	.get('/api/library', handleLibraryRequest)
 	.post('/api/boards', handleLibraryRequest)
+	.post('/api/boards/import', importBoard)
+	.get('/api/boards/:boardId/export', exportBoard)
 	.post('/api/boards/:boardId/copy', handleLibraryRequest)
 	.get('/api/boards/:boardId', handleBoardRequest)
 	.patch('/api/boards/:boardId', handleLibraryRequest)
@@ -127,4 +139,16 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	.all('/api/*', () => Response.json({ error: 'Not found' }, { status: 404 }))
 	.all('*', () => new Response('Not found', { status: 404 }))
 
-export default { fetch: router.fetch }
+export default {
+	async fetch(request: Request, env: CanvasEnv, ctx: ExecutionContext) {
+		// The local playground must never accidentally become a public, open editor.
+		if (!import.meta.env.DEV && !portalEnabled(env) && new URL(request.url).pathname.startsWith('/api/')) {
+			return Response.json({ error: 'Configura el portal antes de publicar XP Canvas.' }, { status: 503, headers: { 'cache-control': 'no-store' } })
+		}
+		try {
+			return await portalGate(request, env) ?? await router.fetch(request, env, ctx)
+		} catch {
+			return Response.json({ error: 'No se pudo comprobar el acceso.' }, { status: 503, headers: { 'cache-control': 'no-store' } })
+		}
+	},
+}

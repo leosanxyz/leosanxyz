@@ -1,0 +1,75 @@
+.portal-profile { --pass-card-w: min(300px, max(180px, calc((100dvh - 390px) * .686)), calc(100cqw - 80px)); --pass-orbit-height: 64px; }
+[data-testid='portal-profile'] .board-header { margin-bottom: 8px; }
+.portal-profile-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; align-items: start; max-width: 1080px; margin: 0; }
+.portal-profile-grid[data-has-pass='false'] { grid-template-columns: minmax(0, 440px); margin-left: 0; }
+.portal-profile .pass-sticker-editor { display: contents; }
+.portal-profile .pass-stage-card { grid-area: 1 / 1; }
+.profile-pass-panel { --pass-ink: #faf8f4; --pass-muted: #c4bdb7; container-type: inline-size; position: relative; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+/* The padding is paint space for 3D turns and shadows, not extra layout height. */
+.profile-card-stage { position: relative; width: 100%; padding: 72px 40px; margin-block: -72px; overflow: hidden; pointer-events: none; mask-image: linear-gradient(to right, transparent, black 28px, black max(calc(48px + var(--pass-card-w)), calc(100% - 96px)), transparent); }
+.profile-card-stage::before, .profile-card-stage::after { content: ''; position: absolute; z-index: 30; top: 0; bottom: 0; width: 72px; pointer-events: none; backdrop-filter: blur(4px); }
+.profile-card-stage::before { left: 0; width: 28px; mask-image: linear-gradient(to right, black, transparent); }
+.profile-card-stage::after { right: 0; width: min(72px, calc(100% - var(--pass-card-w) - 48px)); mask-image: linear-gradient(to right, transparent, black); }
+.profile-card-stage .pass-carousel { width: 100%; height: calc(var(--pass-card-w) / 0.686 + 24px); pointer-events: auto; }
+.profile-card-stage .pass-carousel-card { top: 0; left: 0; margin-left: 0; }
+.profile-card-stage .pass-carousel-caption { left: calc(var(--pass-card-w) / 2); color: #718087; font-size: 12px; }
+.profile-pass-panel .pass-card-caption { bottom: 64px; }
+.portal-profile * { box-sizing: border-box; }
+.portal-profile button { font: inherit; cursor: pointer; }
+.portal-profile :focus-visible { outline: 2px solid #079ab5; outline-offset: 3px; }
+.profile-pass-toolbar { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 2px; pointer-events: auto; }
+.profile-pass-toolbar .xp-icon-button { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: #10201940; color: #fffef0dd; }
+.profile-pass-toolbar .xp-icon-button:disabled { opacity: .45; cursor: wait; }
+.profile-pass-flip { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; margin: 0 0 0 calc(40px + var(--pass-card-w) / 2 - 22px); border: 0; background: transparent; color: #66777e; border-radius: 50%; }
+.pass-download--icon { position: relative; }
+.pass-download--icon > p { position: absolute; z-index: 2; bottom: 48px; right: 0; width: 240px; padding: 12px; border: 1px solid #eed5d2; border-radius: 10px; background: white; color: #a6332d; box-shadow: 0 6px 20px #13232d12; }
+.profile-account-panel { grid-area: 1 / 2; min-width: 0; position: relative; z-index: 1; }
+.profile-account { display: grid; gap: 18px; min-width: 0; padding-top: 44px; }
+.portal-profile-grid[data-has-pass='false'] .profile-account { padding-top: 0; }
+.profile-identity { padding-bottom: 18px; }
+.profile-identity h2 { margin: 0 0 7px; font-size: 25px; font-weight: 600; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.profile-identity p { margin: 0; color: #7a858c; font-size: 15px; overflow-wrap: anywhere; }
+.profile-settings-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 16px; border: 1px solid #e0e6e8; border-radius: 12px; background: white; color: #29343a; text-align: left; font: inherit; font-size: 14px; cursor: pointer; }
+.profile-settings-row span { flex: 1; }
+.profile-settings-row svg { flex-shrink: 0; }
+.profile-settings-row[data-state='open'] > svg:last-child { transform: rotate(90deg); }
+.profile-password-content[data-state='open'] { padding: 22px 4px 6px; }
+.portal-profile .pass-sticker-inventory { --sticker-size: 54px; grid-area: 1 / 2; justify-self: center; margin-top: 44px; padding: 20px; position: relative; z-index: 1; }
+.portal-profile .pass-sticker-palette { grid-template-columns: repeat(4, var(--sticker-size)); }
+.profile-edit-controls { width: min(100%, calc(var(--pass-card-w) + 80px)); padding: 0; }
+.profile-edit-controls .pass-area-selection, .profile-edit-controls .pass-pattern-picker { background: #e3e9e8; }
+.profile-edit-controls .pass-holo-styles button, .profile-edit-controls .pass-pattern-picker button { color: #75847f; font-size: 12px; }
+.profile-edit-controls .pass-holo-styles button[aria-pressed='true'], .profile-edit-controls .pass-pattern-picker button[aria-pressed='true'] { color: #213e38; }
+.profile-edit-controls .pass-orbit { color: #dce5e2; }
+.profile-edit-controls .pass-holo-row { flex-wrap: nowrap; gap: 8px; }
+.profile-edit-controls .pass-holo-styles button { padding-inline: 6px; }
+.profile-edit-controls .pass-pattern-picker button, .profile-edit-controls .pass-pattern-selection { width: 36px; height: 40px; }
+.profile-edit-controls .pass-pattern-picker button { padding-inline: 8px; }
+.profile-edit-controls .pass-pattern-picker button::before { inset: -2px -4px; }
+.profile-edit-controls .pass-light-color { min-width: 66px; }
+.profile-save.xp-dialog-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 12px; }
+.profile-save button { min-height: 44px; }
+.profile-save [role='alert'] { flex-basis: 100%; text-align: center; font-size: 14px; }
+@media (max-width: 1100px) {
+	.portal-profile-grid { grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; }
+	.portal-profile .pass-sticker-inventory { --sticker-size: 46px; }
+}
+@media (max-width: 900px) {
+	.portal-profile-grid { grid-template-columns: minmax(0, 1fr); max-width: 700px; gap: 0; container-type: inline-size; }
+	.portal-profile-grid[data-has-pass='true'] { grid-template-rows: auto auto minmax(244px, auto) auto; }
+	.portal-profile .pass-stage-card, .profile-pass-panel { display: contents; }
+	.profile-card-stage { grid-area: 1 / 1; }
+	.profile-pass-flip { grid-area: 2 / 1; justify-self: start; }
+	.profile-edit-controls { grid-area: 3 / 1; justify-self: start; }
+	.profile-account-panel { grid-area: 3 / 1; align-self: start; width: min(100%, 440px); margin: 0; }
+	.profile-account { padding-top: 0; }
+	.portal-profile .pass-sticker-inventory { grid-area: 4 / 1; margin: 24px 0; justify-self: start; }
+}
+@media (hover: hover) and (pointer: fine) {
+	.profile-pass-toolbar .xp-icon-button:hover { background: #10201988; color: #fff; }
+	.profile-pass-flip:hover { color: #243a44; }
+	.profile-settings-row:hover { background: #f5f8f9; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.profile-edit-controls .pass-holo-styles button[aria-pressed='true'] { background: #e3e9e8; }
+}

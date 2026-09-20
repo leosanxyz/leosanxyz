@@ -8,6 +8,7 @@ import {
 	type TLUiQuickActionsProps,
 	useValue,
 	DefaultToolbar,
+	HandToolbarItem,
 	MobileStylePanel,
 	TldrawUiButtonIcon,
 	TldrawUiOrientationProvider,
@@ -67,12 +68,17 @@ const IpadToolbarContext = createContext<IpadToolbarState | null>(null)
 
 export const XP_CANVAS_COMPONENTS: TLComponents = {
 	Toolbar: ResponsiveToolbar,
-	InFrontOfTheCanvas: () => <><GridToggle /><SelectionActions /></>,
+	InFrontOfTheCanvas: CanvasOverlayControls,
 	ImageToolbar: ImageToolbarWithDelete,
 	VideoToolbar: VideoToolbarWithDelete,
 	MenuPanel: HeaderMenuPanel,
 	QuickActions: ResponsiveQuickActions,
 	StylePanel: ResponsiveStylePanel,
+}
+
+function CanvasOverlayControls() {
+	const { isEditor } = useIpadToolbarState()
+	return isEditor ? <><GridToggle /><SelectionActions /></> : null
 }
 
 export function IpadToolbarProvider({
@@ -99,23 +105,25 @@ function HeaderMenuPanel() {
 }
 
 function ResponsiveQuickActions(props: TLUiQuickActionsProps) {
-	return useIpadToolbar() ? null : <DefaultQuickActions {...props} />
+	const isIpad = useIpadToolbar(), { isEditor } = useIpadToolbarState()
+	return isIpad || !isEditor ? null : <DefaultQuickActions {...props} />
 }
 
 function ResponsiveToolbar() {
 	const isIpad = useIpadToolbar()
 	const { isEditor } = useIpadToolbarState()
 
+	if (!isEditor) return <DefaultToolbar minItems={1} minSizePx={44}><HandToolbarItem /></DefaultToolbar>
 	if (!isIpad) return <DefaultToolbar />
-	if (!isEditor) return null
 
 	return <IpadToolRail />
 }
 
 function ResponsiveStylePanel(props: TLUiStylePanelProps) {
 	const isIpad = useIpadToolbar()
+	const { isEditor } = useIpadToolbarState()
 
-	if (isIpad && !props.isMobile) return null
+	if (!isEditor || isIpad && !props.isMobile) return null
 	return <DefaultStylePanel {...props} />
 }
 

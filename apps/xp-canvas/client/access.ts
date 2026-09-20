@@ -15,8 +15,10 @@ export async function openEditorSession(code: string) {
 }
 
 export async function closeEditorSession() {
-	const response = await fetch('/api/editor-session/logout', { method: 'POST' })
+	const session = await fetch('/api/portal/session', { cache: 'no-store' }).then((response) => response.json()) as { mode: string }
+	const response = await fetch(session.mode === 'portal' ? '/api/portal/logout' : '/api/editor-session/logout', { method: 'POST' })
 	if (!response.ok) throw new Error('No se pudo cerrar la sesión')
+	window.dispatchEvent(new Event('xp-session-changed'))
 }
 
 export function getViewerUrl() {

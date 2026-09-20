@@ -2,6 +2,7 @@ import { error, IRequest } from 'itty-router'
 import { CanvasEnv, isSameOrigin, requestCanEdit, ROOM_ID } from './access'
 import { fileKind, MAX_FILE_BYTES, MAX_IMAGE_BYTES, IMAGE_TYPES, type Resource } from '../shared/resources'
 import { saveResource } from './resources'
+import { portalEnabled } from './portalAuth'
 
 export const MAX_ASSET_BYTES = MAX_IMAGE_BYTES
 
@@ -158,8 +159,9 @@ export async function handleAssetDownload(request: IRequest, env: CanvasEnv, ctx
 	if (!objectName) return error(400, 'Invalid upload id')
 
 	const cacheKey = new Request(request.url)
+	const privateAsset = portalEnabled(env)
 	const conditional = ['range', 'if-match', 'if-none-match', 'if-modified-since', 'if-unmodified-since'].some((h) => request.headers.has(h))
-	if (!conditional && request.method === 'GET') {
+	if (!privateAsset && !conditional && request.method === 'GET') {
 		const cached = await caches.default.match(cacheKey)
 		if (cached) return cached
 	}
@@ -167,7 +169,7 @@ export async function handleAssetDownload(request: IRequest, env: CanvasEnv, ctx
 	if (!object) return error(404, 'File not found')
 	const headers = new Headers()
 	object.writeHttpMetadata(headers)
-	headers.set('cache-control', 'public, max-age=31536000, immutable')
+	headers.set('cache-control', privateAsset ? 'private, no-store' : 'public, max-age=31536000, immutable')
 	headers.set('etag', object.httpEtag)
 	headers.set('accept-ranges', 'bytes')
 	headers.set('last-modified', object.uploaded.toUTCString())
@@ -200,7 +202,7 @@ export async function handleAssetDownload(request: IRequest, env: CanvasEnv, ctx
 	const download = await env.TLDRAW_BUCKET.get(objectName, range ? { range } : undefined)
 	if (!download) return error(404, 'File not found')
 	const response = new Response(download.body, { headers, status: range ? 206 : 200 })
-	if (!range && object.size <= MAX_IMAGE_BYTES && object.httpMetadata?.contentType?.startsWith('image/')) {
+	if (!privateAsset && !range && object.size <= MAX_IMAGE_BYTES && object.httpMetadata?.contentType?.startsWith('image/')) {
 		ctx.waitUntil(caches.default.put(cacheKey, response.clone()).catch((cause) => console.warn('Asset cache unavailable', cause)))
 	}
 	return response

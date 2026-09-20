@@ -5,6 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite --host",
+		"dev:portal": "vite --config vite.portal.config.ts",
+		"build:portal": "tsc && vite build --config vite.portal.config.ts",
+		"smoke:portal": "node scripts/portal-smoke.mjs",
+		"smoke:onboarding-api": "node scripts/onboarding-api-smoke.mjs",
 		"build": "tsc && vite build",
 		"smoke": "node scripts/smoke.mjs",
 		"smoke:resources": "node scripts/resources-smoke.mjs",
@@ -28,10 +32,12 @@
 		"@tldraw/sync-core": "5.4.0",
 		"@tldraw/tlschema": "5.4.0",
 		"@tldraw/validate": "5.4.0",
+		"html-to-image": "1.11.13",
 		"itty-router": "^5.0.18",
+		"motion": "^13.3.0",
+		"radix-ui": "1.6.7",
 		"react": "^19.2.1",
 		"react-dom": "^19.2.1",
-		"radix-ui": "1.6.7",
 		"tldraw": "5.4.0"
 	},
 	"devDependencies": {

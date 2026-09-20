@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import { type Board, type BoardFolder, folderDescendants, isBoardId } from '../shared/boards'
 import type { ResourceFolder, ResourceFolders } from '../shared/resources'
+import type { RoomSnapshot } from '@tldraw/sync-core'
 
 type CatalogKind = 'board' | 'folder' | 'resource-folder' | 'resource-placement'
 interface ResourcePlacement { id: string; resourceId: string; folderId: string | null }
@@ -61,6 +62,16 @@ export class BoardCatalog extends DurableObject<Env> {
 		}
 		this.write('board', copy)
 		return Response.json(copy, { status: 201 })
+	}
+
+	async importBoard(name: string, snapshot: RoomSnapshot): Promise<Board> {
+		const title = this.name(name), id = crypto.randomUUID()
+		await this.env.TLDRAW_DURABLE_OBJECT.get(this.env.TLDRAW_DURABLE_OBJECT.idFromName(id)).initializeCopy(snapshot)
+		const now = Date.now()
+		const board: Board = { id, name: title, folderId: null, favorite: false, createdAt: now, updatedAt: now, thumbnailAt: null, trashedAt: null }
+		// Metadata appears only after the new document is safely persisted.
+		this.write('board', board)
+		return board
 	}
 
 	override async fetch(request: Request): Promise<Response> {

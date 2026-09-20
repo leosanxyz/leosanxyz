@@ -1,0 +1,49 @@
+name = "xp-canvas-portal"
+account_id = "6d88aed84aecad237425f39520f10ac0"
+main = "worker/worker.ts"
+compatibility_date = "2025-05-08"
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true
+preview_urls = false
+workers_dev = true
+
+[[routes]]
+pattern = "xp.leosan.xyz"
+custom_domain = true
+
+[vars]
+ACCESS_MODE = "portal"
+EDITOR_AUTH_REQUIRED = "true"
+PORTAL_ADMIN_USERNAME = "leo"
+
+[observability]
+enabled = true
+
+[assets]
+not_found_handling = "single-page-application"
+directory = "./dist/client"
+run_worker_first = ["/api/*"]
+
+[durable_objects]
+bindings = [
+  { name = "TLDRAW_DURABLE_OBJECT", class_name = "TldrawDurableObject" },
+  { name = "BOARD_CATALOG", class_name = "BoardCatalog" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TldrawDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["BoardCatalog"]
+
+[[r2_buckets]]
+binding = "TLDRAW_BUCKET"
+bucket_name = "xp-canvas-portal-assets"
+
+[[d1_databases]]
+binding = "PORTAL_DB"
+database_name = "xp-canvas-portal"
+database_id = "272fad8f-c1c6-4458-8918-1252b92f229f"
+migrations_dir = "migrations"

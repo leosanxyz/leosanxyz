@@ -1,2 +1,8 @@
 EDITOR_CODE="elige-un-codigo-largo-y-privado"
 EDITOR_SESSION_SECRET="genera-otro-secreto-largo-y-distinto"
+
+# Solo para el portal local sin XP_PORTAL_QA. Conserva los valores locales existentes.
+# Genera un secreto aleatorio de al menos 32 caracteres, distinto de las contraseñas.
+PORTAL_PASSWORD_PEPPER=""
+# Contraseña inicial del profesor, al menos 15 caracteres. Retírala después del alta.
+PORTAL_BOOTSTRAP_PASSWORD=""

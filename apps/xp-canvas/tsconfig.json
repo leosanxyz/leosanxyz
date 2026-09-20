@@ -27,6 +27,6 @@
 	"include": [
 		"client",
 		"worker",
-		"vite.config.ts"
+		"vite*.config.ts"
 	]
 }

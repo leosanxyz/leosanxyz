@@ -83,6 +83,9 @@ web_modules/
 !.dev.vars.example
 !**/.dev.vars.example
 
+# Private one-off onboarding importer with personalized student messages.
+/apps/xp-canvas/scripts/seed-onboarding-local.mjs
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

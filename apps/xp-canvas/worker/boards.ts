@@ -1,6 +1,7 @@
 import { type IRequest } from 'itty-router'
 import { type Board, isBoardId } from '../shared/boards'
 import { type CanvasEnv, isSameOrigin, requestCanEdit } from './access'
+import { portalEnabled } from './portalAuth'
 
 export function catalog(env: CanvasEnv) {
 	return env.BOARD_CATALOG.get(env.BOARD_CATALOG.idFromName('library'))
@@ -17,6 +18,9 @@ export async function handleLibraryRequest(request: IRequest, env: CanvasEnv) {
 		return Response.json({ error: 'Necesitas acceso de edición.' }, { status: 403 })
 	}
 	const response = await catalog(env).fetch(request.url, { method: request.method, headers: request.headers, body: request.method === 'GET' ? undefined : request.body })
+	if (portalEnabled(env) && response.ok && request.method === 'PATCH' && request.params.boardId) {
+		await env.TLDRAW_DURABLE_OBJECT.get(env.TLDRAW_DURABLE_OBJECT.idFromName(request.params.boardId)).revalidatePortalSessions()
+	}
 	const result = new Response(response.body, response)
 	result.headers.set('cache-control', 'no-store')
 	return result
@@ -36,7 +40,7 @@ export async function handleThumbnail(request: IRequest, env: CanvasEnv) {
 	if (request.method === 'GET') {
 		const image = await env.TLDRAW_BUCKET.get(key)
 		if (!image) return new Response(null, { status: 404 })
-		return new Response(image.body, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=60', 'x-content-type-options': 'nosniff' } })
+		return new Response(image.body, { headers: { 'content-type': 'image/png', 'cache-control': portalEnabled(env) ? 'private, no-store' : 'public, max-age=60', 'x-content-type-options': 'nosniff' } })
 	}
 	if (!isSameOrigin(request) || !(await requestCanEdit(request, env))) return new Response(null, { status: 403 })
 	const size = Number(request.headers.get('content-length'))

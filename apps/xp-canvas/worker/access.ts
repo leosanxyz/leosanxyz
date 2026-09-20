@@ -1,6 +1,12 @@
 import { isBoardId } from '../shared/boards'
+import { getPortalSession, portalEnabled } from './portalAuth'
 
 export interface CanvasEnv extends Env {
+	ACCESS_MODE?: string
+	PORTAL_DB?: D1Database
+	PORTAL_PASSWORD_PEPPER?: string
+	PORTAL_ADMIN_USERNAME?: string
+	PORTAL_BOOTSTRAP_PASSWORD?: string
 	EDITOR_AUTH_REQUIRED?: string
 	EDITOR_CODE?: string
 	EDITOR_SESSION_SECRET?: string
@@ -66,6 +72,10 @@ export async function editorCodeMatches(code: string | null, env: CanvasEnv) {
 }
 
 export async function getEditorSession(request: Request, env: CanvasEnv) {
+	if (portalEnabled(env)) {
+		const session = await getPortalSession(request, env)
+		return session?.user.role === 'teacher' && !session.user.mustChangePassword ? { expires: Math.floor(session.expiresAt / 1000) } : null
+	}
 	// Open editing is explicit; missing or misspelled config keeps authentication on.
 	if (!editorAuthRequired(env)) return { expires: null }
 	const secret = env.EDITOR_SESSION_SECRET?.trim()
@@ -86,7 +96,7 @@ export async function getEditorSession(request: Request, env: CanvasEnv) {
 }
 
 export function editorAuthRequired(env: CanvasEnv) {
-	return env.EDITOR_AUTH_REQUIRED !== 'false'
+	return portalEnabled(env) || env.EDITOR_AUTH_REQUIRED !== 'false'
 }
 
 export async function requestCanEdit(request: Request, env: CanvasEnv) {
@@ -117,6 +127,7 @@ export function withoutCredentials(request: Request) {
 	headers.delete('authorization')
 	headers.delete(INTERNAL_ROLE_HEADER)
 	headers.delete('x-xp-canvas-auth-exp')
+	headers.delete('x-xp-canvas-identity')
 	return headers
 }
 

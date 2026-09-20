@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 
 export function navigate(path: string) {
-	if (location.pathname === path) return
+	if (location.pathname + location.search === path) return
+	if (!window.dispatchEvent(new Event('xp-before-navigation', { cancelable: true }))) return
 	history.pushState(null, '', path)
 	window.dispatchEvent(new Event('xp-navigation'))
 }

@@ -29,7 +29,7 @@ try {
 	await editorPage.getByRole('button', { name: 'Editar' }).click()
 	await editorPage.getByLabel('Código privado').fill(editorCode)
 	await editorPage.getByRole('button', { name: 'Entrar', exact: true }).click()
-	await editorPage.getByText('Editor', { exact: true }).waitFor()
+	await editorPage.waitForFunction(() => window.__xpCanvasEditor?.getIsReadonly() === false)
 	await waitForEditor(editorPage)
 	assert(!(await isReadonly(editorPage)), 'The authenticated client should be an editor')
 
@@ -331,19 +331,7 @@ async function verifyIpadToolbarLayout(page) {
 		'Snap should move out of the iPad header'
 	)
 
-	await page.getByTestId('editor-menu.trigger').tap()
-	const exitButton = page.getByTestId('editor-menu.exit')
-	await exitButton.waitFor()
-	const exitBox = await exitButton.boundingBox()
-	assert(
-		exitBox &&
-			exitBox.x >= 0 &&
-			exitBox.y >= 0 &&
-			exitBox.x + exitBox.width <= viewport.width &&
-			exitBox.y + exitBox.height <= viewport.height,
-		`Salir de edición should be fully visible, found ${JSON.stringify(exitBox)}`
-	)
-	await page.getByTestId('editor-menu.trigger').tap()
+	assert(await page.getByTestId('editor-menu.trigger').count() === 0, 'No duplicate account menu inside the canvas')
 }
 
 async function verifyIpadFingerInput(page, context) {
@@ -815,8 +803,10 @@ async function verifyIpadUndoRedo(page, { id, smokeId }) {
 }
 
 async function verifyIpadExitEditor(page) {
-	await page.getByTestId('editor-menu.trigger').tap()
-	await page.getByTestId('editor-menu.exit').tap()
+	await page.getByRole('button', { name: 'Mis canvases', exact: true }).tap()
+	await page.getByRole('button', { name: 'Cuenta de Espacio local', exact: true }).tap()
+	await page.getByRole('menuitem', { name: 'Salir de edición', exact: true }).tap()
+	await page.getByRole('link', { name: 'Ver Principal', exact: true }).tap()
 	await page.waitForFunction(() => window.__xpCanvasEditor?.getIsReadonly() === true)
 	await page.getByRole('button', { name: 'Editar' }).waitFor()
 	assert(

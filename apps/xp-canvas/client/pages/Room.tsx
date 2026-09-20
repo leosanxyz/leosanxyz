@@ -2,17 +2,18 @@ import { useSync } from '@tldraw/sync'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
 	Editor,
+	atom,
+	createUserId,
+	UserRecordType,
+	useValue,
 	getUserPreferences,
-	serializeTldrawJsonBlob,
+	react,
 	setUserPreferences,
 	Tldraw,
 	type TLUiAssetUrlOverrides,
+	type TLUiOverrides,
 } from 'tldraw'
-import {
-	closeEditorSession,
-	getEditorSession,
-	getViewerUrl,
-} from '../access'
+import { getEditorSession } from '../access'
 import {
 	IpadToolbarProvider,
 	SnapHoldButton,
@@ -36,6 +37,7 @@ import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
 import { navigate } from '../navigation'
 import { CANVAS_TOOLS } from '../eraser/PartialEraserTool'
+import { usePortal } from '../portal/PortalProvider'
 
 const ResourceLibrary = lazy(() => import('../resources/ResourceLibrary'))
 const EmojiPicker = lazy(() => import('../emojis/EmojiPicker'))
@@ -45,6 +47,12 @@ const TLDRAW_ASSET_URLS = {
 		es: '/translations/es.json',
 	},
 } satisfies TLUiAssetUrlOverrides
+
+const CANVAS_OPTIONS = { camera: { wheelBehavior: 'zoom' as const } }
+const VIEWER_OVERRIDES: TLUiOverrides = {
+	tools: (_editor, tools) => ({ hand: tools.hand }),
+	actions: (_editor, actions) => Object.fromEntries(Object.entries(actions).filter(([id]) => id !== 'toggle-grid' && id !== 'select-all')),
+}
 
 type AccessState = 'checking' | 'viewer' | 'editor'
 
@@ -105,6 +113,7 @@ function CanvasRoom({
 	onAccessChange: (isEditor: boolean) => void
 }) {
 	const roomId = board.id
+	const { mode, user } = usePortal()
 	const [editor, setEditor] = useState<Editor | null>(null)
 	const [headerTarget, setHeaderTarget] = useState<HTMLDivElement | null>(null)
 	const [quickShape, setQuickShape] = useState(() => {
@@ -138,7 +147,8 @@ function CanvasRoom({
 	const syncUri = useMemo(() => {
 		return new URL(`/api/connect/${encodeURIComponent(roomId)}`, window.location.origin).toString()
 	}, [roomId])
-	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS })
+	const users = useMemo(() => user ? { currentUser: atom('portal user', UserRecordType.create({ id: createUserId(user.id), name: user.name, color: user.role === 'teacher' ? '#078aa3' : '#7555cc' })) } : undefined, [user?.id, user?.name, user?.role])
+	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users })
 
 	useEffect(() => {
 		if (!isEditor) return
@@ -201,34 +211,11 @@ function CanvasRoom({
 		return () => window.clearTimeout(timeout)
 	}, [notice])
 
-	async function copy(text: string, message: string) {
-		try {
-			await navigator.clipboard.writeText(text)
-			setNotice(message)
-		} catch {
-			setNotice('No pude copiar el enlace')
-		}
-	}
-
-	async function exportRoom() {
-		if (!editor) return
-		try {
-		const blob = await serializeTldrawJsonBlob(editor)
-		const url = URL.createObjectURL(blob)
-		const link = document.createElement('a')
-		link.href = url
-		link.download = `${roomId}.tldr`
-		link.click()
-		window.setTimeout(() => URL.revokeObjectURL(url), 0)
-		setNotice('Copia descargada')
-		} catch { setNotice('No pude exportar la copia. Comprueba la conexión y vuelve a intentar.') }
-	}
-
 	function followLeo() {
 		if (!editor) return
 		const leo = editor
 			.getCollaborators()
-			.find((collaborator) => collaborator.userName.trim().toLocaleLowerCase() === 'leo')
+			.find((collaborator) => mode === 'portal' ? collaborator.userId === createUserId('teacher') : collaborator.userName.trim().toLocaleLowerCase() === 'leo')
 		if (!leo) {
 			setNotice('Leo no está conectado')
 			return
@@ -239,11 +226,19 @@ function CanvasRoom({
 
 	const handleMount = useCallback((nextEditor: Editor) => {
 		const preferences = getUserPreferences()
-		const name = isEditor && authRequired ? 'Leo' : preferences.name?.trim() || 'Visitante'
-		if (preferences.name !== name || preferences.locale !== 'es') {
-			setUserPreferences({ ...preferences, name, locale: 'es' })
+		const name = user?.name ?? (isEditor && authRequired ? 'Leo' : preferences.name?.trim() || 'Visitante')
+		if (preferences.name !== name || preferences.locale !== 'es' || preferences.inputMode !== 'mouse' || user && preferences.id !== user.id) {
+			setUserPreferences({ ...preferences, ...(user ? { id: user.id } : {}), name, locale: 'es', inputMode: 'mouse' })
 		}
 		setEditor(nextEditor)
+		if (!isEditor) {
+			nextEditor.updateInstanceState({ isReadonly: true, isGridMode: false })
+			nextEditor.setCurrentTool('hand')
+			// Escape in tldraw's hand tool normally returns to selection.
+			return react('viewer navigation', () => {
+				if (nextEditor.getCurrentToolId() !== 'hand') nextEditor.setCurrentTool('hand')
+			})
+		}
 		if (isEditor) nextEditor.registerExternalContentHandler('files', async ({ files, point }) => {
 			if (files.length > 20) { setNotice('Sube hasta 20 archivos a la vez.'); return }
 			const center = point ?? nextEditor.getViewportPageBounds().center
@@ -257,7 +252,9 @@ function CanvasRoom({
 				} catch (cause) { setNotice(cause instanceof Error ? cause.message : 'No pude guardar el archivo.') }
 			}
 		})
-	}, [isEditor, authRequired])
+	}, [isEditor, authRequired, user?.id, user?.name])
+
+	if (mode === 'portal' && store.status === 'error') return <div className="board-welcome"><h1>No pude abrir este canvas</h1><p>Tu sesión o tus permisos pueden haber cambiado.</p><button className="xp-primary" onClick={() => navigate('/')}>Mis clases</button></div>
 
 	return (
 		<div className="canvas-room">
@@ -265,6 +262,7 @@ function CanvasRoom({
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
 				<nav className="canvas-actions" aria-label="Acciones del canvas">
+					{mode === 'portal' && isEditor && <ConnectedStudents editor={editor} />}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
 						<>
@@ -295,42 +293,11 @@ function CanvasRoom({
 					>
 						Seguir a Leo
 					</button>
-					<button
-						type="button"
-						className="canvas-action--share"
-						onClick={() => copy(getViewerUrl(), authRequired ? 'Enlace para observar copiado' : 'Enlace para editar copiado')}
-					>
-						Compartir
-					</button>
-					<button
-						type="button"
-						className="canvas-action--secondary"
-						onClick={exportRoom}
-						disabled={!editor}
-					>
-						Guardar copia
-					</button>
-					{authRequired && (isEditor ? (
-						<details className="access-menu">
-							<summary data-testid="editor-menu.trigger">Editor</summary>
-							<div className="access-menu__panel">
-								<button
-									type="button"
-									data-testid="editor-menu.exit"
-										onClick={async () => {
-										try { await closeEditorSession(); onAccessChange(false) }
-										catch { setNotice('No pude cerrar la sesión. Comprueba la conexión.') }
-									}}
-								>
-									Salir de edición
-								</button>
-							</div>
-						</details>
-					) : (
+					{authRequired && !isEditor && mode !== 'portal' && (
 						<button type="button" className="primary-action" onClick={() => setShowUnlock(true)}>
 							Editar
 						</button>
-					))}
+					)}
 				</nav>
 			</header>
 
@@ -353,6 +320,9 @@ function CanvasRoom({
 						store={store}
 						assetUrls={TLDRAW_ASSET_URLS}
 						components={XP_CANVAS_COMPONENTS}
+						options={CANVAS_OPTIONS}
+						overrides={isEditor ? undefined : VIEWER_OVERRIDES}
+						initialState={isEditor ? 'select' : 'hand'}
 						shapeUtils={CANVAS_SHAPE_UTILS}
 						tools={CANVAS_TOOLS}
 						licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY || undefined}
@@ -370,7 +340,7 @@ function CanvasRoom({
 				{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
 			</main>
 
-			{showUnlock && (
+			{showUnlock && mode !== 'portal' && (
 				<EditorCodeDialog
 					onClose={() => setShowUnlock(false)}
 					onUnlock={() => {
@@ -387,6 +357,10 @@ function CanvasRoom({
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
 	)
+}
+function ConnectedStudents({ editor }: { editor: Editor | null }) {
+	const students = useValue('connected students', () => [...new Map((editor?.getCollaborators() ?? []).filter((peer) => peer.userId !== createUserId('teacher')).map((peer) => [peer.userId, peer])).values()], [editor])
+	return <details className="portal-presence"><summary>{students.length} {students.length === 1 ? 'alumno conectado' : 'alumnos conectados'}</summary><ul>{students.length ? students.map((student) => <li key={student.userId}>{student.userName}</li>) : <li>Todavía no hay alumnos conectados.</li>}</ul></details>
 }
 function LoadingScreen() {
 	return (

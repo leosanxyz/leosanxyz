@@ -1,0 +1,1771 @@
+.pass-experience,
+.pass-demo-complete {
+	--pass-bg: #403a37;
+	--pass-ink: #faf8f4;
+	--pass-muted: #c4bdb7;
+	--pass-card-w: clamp(205px, 30dvh, 292px);
+	--pass-orbit-height: 120px;
+	--pass-tuning-space: 0px;
+	--pass-nav-size: 54px;
+	color: var(--pass-ink);
+	background: var(--pass-bg);
+	font-family: Arial, Helvetica, sans-serif;
+	color-scheme: dark;
+	box-sizing: border-box;
+	min-height: 100dvh;
+}
+.pass-experience *,
+.pass-demo-complete * {
+	box-sizing: border-box;
+}
+.pass-experience {
+	display: grid;
+	isolation: isolate;
+	height: 100dvh;
+	grid-template-rows: 72px minmax(340px, 1fr) auto;
+	padding: 0 24px 32px;
+	position: relative;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+.pass-experience[data-step='1'],
+.pass-experience[data-step='4'] {
+	--pass-tuning-space: 60px;
+}
+.pass-experience[data-step='2'] {
+	--pass-tuning-space: calc(36px + var(--pass-orbit-height) + 46px + 28px);
+}
+.pass-experience button,
+.pass-experience input,
+.pass-review-bar button,
+.pass-review-bar select {
+	font: inherit;
+}
+.pass-experience button {
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+.pass-experience button:disabled {
+	cursor: default;
+	opacity: 0.4;
+}
+.pass-experience button:focus-visible,
+.pass-experience input:focus-visible,
+.pass-review-bar :focus-visible {
+	outline: 2px solid #eef9bf;
+	outline-offset: 4px;
+}
+.pass-progress {
+	display: flex;
+	gap: 5px;
+	height: 3px;
+	align-self: center;
+	justify-self: center;
+}
+.pass-progress span {
+	display: block;
+	width: 12px;
+	border-radius: 5px;
+	background: #746b63;
+}
+.pass-progress span[data-done='true'] {
+	background: #a69c92;
+}
+.pass-progress span[aria-current] {
+	width: 25px;
+	background: #fff;
+}
+.pass-utilities {
+	position: absolute;
+	right: 16px;
+	top: 10px;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.pass-sound-toggle {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--pass-muted);
+}
+.pass-sound-toggle svg {
+	width: 20px;
+	height: 20px;
+}
+.pass-scene {
+	display: grid;
+	place-items: center;
+	padding: 20px 0 calc(38px + var(--pass-tuning-space));
+	min-width: 0;
+	position: relative;
+}
+.pass-scene-content {
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	min-width: 0;
+}
+.pass-one-more {
+	font:
+		400 clamp(30px, 5vw, 42px)/1.2 Georgia,
+		serif;
+	text-align: center;
+	margin: 0;
+}
+.pass-letter {
+	text-align: center;
+	max-width: 425px;
+}
+.pass-letter h2 {
+	font:
+		400 28px/1.25 Georgia,
+		serif;
+	letter-spacing: -0.03em;
+	margin: 0 0 24px;
+}
+.pass-letter p {
+	font-size: 16px;
+	line-height: 1.65;
+	color: #d4ccc6;
+	white-space: pre-line;
+	margin: 0;
+}
+.pass-letter-signature {
+	display: block;
+	font:
+		italic 28px/1.4 Georgia,
+		serif;
+	margin-top: 26px;
+	color: #f1e9df;
+}
+.pass-controls {
+	position: relative;
+	width: min(380px, 100%);
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+.pass-navigation {
+	position: relative;
+	width: 100%;
+	height: var(--pass-nav-size);
+	min-height: var(--pass-nav-size);
+}
+.pass-navigation > .pass-primary {
+	position: absolute;
+	top: 0;
+	right: 0;
+	left: calc(var(--pass-nav-size) + 10px);
+	height: 100%;
+}
+.pass-navigation[data-has-back='false'] > .pass-primary {
+	left: 0;
+}
+.pass-navigation > .pass-back-button {
+	position: absolute;
+	inset: 0 auto 0 0;
+	z-index: 2;
+	height: 100%;
+	border-radius: 28px;
+	background: transparent;
+}
+.pass-nav-back-visual {
+	position: absolute;
+	inset: 0;
+	border-radius: 28px;
+	background: #67605a;
+	pointer-events: none;
+}
+.pass-nav-back-visual > span {
+	position: absolute;
+	left: calc((var(--pass-nav-size) - 32px) / 2);
+	top: calc((var(--pass-nav-size) - 32px) / 2);
+}
+.pass-card-stage,
+.pass-stage-card {
+	position: relative;
+	width: 100%;
+	min-width: 0;
+}
+.pass-card-stage .pass-carousel {
+	width: 100%;
+}
+.pass-celebration-particles {
+	--pass-burst-reach: min(34vw, 400px);
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	z-index: -1;
+	pointer-events: none;
+}
+.pass-celebration-particles > span {
+	position: absolute;
+	left: var(--pass-burst-x);
+	top: var(--pass-burst-y);
+	border-radius: 2px;
+	background: linear-gradient(90deg, transparent, currentColor);
+	transform-origin: 0 50%;
+}
+.pass-celebration-particles > span::after {
+	content: '';
+	position: absolute;
+	right: 0;
+	top: 50%;
+	width: 2px;
+	height: 2px;
+	border-radius: 50%;
+	background: currentColor;
+	box-shadow: 0 0 4px currentColor;
+	transform: translate(50%, -50%);
+}
+.pass-download button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 9px;
+	width: 100%;
+}
+.pass-download svg {
+	width: 19px;
+	height: 19px;
+}
+.pass-download p {
+	color: #ffbfa8;
+	font-size: 12px;
+	text-align: center;
+	margin: 8px 0 0;
+}
+.pass-primary {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 54px;
+	min-width: 0;
+	flex: 1;
+	border: 0;
+	border-radius: 30px;
+	padding: 12px 24px;
+	background: #fafaf9;
+	color: #37322e;
+	font:
+		500 15px/1.4 Arial,
+		sans-serif;
+	cursor: pointer;
+	transition:
+		transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+		background-color 150ms ease;
+}
+.pass-primary > span {
+	font-size: 26px;
+	line-height: 1;
+}
+.pass-arrow {
+	display: block;
+	width: 32px;
+	height: 32px;
+	flex: 0 0 32px;
+}
+.pass-primary:not(:disabled) .pass-next-arrow {
+	animation: pass-next-nudge 2.2s cubic-bezier(0.65, 0, 0.35, 1) 0.4s infinite;
+}
+@keyframes pass-next-nudge {
+	0%,
+	68%,
+	100% {
+		transform: translateX(0);
+	}
+	36% {
+		transform: translateX(5px);
+	}
+	52% {
+		transform: translateX(-1px);
+	}
+}
+.pass-primary:active {
+	transform: scale(0.98);
+}
+.pass-back-button {
+	display: grid;
+	place-items: center;
+	width: 54px;
+	height: 54px;
+	flex: 0 0 54px;
+	border: 0;
+	border-radius: 50%;
+	background: #67605a;
+	color: #f7f3ed;
+	padding: 0;
+}
+.pass-toolbar {
+	display: flex;
+	gap: 10px;
+}
+.pass-identity-controls {
+	height: 46px;
+	position: relative;
+}
+.pass-tuning {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: calc(100% + 14px);
+	pointer-events: none;
+}
+.pass-tuning-panel {
+	position: absolute;
+	bottom: 0;
+	width: 100%;
+	pointer-events: auto;
+}
+.pass-name-tool,
+.pass-signature-tool {
+	position: absolute;
+	top: 0;
+	height: 46px;
+	min-width: 0;
+	display: grid;
+	place-items: center;
+}
+.pass-name-tool {
+	left: 0;
+	width: calc(50% - 5px);
+}
+.pass-signature-tool {
+	z-index: 2;
+}
+.pass-signature-visual {
+	position: absolute;
+	inset: 0;
+	background: #67605a;
+	border-radius: 25px;
+	pointer-events: none;
+	z-index: 1;
+}
+.pass-signature-visual > span {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	display: grid;
+	place-items: center;
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+.pass-signature-eraser {
+	position: absolute;
+	top: calc(100% + 11px);
+	left: calc(50% - 22px);
+	width: 44px;
+	height: 44px;
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-radius: 12px;
+	background: transparent;
+	color: #e8dfd5;
+}
+.pass-signature-eraser svg {
+	width: 23px;
+	height: 23px;
+}
+.pass-tool {
+	border: 0;
+	border-radius: 25px;
+	background: #67605a;
+	color: #fbf7f0;
+	min-height: 46px;
+	padding: 10px 18px;
+	flex: 1;
+}
+.pass-text-button {
+	border: 0;
+	background: none;
+	color: #cdc4b9;
+	min-height: 44px;
+	padding: 10px 4px;
+	font-size: 12px !important;
+	cursor: pointer;
+}
+.pass-hint {
+	font-size: 12px;
+	line-height: 1.4;
+	color: #c8beb4;
+	margin: 0 0 12px;
+	text-align: center;
+}
+.pass-save-error {
+	color: #ffbfa8;
+	font-size: 13px;
+	line-height: 1.5;
+	text-align: center;
+}
+.pass-save-error button {
+	display: block;
+	margin: auto;
+}
+.pass-object {
+	width: var(--pass-card-w, 270px);
+	max-width: 100%;
+}
+
+/* The stationary outer box owns hover. Tilt and flip live on separate 3D layers. */
+.pass-card {
+	width: 100%;
+	aspect-ratio: 0.686;
+	position: relative;
+	border-radius: 17px;
+	perspective: 1100px;
+	container-type: inline-size;
+	user-select: none;
+	color: #fff;
+}
+.pass-card-tilt,
+.pass-card-flipper {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	transform-style: preserve-3d;
+}
+.pass-face {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	overflow: hidden;
+	backface-visibility: hidden;
+	-webkit-backface-visibility: hidden;
+	border: 1px solid #ffffff50;
+	box-shadow:
+		0 1px 2px #0004,
+		0 12px 20px -14px #000a,
+		0 35px 40px -27px #0006,
+		inset 0 0 0 1px #fff2;
+	background: #222a23;
+}
+.pass-front {
+	transform: translateZ(1px);
+}
+.pass-card[data-edit='true'] .pass-front {
+	overflow: visible;
+}
+.pass-visuals {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	overflow: hidden;
+	pointer-events: none;
+}
+.pass-card-back {
+	transform: rotateY(180deg) translateZ(1px);
+	background: #293630;
+	color: #ebe7d9;
+}
+.pass-card[data-reduced='true'] .pass-card-back {
+	transform: none;
+}
+.pass-card[data-reduced='true'][data-back='false'] .pass-card-back,
+.pass-card[data-reduced='true'][data-back='true'] .pass-front {
+	visibility: hidden;
+}
+.pass-art,
+.pass-art > img,
+.pass-shade {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+.pass-art > img {
+	object-fit: cover;
+	object-position: 51% center;
+}
+.pass-skin-slime .pass-art > img {
+	object-position: 48% center;
+}
+.pass-skin-halo .pass-art > img {
+	object-position: 49% center;
+}
+.pass-skin-deltarune .pass-art {
+	background: #030811;
+}
+.pass-skin-deltarune .pass-art > img {
+	object-position: center;
+}
+.pass-art-blur {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: 51% center;
+	filter: blur(9px);
+	transform: scale(1.06);
+	pointer-events: none;
+	mask-image: linear-gradient(
+		#000 0%,
+		#0009 13%,
+		transparent 32%,
+		transparent 63%,
+		#0009 82%,
+		#000
+	);
+}
+.pass-skin-slime .pass-art-blur {
+	object-position: 48% center;
+}
+.pass-skin-halo .pass-art-blur {
+	object-position: 49% center;
+}
+.pass-shade {
+	background: linear-gradient(
+		180deg,
+		#071008b3,
+		#07100828 26%,
+		transparent 40%,
+		transparent 54%,
+		#07130d70 75%,
+		#07130deb 100%
+	);
+	z-index: 3;
+}
+.pass-top {
+	position: absolute;
+	top: 6%;
+	left: 7.5%;
+	right: 7.5%;
+	display: flex;
+	justify-content: space-between;
+	font:
+		500 clamp(6px, 3cqw, 9px) / 1 ui-monospace,
+		monospace;
+	letter-spacing: 0.1em;
+	z-index: 4;
+	text-shadow: 0 1px 5px #0008;
+}
+.pass-card-caption {
+	position: absolute;
+	z-index: 4;
+	left: 7.5%;
+	right: 7.5%;
+	bottom: 7%;
+	pointer-events: none;
+}
+.pass-card-caption > strong {
+	display: block;
+	font:
+		600 clamp(12px, 12cqw, 37px) / 1.1 Arial,
+		sans-serif;
+	letter-spacing: -0.045em;
+	overflow-wrap: anywhere;
+	text-shadow: 0 1px 6px #0003;
+}
+.pass-card-caption > .pass-inline-name {
+	pointer-events: auto;
+	display: block;
+	width: 100%;
+	padding: 0 0 3px;
+	border: 0;
+	border-bottom: 1px solid #fff9;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	caret-color: white;
+	font:
+		600 clamp(16px, 12cqw, 37px) / 1.1 Arial,
+		sans-serif;
+	letter-spacing: -0.045em;
+	outline: none;
+}
+.pass-card-caption > .pass-inline-name:focus-visible {
+	outline: none;
+	border-bottom-color: #fff;
+}
+.pass-skin-xp .pass-art {
+	background: #101315;
+}
+.pass-skin-xp .pass-art > img {
+	object-fit: contain;
+	object-position: 50% 42%;
+}
+.pass-skin-xp .pass-shade {
+	background: linear-gradient(
+		180deg,
+		#10131566,
+		transparent 28%,
+		transparent 50%,
+		#10131525 65%,
+		#101315e0
+	);
+}
+.pass-hologram {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+	mix-blend-mode: color-dodge;
+	opacity: 0.78;
+	mask-mode: luminance;
+	mask-size: cover;
+	mask-repeat: no-repeat;
+	mask-position: 51% center;
+}
+.pass-skin-slime .pass-hologram {
+	mask-position: 48% center;
+}
+.pass-skin-xp .pass-hologram {
+	mask-size: contain;
+	mask-position: 50% 42%;
+	mix-blend-mode: normal;
+}
+.pass-skin-halo .pass-hologram {
+	mask-position: 49% center;
+}
+.pass-skin-deltarune .pass-hologram {
+	mask-position: center;
+}
+/* The infinity control edits the print. Hover only moves the light above it. */
+.pass-foil-print,
+.pass-foil-reflection,
+.pass-foil-glare {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+.pass-foil-glare {
+	opacity: 0.55;
+}
+.pass-foil-print {
+	inset: -100%;
+}
+.pass-foil-reflection {
+	overflow: hidden;
+}
+.pass-pattern-grid {
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath fill='white' d='M2 2h20v20H2Zm24 24h20v20H26Z'/%3E%3Cpath fill='white' opacity='.36' d='M26 2h20v20H26ZM2 26h20v20H2Z'/%3E%3C/svg%3E");
+	mask-size: 48px 48px;
+}
+.pass-pattern-triangles {
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78' height='82' viewBox='0 0 78 82'%3E%3Cpath fill='white' d='M2 2 35 9 12 33Zm40 2 33 6-18 26ZM19 39l29-25-1 30Zm32 28 18-26 14 28Z'/%3E%3Cpath fill='white' opacity='.38' d='M51 44 75 37 70 71ZM2 48l34 5-23 25Z'/%3E%3C/svg%3E");
+	mask-size: 54px 57px;
+}
+.pass-pattern-rings {
+	mask-image: repeating-radial-gradient(
+		circle,
+		transparent 0 4px,
+		#000 4px 5.5px,
+		transparent 5.5px 9px
+	);
+	mask-size: 42px 42px;
+}
+.pass-pattern-flow {
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='80'%3E%3Cpath d='M-20 8C12-8 30 30 64 12s34 20 64 2M-20 25C12 9 30 47 64 29s34 20 64 2M-20 42C12 26 30 64 46s34 20 64 2M-20 59C12 43 30 81 64 63s34 20 64 2M-20 76C12 60 30 98 64 80s34 20 64 2' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E");
+	mask-size: 64px 80px;
+}
+.pass-pattern-stars {
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='94' height='116'%3E%3Cpath fill='white' d='m17 8 3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1Zm52 49 4 9 10 1-7 7 2 10-9-5-9 5 2-10-7-7 10-1ZM35 86l1.5 4.5L41 92l-4.5 1.5L35 98l-1.5-4.5L29 92l4.5-1.5ZM73 24l1.5 4.5L79 30l-4.5 1.5L73 36l-1.5-4.5L67 30l4.5-1.5Z'/%3E%3Cg fill='white' opacity='.55'%3E%3Ccircle cx='44' cy='20' r='1.2'/%3E%3Ccircle cx='57' cy='43' r='1'/%3E%3Ccircle cx='17' cy='63' r='1.4'/%3E%3Ccircle cx='85' cy='105' r='1.2'/%3E%3Ccircle cx='49' cy='107' r='.8'/%3E%3Ccircle cx='32' cy='48' r='.7'/%3E%3C/g%3E%3C/svg%3E");
+	mask-size: 70px 86px;
+}
+.pass-back-texture {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(ellipse at 15% 0, #97a08333, transparent 70%),
+		repeating-linear-gradient(115deg, #ffffff03 0 1px, transparent 1px 4px);
+}
+.pass-back-name {
+	position: absolute;
+	top: 22%;
+	left: 8%;
+	right: 8%;
+	font:
+		500 8cqw/1.2 Arial,
+		sans-serif;
+	letter-spacing: -0.03em;
+	overflow-wrap: anywhere;
+}
+.pass-signing-area {
+	position: absolute;
+	left: 7%;
+	right: 7%;
+	top: 43%;
+}
+.pass-signature-pad,
+.pass-saved-signature {
+	width: 100%;
+	height: auto;
+	aspect-ratio: 600 / 340;
+	display: block;
+	overflow: hidden;
+	stroke: currentColor;
+	stroke-width: 5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	fill: none;
+}
+.pass-signature-pad {
+	touch-action: none;
+	cursor: crosshair;
+	background: #ffffff04;
+	border-radius: 6px;
+}
+.pass-typed-signature {
+	font:
+		italic 68px Georgia,
+		serif;
+	fill: currentColor;
+	stroke: none;
+}
+.pass-signing-line {
+	display: block;
+	border-top: 1px solid #eeedd755;
+	margin-top: 12px;
+}
+.pass-signing-label {
+	display: block;
+	font:
+		7px ui-monospace,
+		monospace;
+	letter-spacing: 0.14em;
+	opacity: 0.6;
+	margin-top: 10px;
+}
+
+/* Large cards share a single continuous position, including while dragging. */
+.pass-card-actions { position: absolute; inset: 0; transform: translateZ(4px); pointer-events: none; }
+.pass-carousel {
+	position: relative;
+	width: 100vw;
+	height: calc(var(--pass-card-w) / 0.686 + 58px);
+	touch-action: pan-y;
+	user-select: none;
+}
+.pass-carousel-probe {
+	width: var(--pass-card-w);
+	height: 1px;
+	visibility: hidden;
+}
+.pass-carousel-card {
+	position: absolute;
+	left: 50%;
+	top: 10px;
+	width: var(--pass-card-w);
+	margin-left: calc(var(--pass-card-w) * -0.5);
+	border: 0;
+	border-radius: 17px;
+	background: transparent;
+	padding: 0;
+	text-align: left;
+}
+.pass-carousel[data-design='true'] .pass-carousel-card {
+	cursor: grab;
+}
+.pass-carousel[data-design='true'] .pass-carousel-card:active {
+	cursor: grabbing !important;
+}
+.pass-carousel-card:focus-visible {
+	outline: 2px solid #eef9bf;
+	outline-offset: 5px;
+}
+.pass-carousel-caption {
+	position: absolute;
+	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	text-align: center;
+	color: #d4c9c0;
+	font-size: 11px;
+	white-space: nowrap;
+}
+.pass-holo-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+}
+.pass-holo-styles {
+	display: flex;
+	justify-content: center;
+	gap: 3px;
+	position: relative;
+	isolation: isolate;
+}
+.pass-area-selection {
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: calc((100% - 9px) / 4);
+	border-radius: 22px;
+	background: #68615a;
+	pointer-events: none;
+}
+.pass-holo-styles button {
+	flex: 1;
+	min-height: 36px;
+	padding: 7px 11px;
+	border-radius: 22px;
+	border: 0;
+	background: transparent;
+	color: #c7beb5;
+	font-size: 11px;
+	position: relative;
+	transition: color 140ms ease-out;
+}
+.pass-holo-styles button::before {
+	content: '';
+	position: absolute;
+	inset: -4px 0;
+}
+.pass-holo-styles button[aria-pressed='true'] {
+	color: #fff;
+}
+.pass-orbit {
+	width: 100%;
+	height: var(--pass-orbit-height);
+	display: block;
+	color: #68615a;
+	touch-action: none;
+	cursor: grab;
+	overflow: visible;
+}
+.pass-orbit:active {
+	cursor: grabbing;
+}
+.pass-orbit circle {
+	filter: drop-shadow(0 1px 1px #0003);
+}
+.pass-holo-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.pass-pattern-picker {
+	display: flex;
+	flex-shrink: 0;
+	padding: 3px;
+	border-radius: 28px;
+	background: #69615a;
+	position: relative;
+	isolation: isolate;
+}
+.pass-pattern-selection {
+	position: absolute;
+	left: 3px;
+	top: 3px;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	background: #fff;
+	pointer-events: none;
+}
+.pass-pattern-picker button {
+	width: 40px;
+	height: 40px;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: #bbb1a8;
+	padding: 10px;
+	position: relative;
+	transition: color 140ms ease-out;
+}
+.pass-pattern-picker button::before {
+	content: '';
+	position: absolute;
+	inset: -2px;
+	border-radius: 50%;
+}
+.pass-pattern-picker button[aria-pressed='true'] {
+	color: #504a45;
+}
+.pass-pattern-picker svg {
+	display: block;
+	width: 20px;
+	height: 20px;
+}
+.pass-light-color {
+	--pass-rainbow: conic-gradient(
+		#ef8f86,
+		#f3df82,
+		#9adea7,
+		#7ddbe5,
+		#a59bed,
+		#eea2cf,
+		#ef8f86
+	);
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	height: 46px;
+	border-radius: 25px;
+	background: linear-gradient(
+		90deg,
+		#e88277 0%,
+		#e7d479 17%,
+		#9ddc8c 33%,
+		#88d9df 50%,
+		#9b9de9 67%,
+		#dda0e0 83%,
+		#e88277 100%
+	);
+}
+.pass-light-color::after {
+	content: '';
+	position: absolute;
+	right: 5px;
+	top: 5px;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var(--pass-rainbow);
+	box-shadow: 0 0 0 1px #ffffff40;
+	pointer-events: none;
+}
+.pass-light-color input {
+	position: relative;
+	z-index: 1;
+	appearance: none;
+	-webkit-appearance: none;
+	display: block;
+	width: 100%;
+	height: 46px;
+	background: transparent;
+	margin: 0;
+	padding: 0 5px;
+	cursor: ew-resize;
+	touch-action: none;
+}
+.pass-light-color input::-webkit-slider-runnable-track {
+	height: 36px;
+	background: transparent;
+}
+.pass-light-color input::-webkit-slider-thumb {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 36px;
+	height: 36px;
+	border: 4px solid #fff;
+	background: currentColor;
+	border-radius: 50%;
+}
+.pass-light-color input::-moz-range-thumb {
+	width: 28px;
+	height: 28px;
+	border: 4px solid #fff;
+	background: currentColor;
+	border-radius: 50%;
+}
+.pass-light-color[data-rainbow='true'] input::-webkit-slider-thumb {
+	background: var(--pass-rainbow);
+}
+.pass-light-color[data-rainbow='true'] input::-moz-range-thumb {
+	background: var(--pass-rainbow);
+}
+
+/* Crimped, metallized pack. The only opening target is its upper right corner. */
+.pass-envelope-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 29px;
+	padding-top: 45px;
+}
+.pass-envelope-space {
+	position: relative;
+	width: var(--pass-card-w);
+	height: calc(var(--pass-card-w) * 1.48);
+	perspective: 1100px;
+}
+.pass-envelope {
+	position: absolute;
+	inset: 0;
+	transform-style: preserve-3d;
+}
+.pass-envelope-pocket {
+	position: absolute;
+	z-index: 2;
+	inset: 25px 0 0;
+	overflow: hidden;
+	border-radius: 1px 1px 3px 3px;
+	background: linear-gradient(
+		118deg,
+		#bdbccc,
+		#95cfc2 15%,
+		#fae4be 32%,
+		#d4b5e2 52%,
+		#b4dcd2 80%,
+		#9babc0
+	);
+	border: 1px solid #e1ded3;
+	box-shadow:
+		0 25px 30px -16px #0008,
+		inset 7px 0 9px #fff7,
+		inset -5px 0 7px #1811337a;
+}
+.pass-envelope-pocket::before {
+	content: '';
+	position: absolute;
+	z-index: 4;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		#fff6,
+		transparent 5%,
+		transparent 92%,
+		#0005
+	);
+	pointer-events: none;
+}
+.pass-envelope-pocket::after {
+	content: '';
+	position: absolute;
+	z-index: 4;
+	bottom: 0;
+	height: 20px;
+	left: 0;
+	right: 0;
+	background:
+		repeating-linear-gradient(90deg, #fff6 0 1px, #80859b55 1px 3px),
+		linear-gradient(110deg, #c1c2d2, #eee6dc, #abc5b4);
+}
+.pass-pack-art {
+	position: absolute;
+	inset: 15px 10px 24px;
+	width: calc(100% - 20px);
+	height: calc(100% - 39px);
+	object-fit: cover;
+	filter: brightness(0.9) saturate(0.9) contrast(1.05);
+}
+.pass-envelope-wrap[data-skin='xp'] .pass-pack-art {
+	object-fit: contain;
+	background: #101315;
+}
+.pass-pack-hologram {
+	position: absolute;
+	inset: 0;
+	opacity: 0.42;
+	mix-blend-mode: color-dodge;
+	background:
+		repeating-conic-gradient(from 45deg, #dad6df66 0% 25%, transparent 0% 50%) 0
+			0 / 30px 30px,
+		linear-gradient(125deg, #eaa4d555, #bafcfa66, #ecdd9755, #c6a5fe66);
+}
+.pass-envelope-shine {
+	position: absolute;
+	inset: -50%;
+	z-index: 3;
+	pointer-events: none;
+	opacity: 0.55;
+	background: linear-gradient(
+		110deg,
+		transparent 28%,
+		#fff0 38%,
+		#fff9 46%,
+		#fff1 56%,
+		transparent 65%
+	);
+	mix-blend-mode: soft-light;
+}
+.pass-pack-seal,
+.pass-pack-loose {
+	position: absolute;
+	z-index: 4;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 29px;
+	background:
+		repeating-linear-gradient(90deg, #fff6 0 1px, #80859b55 1px 3px),
+		linear-gradient(110deg, #b6c7b6, #ede0de, #bdc1dd);
+	border-top: 1px solid #fff8;
+	border-bottom: 1px dashed #747a84;
+	border-radius: 2px 2px 0 0;
+	pointer-events: none;
+}
+.pass-pack-loose {
+	z-index: 5;
+	transform-origin: 90% 50%;
+	box-shadow: 0 3px 3px #0002;
+}
+.pass-pack-tab {
+	position: absolute;
+	z-index: 6;
+	right: -27px;
+	top: -27px;
+	width: 78px;
+	height: 78px;
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-radius: 10px;
+	background: transparent;
+	color: #fffaf2;
+	padding: 10px;
+	touch-action: none;
+	cursor: grab !important;
+}
+.pass-pack-tab:active {
+	cursor: grabbing !important;
+}
+.pass-pack-grip {
+	display: block;
+	filter: drop-shadow(0 1px 2px #252226b0);
+	transition: transform 170ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pass-pack-tab .pass-arrow {
+	width: 54px;
+	height: 54px;
+}
+.pass-pack-tab:not([data-pulling='true']) .pass-pack-arrow {
+	animation: pass-pack-nudge 2.3s cubic-bezier(0.65, 0, 0.35, 1) 0.5s infinite;
+}
+@keyframes pass-pack-nudge {
+	0%,
+	65%,
+	100% {
+		transform: translateX(0);
+	}
+	30% {
+		transform: translateX(-7px);
+	}
+	46% {
+		transform: translateX(1px);
+	}
+}
+.pass-pack-shell {
+	position: absolute;
+	inset: 0;
+}
+.pass-pack-confetti {
+	position: absolute;
+	left: calc(50% - 6px);
+	top: 18px;
+	width: 12px;
+	height: 12px;
+	z-index: 7;
+	pointer-events: none;
+}
+.pass-pack-mouth {
+	position: absolute;
+	z-index: 1;
+	top: 21px;
+	left: 4px;
+	right: 4px;
+	height: 10px;
+	background: #171521;
+	border: 1px solid #bcb8c4;
+	border-radius: 50%;
+}
+.pass-emerging-sticker {
+	position: absolute;
+	z-index: 1;
+	top: 44px;
+	left: calc(50% - 37px);
+	width: 74px;
+	height: 74px;
+}
+
+/* Sticker transforms track the pointer without re-rendering the card. */
+.pass-sticker-editor {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 24px;
+	width: 100%;
+}
+.pass-sticker-editor[data-active='false'] {
+	gap: 0;
+}
+.pass-sticker-inventory {
+	--sticker-size: 54px;
+	padding: 20px 24px;
+	border: 1px solid #fafaf9;
+	border-radius: 44px 49px 42px 47px / 35px 40px 34px 38px;
+	background: #fafaf9;
+	color: #655e57;
+	box-shadow:
+		0 5px 0 #e5e4e0,
+		0 12px 24px #211c2420;
+}
+.pass-sticker-palette {
+	display: grid;
+	grid-template-columns: repeat(8, var(--sticker-size));
+	justify-content: center;
+	gap: 5px;
+}
+.pass-sticker-palette button {
+	position: relative;
+	width: var(--sticker-size);
+	height: var(--sticker-size);
+	border: 0;
+	border-radius: 50%;
+	background: #ecebe7;
+	padding: 5px;
+	touch-action: none;
+	cursor: grab !important;
+}
+.pass-sticker-palette button:active {
+	cursor: grabbing !important;
+}
+.pass-sticker-palette button:disabled {
+	cursor: default !important;
+}
+.pass-inventory-quantity {
+	position: absolute;
+	bottom: 0;
+	right: 1px;
+	min-width: 15px;
+	padding: 2px;
+	font-size: 11px;
+	line-height: 1;
+	font-weight: 600;
+	color: #554d46;
+	background: #fafaf9;
+	border-radius: 6px;
+	pointer-events: none;
+}
+.pass-inventory-empty {
+	width: var(--sticker-size);
+	height: var(--sticker-size);
+	position: relative;
+}
+.pass-inventory-empty::after {
+	content: '';
+	position: absolute;
+	inset: 12px;
+	background: #e6e5e1;
+	border-radius: 50%;
+}
+.pass-sticker-art {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	filter: drop-shadow(0 2px 1px #0003);
+	pointer-events: none;
+	transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pass-sticker {
+	position: absolute;
+	z-index: 6;
+	aspect-ratio: 1;
+	background: none;
+	border: 0;
+	padding: 0;
+	touch-action: none;
+}
+.pass-sticker > span {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.pass-sticker-drag {
+	display: block;
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: grab !important;
+	touch-action: none;
+}
+.pass-sticker-drag:active {
+	cursor: grabbing !important;
+}
+.pass-sticker[data-outside='true'] {
+	opacity: 0.55;
+}
+.pass-sticker-frame {
+	position: absolute;
+	inset: -4px;
+	border: 1px solid #fff;
+	box-shadow: 0 0 0 1px #342f3270;
+	pointer-events: none;
+}
+.pass-sticker-frame button {
+	pointer-events: auto;
+	border: 0;
+	padding: 0;
+	position: absolute;
+	width: 44px;
+	height: 44px;
+	background: transparent;
+	touch-action: none;
+}
+.pass-sticker-corner::after {
+	content: '';
+	position: absolute;
+	width: 7px;
+	height: 7px;
+	border: 1px solid #4f4a48;
+	background: #fff;
+	border-radius: 2px;
+}
+.pass-sticker-corner.corner-0 {
+	left: -36px;
+	top: -36px;
+	cursor: nwse-resize;
+}
+.pass-sticker-corner.corner-0::after {
+	right: 4px;
+	bottom: 4px;
+}
+.pass-sticker-corner.corner-1 {
+	right: -36px;
+	top: -36px;
+	cursor: nesw-resize;
+}
+.pass-sticker-corner.corner-1::after {
+	left: 4px;
+	bottom: 4px;
+}
+.pass-sticker-corner.corner-2 {
+	left: -36px;
+	bottom: -36px;
+	cursor: nesw-resize;
+}
+.pass-sticker-corner.corner-2::after {
+	right: 4px;
+	top: 4px;
+}
+.pass-sticker-corner.corner-3 {
+	right: -36px;
+	bottom: -36px;
+	cursor: nwse-resize;
+}
+.pass-sticker-corner.corner-3::after {
+	left: 4px;
+	top: 4px;
+}
+.pass-sticker-frame .pass-sticker-rotate {
+	left: calc(50% - 22px);
+	top: -60px;
+	color: #fff;
+	cursor: grab;
+}
+.pass-sticker-rotate::after {
+	content: '';
+	position: absolute;
+	left: 21px;
+	top: 33px;
+	width: 1px;
+	height: 26px;
+	background: #fff8;
+	pointer-events: none;
+}
+.pass-sticker-rotate svg {
+	display: block;
+	width: 24px;
+	height: 24px;
+	margin: 10px;
+	filter: drop-shadow(0 1px 2px #0008);
+}
+.pass-sticker-ghost {
+	position: fixed;
+	z-index: 9999;
+	top: -28px;
+	left: -28px;
+	width: 56px;
+	height: 56px;
+	pointer-events: none;
+}
+.pass-sticker-drag-preview { position: fixed; top: 0; left: 0; z-index: 9999; aspect-ratio: 1; pointer-events: none; }
+.pass-sticker-drag-preview > div { width: 100%; height: 100%; }
+.pass-poof {
+	position: fixed;
+	z-index: 9999;
+	width: 130px;
+	height: 130px;
+	margin: -65px 0 0 -65px;
+	pointer-events: none;
+}
+.pass-poof svg {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* Back opening, clipping boundary and front edge meet at the same slot Y. */
+.pass-reader-scene {
+	--slot-y: calc(var(--pass-card-w) / 0.686 + 106px);
+	position: relative;
+	width: 100%;
+	height: calc(var(--slot-y) + 30px);
+}
+.pass-reader-scene[data-active='false'] {
+	height: auto;
+}
+.pass-reader-scene[data-active='false'] .pass-reader-window {
+	position: relative;
+	height: auto;
+	clip-path: none;
+}
+.pass-reader-scene[data-active='false']
+	:is(.pass-reader-slot, .pass-reader-lip) {
+	pointer-events: none;
+}
+.pass-carousel:is(
+	[data-mode='stickers'],
+	[data-mode='celebration'],
+	[data-mode='reader']
+) {
+	height: calc(var(--pass-card-w) / 0.686);
+}
+.pass-carousel:is(
+		[data-mode='stickers'],
+		[data-mode='celebration'],
+		[data-mode='reader']
+	)
+	.pass-carousel-card {
+	top: 0;
+}
+.pass-reader-window {
+	position: absolute;
+	inset: 0 0 auto;
+	height: var(--slot-y);
+	clip-path: inset(-80px -80px 0 -80px);
+	z-index: 2;
+}
+.pass-reader-card {
+	position: relative;
+	width: var(--pass-card-w);
+	margin: auto;
+	touch-action: none;
+	cursor: grab;
+}
+.pass-reader-card:active {
+	cursor: grabbing;
+}
+.pass-reader-card > [role='button']:focus-visible {
+	outline: 2px solid #eef9bf;
+	outline-offset: 6px;
+	border-radius: 17px;
+}
+.pass-reader-scene[data-busy='true'] .pass-reader-card {
+	cursor: default;
+}
+.pass-reader-slot {
+	position: absolute;
+	left: 50%;
+	top: calc(var(--slot-y) - 16px);
+	height: 18px;
+	width: min(calc(var(--pass-card-w) + 68px), calc(100vw - 40px));
+	transform: translateX(-50%);
+	z-index: 1;
+	overflow: visible;
+}
+.pass-reader-chevron {
+	position: absolute;
+	width: 28px;
+	height: 28px;
+	top: calc(var(--slot-y) - 71px);
+	left: calc(50% - 14px);
+	color: #bdb4ac;
+	animation: pass-reader-nudge 2s cubic-bezier(0.65, 0, 0.35, 1) 0.7s infinite;
+}
+.pass-reader-scene:is([data-holding='true'], [data-busy='true'])
+	.pass-reader-chevron {
+	animation: none;
+	opacity: 0;
+}
+@keyframes pass-reader-nudge {
+	0%,
+	68%,
+	100% {
+		transform: translateY(0);
+	}
+	34% {
+		transform: translateY(6px);
+	}
+	50% {
+		transform: translateY(-1px);
+	}
+}
+.pass-reader-lip {
+	position: absolute;
+	left: 50%;
+	width: min(calc(var(--pass-card-w) + 60px), calc(100vw - 48px));
+	transform: translateX(-50%);
+	top: calc(var(--slot-y) - 1px);
+	height: 2px;
+	border-radius: 50%;
+	background: #d0ccc6;
+	z-index: 3;
+	pointer-events: none;
+}
+.pass-sr-only {
+	position: absolute !important;
+	clip: rect(0, 0, 0, 0);
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	white-space: nowrap;
+}
+.pass-review-bar {
+	position: absolute;
+	top: 12px;
+	left: 16px;
+	z-index: 20;
+	font:
+		11px/1.4 Arial,
+		sans-serif;
+	color: #d5cbc0;
+}
+.pass-review-bar summary {
+	cursor: pointer;
+	min-height: 44px;
+	padding: 13px 6px;
+	opacity: 0.7;
+}
+.pass-review-bar > div {
+	position: absolute;
+	top: 45px;
+	left: 0;
+	width: 246px;
+	display: grid;
+	gap: 9px;
+	padding: 16px;
+	border: 1px solid #766a5e;
+	border-radius: 12px;
+	background: #494039;
+	box-shadow: 0 15px 35px #0003;
+}
+.pass-review-bar select,
+.pass-review-bar button {
+	padding: 8px 10px;
+	min-height: 44px;
+	border: 1px solid #847766;
+	border-radius: 6px;
+	background: #5a5046;
+	color: #f6efdf;
+	cursor: pointer;
+}
+.pass-review-bar p {
+	margin: 0;
+	color: #c8baaa;
+	font-size: 11px;
+}
+.pass-demo-complete {
+	padding: 65px 24px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 28px;
+	text-align: center;
+}
+.pass-demo-complete h1 {
+	font:
+		400 32px/1.2 Georgia,
+		serif;
+	margin: 0;
+}
+.pass-demo-complete p {
+	max-width: 340px;
+	font-size: 14px;
+	line-height: 1.6;
+	color: #cfc4b6;
+}
+.pass-demo-complete .pass-primary {
+	flex: none;
+	width: 300px;
+	max-width: 100%;
+}
+.pass-saved-mini {
+	width: 80px;
+	flex-shrink: 0;
+}
+.pass-saved-mini .pass-card {
+	border-radius: 7px;
+}
+.pass-saved-mini .pass-top {
+	display: none;
+}
+.pass-profile-banner {
+	display: flex;
+	align-items: center;
+	gap: 22px;
+	padding: 20px;
+	border: 1px solid #d9dfd2;
+	border-radius: 12px;
+	margin: 24px 0;
+	background: #f5f7f0;
+}
+.pass-profile-banner p {
+	margin: 4px 0 12px;
+	font-size: 14px;
+	color: #69795a;
+}
+@media (hover: hover) and (pointer: fine) {
+	.pass-signature-tool:hover + .pass-signature-visual {
+		background: #756b61;
+	}
+	.pass-primary:hover {
+		background: #e8e4da;
+	}
+	.pass-tool:hover {
+		background: #756b61;
+	}
+	.pass-navigation:has(.pass-back-button:hover) .pass-nav-back-visual {
+		background: #756b61;
+	}
+	.pass-text-button:hover {
+		color: #fff;
+	}
+	.pass-sticker-palette button:not(:disabled):hover {
+		background: #93c7b4;
+	}
+	.pass-sticker-palette button:not(:disabled):hover .pass-sticker-art {
+		transform: scale(1.06) rotate(-3deg);
+	}
+	.pass-sticker-palette button:not(:disabled):active .pass-sticker-art {
+		transform: scale(0.96);
+	}
+	.pass-sticker:not(.is-selected) .pass-sticker-drag:hover .pass-sticker-art {
+		transform: scale(1.06);
+	}
+	.pass-pack-tab:hover .pass-pack-grip {
+		transform: scale(1.18);
+	}
+	.pass-signature-eraser:hover {
+		background: #ffffff12;
+	}
+}
+@media (max-width: 600px) {
+	.pass-experience {
+		--pass-card-w: clamp(200px, 28dvh, 250px);
+		--pass-orbit-height: 105px;
+		--pass-nav-size: 50px;
+		grid-template-rows: 60px minmax(310px, 1fr) auto;
+		padding: 0 20px 22px;
+	}
+	.pass-scene {
+		padding: 18px 0 calc(28px + var(--pass-tuning-space));
+	}
+	.pass-letter {
+		max-width: 335px;
+	}
+	.pass-letter h2 {
+		font-size: 25px;
+	}
+	.pass-letter p {
+		font-size: 15px;
+		line-height: 1.65;
+	}
+	.pass-controls {
+		max-width: 350px;
+		gap: 12px;
+	}
+	.pass-primary,
+	.pass-back-button {
+		min-height: 50px;
+		height: 50px;
+	}
+	.pass-navigation {
+		min-height: 50px;
+	}
+	.pass-sticker-inventory {
+		--sticker-size: 44px;
+		padding: 18px 16px;
+		border-radius: 35px 39px 33px 38px;
+	}
+	.pass-sticker-palette {
+		grid-template-columns: repeat(6, var(--sticker-size));
+		gap: 5px;
+	}
+	.pass-sticker-editor {
+		gap: 20px;
+	}
+	.pass-inventory-empty::after {
+		inset: 10px;
+	}
+	.pass-back-button {
+		width: 50px;
+		flex-basis: 50px;
+	}
+	.pass-review-bar {
+		left: 9px;
+		top: 6px;
+	}
+	.pass-experience[data-step='2'] {
+		--pass-card-w: clamp(190px, 25dvh, 235px);
+	}
+	.pass-pattern-picker button {
+		width: 40px;
+		padding: 8px;
+	}
+}
+@media (min-width: 601px) and (max-height: 850px) {
+	.pass-experience {
+		--pass-orbit-height: 90px;
+		grid-template-rows: 60px minmax(280px, 1fr) auto;
+		padding-bottom: 22px;
+	}
+	.pass-scene {
+		padding: 12px 0 calc(16px + var(--pass-tuning-space));
+	}
+	.pass-carousel {
+		height: calc(var(--pass-card-w) / 0.686 + 38px);
+	}
+}
+@media (max-height: 680px) {
+	.pass-experience {
+		--pass-card-w: 200px;
+		grid-template-rows: 50px minmax(310px, 1fr) auto;
+		padding-bottom: 20px;
+	}
+	.pass-scene {
+		padding: 10px 0 calc(20px + var(--pass-tuning-space));
+	}
+	.pass-sticker-inventory {
+		--sticker-size: 44px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.pass-area-selection,
+	.pass-pattern-selection {
+		display: none;
+	}
+	.pass-holo-styles button,
+	.pass-pattern-picker button {
+		transition:
+			color 140ms ease-out,
+			background-color 140ms ease-out;
+	}
+	.pass-holo-styles button[aria-pressed='true'] {
+		background-color: #68615a;
+	}
+	.pass-pattern-picker button[aria-pressed='true'] {
+		background-color: #fff;
+	}
+	.pass-experience * {
+		scroll-behavior: auto;
+	}
+	.pass-primary:active {
+		transform: none;
+	}
+	.pass-primary {
+		transition: background-color 150ms ease;
+	}
+	.pass-primary:not(:disabled) .pass-next-arrow,
+	.pass-pack-tab:not([data-pulling='true']) .pass-pack-arrow,
+	.pass-reader-chevron {
+		animation: none;
+	}
+	.pass-pack-grip,
+	.pass-sticker-art {
+		transition: none;
+	}
+	.pass-pack-tab:hover .pass-pack-grip,
+	.pass-sticker-palette button:not(:disabled):hover .pass-sticker-art,
+	.pass-sticker-palette button:not(:disabled):active .pass-sticker-art,
+	.pass-sticker:not(.is-selected) .pass-sticker-drag:hover .pass-sticker-art {
+		transform: none;
+	}
+}

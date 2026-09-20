@@ -1,10 +1,12 @@
 # XP Canvas
 
-Canvas infinito colaborativo para dibujar desde un iPad con Apple Pencil. Usa tldraw 5.4.0, un Cloudflare Worker, Durable Objects con SQLite y R2 para los archivos y la biblioteca de recursos.
+Canvas infinito colaborativo para dibujar desde un iPad con Apple Pencil. Este README explica su uso y desarrollo local. El diseño técnico está en [ARCHITECTURE.md](../../ARCHITECTURE.md) y el mapa del código en [AGENTS.md](../../AGENTS.md).
 
 La primera pantalla es un administrador de canvases con carpetas anidadas, favoritos y miniaturas. Cada canvas tiene su propio documento persistente y una URL `/board/<id>`. El canvas original permanece en `/board/principal`, con sus objetos y archivos intactos.
 
-Por ahora no se pide contraseña. Cualquier persona que pueda acceder al servidor puede administrar canvases, dibujar y modificar recursos. Compartir un enlace también da acceso de edición. La papelera es reversible y no borra los documentos.
+El modo local habitual no pide contraseña. Cualquier persona que pueda acceder a ese servidor puede administrar canvases, dibujar y modificar recursos. La papelera es reversible y no borra los documentos.
+
+Para las cuentas de alumnos, el entorno QA y la publicación, consulta [PORTAL.md](PORTAL.md).
 
 ## Desarrollo local
 
@@ -21,9 +23,7 @@ Abre `http://localhost:5174`. Entras directamente al administrador.
 
 En macOS se usan los mismos comandos, desde esta rama. Instala las dependencias allí con `npm ci`, no copies `node_modules` desde Linux. Wrangler requiere macOS 13.5 o posterior y admite Apple Silicon. Para acceder desde el iPad, usa la IP LAN o Tailscale de la Mac con el puerto 5174; el firewall debe permitirlo y la Mac debe permanecer despierta.
 
-Cada servidor local tiene sus propios datos en `apps/xp-canvas/.wrangler/state`, que Git no incluye. Clonar la rama en la Mac crea una instancia nueva, no copia los canvases ni los archivos de Linux. Para trabajar con los mismos datos sin migrarlos, abre la dirección del servidor Linux desde la Mac. No ejecutes dos servidores sobre una carpeta de estado compartida.
-
-El canvas se ejecuta localmente. Subir esta rama a GitHub no publica el servicio ni sus datos. El `vercel.json` de la raíz desactiva los despliegues automáticos de `codex/tldraw-canvas`, sin cambiar los de `main`.
+Antes de copiar o compartir una instancia, consulta [Entornos y validación](../../ARCHITECTURE.md#entornos-y-validación). Para trabajar con los datos de otro equipo sin migrarlos, abre la dirección de su servidor.
 
 Para probar desde un iPad en la misma red, abre la dirección LAN que imprime Vite. Safari permite dibujar con Pencil sobre HTTP en desarrollo, pero algunas funciones del navegador, como copiar al portapapeles, pueden exigir HTTPS.
 
@@ -31,20 +31,9 @@ En iPads compatibles, Safari también muestra un aro en la posición de hover de
 
 ## Acceso
 
-`EDITOR_AUTH_REQUIRED = "false"` en `wrangler.toml` habilita la edición abierta, sin cookies ni caducidad de sesión. Se mantienen las comprobaciones de origen de las escrituras y los WebSockets. Esto no reemplaza un control de acceso: cualquiera que alcance el servidor puede editar. No lo publiques en Internet si no quieres ese acceso.
+El modo local permite edición abierta; no lo expongas a Internet. Para exigir contraseña, cambia `EDITOR_AUTH_REQUIRED` a `"true"` en `wrangler.toml` y prepara `.dev.vars` según [.dev.vars.example](.dev.vars.example), conservando sus valores existentes.
 
-Para volver a pedir contraseña, cambia esa variable a `"true"` y configura `EDITOR_CODE` y `EDITOR_SESSION_SECRET`. En desarrollo puedes definirlos en `.dev.vars`, usando `.dev.vars.example` como referencia. Git ignora ese archivo. La ausencia de `EDITOR_AUTH_REQUIRED` también exige contraseña.
-
-Con contraseña activa, el código se envía una vez al Worker. Si es correcto, el servidor crea una cookie firmada, `HttpOnly` y `SameSite=Strict`, válida por 12 horas. El código y la cookie no se guardan en `localStorage` ni forman parte de la URL.
-
-En ese modo, el Worker decide el permiso de cada WebSocket. Un cliente modificado no puede convertir una sesión de espectador en editor. Las sesiones de espectador reciben presencia y cambios del documento, pero tldraw sync descarta sus intentos de escritura.
-
-Las variables de `.dev.vars` tienen esta forma:
-
-```dotenv
-EDITOR_CODE="un-codigo-privado"
-EDITOR_SESSION_SECRET="otro-secreto-largo-y-distinto"
-```
+La diferencia entre este acceso y las cuentas del portal se explica en [Cuentas y secretos](../../ARCHITECTURE.md#cuentas-y-secretos).
 
 ## Copiar canvases
 
@@ -83,15 +72,13 @@ Formatos y límites:
 - Documentos de hasta 50 MB: PDF, Word, Excel, PowerPoint, TXT, Markdown, CSV, JSON y ZIP.
 - Hasta 20 archivos por carga. Se procesan uno por uno para limitar la memoria usada en el iPad.
 
-El Worker comprueba permisos, tamaño, tipo MIME y cabecera binaria. Los documentos se entregan como descargas con `nosniff` y una política que impide ejecutar su contenido. Los espectadores pueden ver o descargar los archivos colocados en el canvas, pero no listar ni modificar la biblioteca. No uses la biblioteca como almacén de documentos confidenciales frente a personas con acceso a la URL del canvas.
-
-Los recursos se guardan en R2. En desarrollo, R2 y el documento se conservan en `.wrangler/state`; no borres esa carpeta para reiniciar el servidor. Las copias `.tldr` incluyen los assets nativos de imágenes y videos, pero las tarjetas de documentos y audio conservan sus enlaces al servidor. No son un respaldo independiente de esos archivos.
+El alcance de los permisos y las descargas está en [Worker y persistencia](../../ARCHITECTURE.md#worker-y-persistencia). Las limitaciones de las copias `.tldr` están en [Entornos y validación](../../ARCHITECTURE.md#entornos-y-validación).
 
 ## Rendimiento y correcciones
 
 QuickShape identifica el trazo recién creado mediante un evento, sin recorrer todas las figuras en cada contacto del Pencil. La previsualización de hover lee el tamaño del lienzo como máximo una vez por frame y actualiza su posición sin renders de React.
 
-La biblioteca se carga al abrirla. Las imágenes grandes y los GIFs subidos por esta ruta usan miniaturas estáticas en el panel; el original se conserva para el lienzo. Las copias de un recurso reutilizan su archivo. Las descargas admiten caché, validación por ETag y rangos de bytes para adelantar videos o audio. El Worker transmite las cargas por streaming sin mantener dos copias completas de un video en memoria.
+La biblioteca se carga al abrirla. Las imágenes grandes y los GIFs usan miniaturas estáticas en el panel; el original se conserva para el lienzo.
 
 Un `pointercancel` del Pencil cancela también el trazo de tldraw para que no quede activo. La interfaz comprueba la caducidad de la sesión al volver a la pestaña y cada minuto. Un fallo de red no se interpreta como cerrar sesión. Los errores al exportar o salir de edición se muestran en pantalla.
 
@@ -169,35 +156,8 @@ El smoke de refinamientos comprueba emojis PNG, doble clic sin edición, papeler
 
 Los scripts aceptan `BASE_URL`, `EDITOR_CODE` y `CHROMIUM_PATH`. Si no defines `EDITOR_CODE` en el entorno, lo leen del archivo local `.dev.vars`; el smoke de edición abierta no necesita código. El smoke general y el de recursos usan 5174 por defecto; los demás usan 5175. Establece siempre `BASE_URL` al puerto del servidor aislado correspondiente. Ninguno sustituye una prueba física con Safari y Apple Pencil.
 
-`npm run build:site` verifica por separado que la página personal siga compilando.
+## Publicación y código
 
-El build local copia `.dev.vars` dentro de `dist/xp_canvas` para que `vite preview` pueda arrancar el Worker. Ambas rutas están ignoradas por Git. No publiques ni archives la carpeta `dist` completa. Usa Wrangler para desplegar, ya que excluye ese archivo del Worker y de los assets.
-
-## Preparación para Cloudflare
-
-El despliegue no forma parte de esta primera implementación. Cuando toque hacerlo:
-
-1. Crea el bucket R2 `xp-canvas-assets`.
-2. Guarda `EDITOR_CODE` y `EDITOR_SESSION_SECRET` con `wrangler secret put`.
-3. Añade la licencia Hobby de tldraw como `VITE_TLDRAW_LICENSE_KEY` durante el build.
-4. Ejecuta primero `wrangler deploy --dry-run`.
-5. Configura el dominio solo después de verificar el Worker publicado.
-
-La clave de licencia de tldraw vive en el frontend por diseño. Debe autorizar el dominio final. Nunca uses el código de editor como clave de sesión o licencia.
-
-## Archivos principales
-
-- `client/pages/Room.tsx`: interfaz, conexión y controles de la sala.
-- `client/pages/BoardManager.tsx`: administrador de canvases y carpetas.
-- `worker/BoardCatalog.ts`: metadatos persistentes de canvases y carpetas.
-- `client/ipad/installFingerInput.ts`: selección táctil, desplazamiento y zoom.
-- `client/emojis/`: catálogo Unicode y panel de inserción directa.
-- `client/quickShape/`: gesto y clasificador de figuras.
-- `worker/worker.ts`: rutas, sesión de editor y conexión WebSocket.
-- `worker/TldrawDurableObject.ts`: sincronización y persistencia de la sala.
-- `worker/assetUploads.ts`: carga por streaming, validación y descarga de archivos.
-- `worker/resources.ts`: biblioteca compartida y permisos.
-- `client/resources/`: panel, arrastre, inserción y tarjetas de documentos/audio.
-- `shared/resourceShape.ts`: esquema de tarjetas usado por cliente y servidor.
+La publicación del portal se realiza con el [procedimiento de PORTAL.md](PORTAL.md#publicación-y-comprobaciones). Para localizar un componente, consulta el [mapa de AGENTS.md](../../AGENTS.md#dónde-buscar).
 
 El starter de sincronización conserva su licencia MIT en `LICENSE.md`. El SDK de tldraw usa su propia licencia. El desarrollo local funciona sin clave; un dominio público necesita una licencia Trial, Hobby o comercial válida.
