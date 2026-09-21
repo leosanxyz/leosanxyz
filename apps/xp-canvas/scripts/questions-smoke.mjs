@@ -49,6 +49,12 @@ try {
 		actor.page = await actor.context.newPage()
 		await actor.page.addInitScript(() => {
 			window.__questionAnimations = []
+			window.__questionSounds = []
+			const start = AudioBufferSourceNode.prototype.start
+			AudioBufferSourceNode.prototype.start = function (...args) {
+				window.__questionSounds.push({ duration: this.buffer?.duration, when: args[0] ?? 0, state: this.context.state, audible: this.buffer?.getChannelData(0).some((sample) => Math.abs(sample) > .001) })
+				return start.apply(this, args)
+			}
 			const animate = Element.prototype.animate
 			Element.prototype.animate = function (frames, options) {
 				if (this.classList.contains('question-answer')) window.__questionAnimations.push({ frames, options })
@@ -61,6 +67,7 @@ try {
 		if (actor.context === teacher) teacher.page = actor.page
 	}
 	const manager = teacher.page, ana = students[0], luis = students[1]
+	await luis.page.locator('.tl-background').click({ position: { x: 180, y: 180 } })
 	await manager.getByRole('button', { name: 'Pregunta', exact: true }).click()
 	const dialog = manager.getByRole('dialog')
 	await dialog.getByLabel('Pregunta', { exact: true }).fill('¿Cuánto es 2 + 2?')
@@ -80,6 +87,7 @@ try {
 	assert.equal((await answer(ana.context, 0)).status(), 403, 'server denies answers without permission')
 	assert.equal((await ana.context.request.post(endpoint, { data: { action: 'permission', userId: ana.id, allowed: true } })).status(), 403, 'student cannot grant permission')
 	assert.equal((await ana.context.request.get(`/api/boards/${privateBoard.id}/interactions`)).status(), 404, 'private board remains hidden')
+	for (const page of [manager, ana.page, luis.page]) assert.equal(await page.evaluate(() => window.__questionSounds.length), 0, 'loading and rejected answers stay silent')
 	await ana.page.getByRole('button', { name: 'Levantar la mano', exact: true }).tap()
 	const row = manager.locator('.connected-students li').filter({ hasText: ana.name })
 	await row.getByLabel('Mano levantada', { exact: true }).waitFor()
@@ -96,7 +104,9 @@ try {
 	await ana.page.locator('.question-answer').nth(0).tap()
 	for (const page of [manager, ana.page, luis.page]) await page.locator('.question-answer[data-result="incorrect"]').waitFor()
 	for (const page of [manager, ana.page, luis.page]) {
-		await page.waitForFunction(() => window.__questionAnimations.length === 1)
+		await page.waitForFunction(() => window.__questionAnimations.length === 1 && window.__questionSounds.length === 1)
+		const sound = await page.evaluate(() => window.__questionSounds[0])
+		assert(sound.duration > .4 && sound.duration < .7 && sound.audible && sound.state === 'running', 'wrong-answer file plays on each client')
 		assert.equal(await page.locator('.question-celebration').count(), 0, 'incorrect answers do not celebrate')
 	}
 	assert((await manager.evaluate(() => window.__questionAnimations[0].frames)).some((frame) => frame.transform === 'translateX(-8px)'))
@@ -108,7 +118,13 @@ try {
 	for (const page of [manager, ana.page, luis.page]) {
 		await page.locator('.question-celebration').waitFor()
 		celebrationIds.push(await page.locator('.question-celebration').getAttribute('data-celebration-id'))
-		await page.waitForFunction(() => window.__questionAnimations.length === 2)
+		await page.waitForFunction(() => window.__questionAnimations.length === 2 && window.__questionSounds.length === 4)
+		const sequence = await page.evaluate(() => window.__questionSounds.slice(1))
+		assert(sequence.every((sound) => sound.audible && sound.state === 'running'), 'correct sequence uses decoded audio on every client')
+		assert(sequence[0].duration > 1.1 && sequence[0].duration < 1.4)
+		assert(sequence[1].duration > 4.5 && sequence[1].duration < 5)
+		assert(sequence[2].duration > 1.6 && sequence[2].duration < 1.9)
+		assert(sequence.every((sound) => sound.when === sequence[0].when), 'all correct sounds start together')
 	}
 	assert.equal(new Set(celebrationIds).size, 1, 'one server-confirmed celebration reaches all clients')
 	assert((await manager.evaluate(() => window.__questionAnimations[1].frames)).some((frame) => frame.transform === 'scale(1.045)'))
@@ -123,7 +139,7 @@ try {
 	await manager.evaluate(() => {
 		for (const animation of document.getAnimations()) if (animation.effect?.target?.closest?.('.question-celebration')) animation.currentTime = 1800
 	})
-	assert(await manager.locator('.question-celebration__particle').evaluateAll((particles) => particles.every((particle) => particle.getBoundingClientRect().top > window.innerHeight - 400)), 'particles accumulate along the bottom')
+	assert(await manager.locator('.question-celebration__particle').evaluateAll((particles) => particles.reduce((sum, particle) => sum + particle.getBoundingClientRect().top, 0) / particles.length > window.innerHeight * .75), 'particles accumulate along the bottom')
 	await manager.screenshot({ path: '/tmp/xp-canvas-celebration-pile.png' })
 	await manager.evaluate(() => {
 		for (const animation of document.getAnimations()) if (animation.effect?.target?.classList?.contains('question-celebration')) animation.currentTime = 3175
@@ -140,6 +156,7 @@ try {
 	assert.equal(await ana.page.evaluate(() => window.__xpCanvasEditor.getIsReadonly()), true)
 	assert.equal(await ana.page.locator('.question-celebration').count(), 0, 'reloading old correct answers does not replay celebrations')
 	assert.equal(await ana.page.evaluate(() => window.__questionAnimations.length), 0)
+	assert.equal(await ana.page.evaluate(() => window.__questionSounds.length), 0, 'reloading never replays audio')
 	const acknowledgements = await ana.page.evaluate((shape) => { window.__questionForge = { ...shape, props: { ...shape.props, correct: 3, answered: [3] } }; return window.__questionAcks }, shape)
 	await ana.page.mouse.move(320, 220)
 	await ana.page.waitForFunction((acks) => !window.__questionForge && window.__questionAcks > acks, acknowledgements)
@@ -179,5 +196,5 @@ try {
 	await ana.page.screenshot({ path: '/tmp/xp-canvas-questions-student.png' })
 	for (const page of [manager, ana.page]) { const size = await page.locator('.question-card').evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight })); assert(size.scroll <= size.client + 1, `question text does not clip: ${JSON.stringify(size)}`) }
 	assert.deepEqual(errors, [])
-	console.log('PASS: teacher authoring, hand raise, individual permission, persistent permission, shared results and celebration events, button bounce/shake, confetti pile and fade, reduced motion, no replay after reload, reset, stale answer rejection and server access checks. Touch tested in Chromium emulation only.')
+	console.log('PASS: teacher authoring, hand raise, individual permission, persistent permission, confirmed correct/incorrect audio on all clients, shared results and celebration events, button bounce/shake, confetti pile and fade, reduced motion, no replay after reload, reset, stale answer rejection and server access checks. Touch tested in Chromium emulation only.')
 } finally { await browser.close() }

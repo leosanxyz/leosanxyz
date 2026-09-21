@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuestionSounds } from './useQuestionSounds'
 import { boardRequest } from '../boards/api'
 import type { InteractionState, QuestionCommand, QuestionFeedback, QuestionShape } from '../../shared/questionShape'
 
 export function useQuestionInteractions(roomId: string, enabled: boolean, connected: boolean, userId?: string) {
+	const playSound = useQuestionSounds(enabled)
 	const [feedback, setFeedback] = useState<QuestionFeedback[]>([])
 	const feedbackTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
 	useEffect(() => () => { for (const timer of feedbackTimers.current) clearTimeout(timer) }, [])
@@ -15,6 +17,7 @@ export function useQuestionInteractions(roomId: string, enabled: boolean, connec
 		const event = data as Partial<QuestionFeedback> | null
 		if (event?.type === 'question-result' && typeof event.id === 'string' && typeof event.shapeId === 'string' && typeof event.revision === 'string' && typeof event.answer === 'number' && typeof event.correct === 'boolean') {
 			if (document.hidden) return
+			playSound(event.id, event.correct)
 			setFeedback((current) => [...current.filter((item) => item.id !== event.id), event as QuestionFeedback].slice(-8))
 			const timer = setTimeout(() => {
 				setFeedback((current) => current.filter((item) => item.id !== event.id))
@@ -27,7 +30,7 @@ export function useQuestionInteractions(roomId: string, enabled: boolean, connec
 		if (data && typeof data === 'object' && 'type' in data && data.type === 'question-permissions' && 'allowedUserIds' in data && Array.isArray(data.allowedUserIds) && data.allowedUserIds.every((id) => typeof id === 'string')) {
 			updates.current++; setAllowedUserIds(data.allowedUserIds)
 		}
-	}, [])
+	}, [playSound])
 	useEffect(() => {
 		if (!enabled || !connected) { setAllowedUserIds([]); return }
 		const abort = new AbortController(), before = updates.current
