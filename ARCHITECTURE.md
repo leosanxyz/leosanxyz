@@ -69,6 +69,8 @@ Los archivos se autorizan por sus referencias en documentos permitidos, antes de
 
 El Worker fija el rol y la identidad del WebSocket. No acepta encabezados internos ni nombres del cliente como prueba de identidad. `TldrawDurableObject` impide escrituras del alumno y revalida conexiones al retirar permisos, cambiar una cuenta, restablecer su contraseña o cerrar sesión. Una alarma cada minuto respalda la revocación inmediata ante fallos; no garantiza un plazo exacto de ejecución. Los cambios de cuenta invalidan las sesiones para evitar nombres o grupos desactualizados.
 
+La mano levantada viaja como `meta.handRaised` en la presencia de tldraw, vinculada a la identidad autenticada del WebSocket. El estado nace en los metadatos locales de la instancia y no forma parte del documento ni de su historial. La lista del profesor reúne las sesiones de cada alumno y muestra la mano si cualquiera de ellas la tiene levantada.
+
 El Worker transmite las cargas por streaming y valida permisos, tamaño, tipo MIME y cabecera binaria. Los documentos se descargan con `nosniff` y una política que impide ejecutar su contenido. Las descargas admiten rangos, ETag y solicitudes condicionales; el uso de caché depende del modo de acceso.
 
 ## Cuentas y secretos

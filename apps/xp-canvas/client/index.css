@@ -41,6 +41,7 @@ summary {
 	position: fixed;
 	inset: 0;
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: auto minmax(0, 1fr);
 	background: #f7f6f2;
 }
@@ -193,7 +194,16 @@ summary {
 	text-align: left;
 }
 
+.canvas-workspace {
+	display: flex;
+	overflow: clip;
+	min-height: 0;
+	min-width: 0;
+}
+
 .canvas-stage {
+	flex: 1;
+	min-width: 0;
 	position: relative;
 	min-height: 0;
 }
@@ -371,18 +381,18 @@ summary {
 	.canvas-header {
 		gap: 8px;
 	}
-
-
-	.canvas-action--secondary {
-		display: none;
-	}
 }
 
-@media (min-width: 600px) and (any-pointer: coarse) {
+@media (max-width: 599px) {
+	.canvas-header { flex-wrap: wrap; }
+	.canvas-identity { flex: 1 1 100%; }
+	.canvas-actions { margin-left: auto; }
+}
+
+@media (min-width: 600px) {
 	.header-resources,
 	.header-quick-shape,
-	.canvas-actions > .snap-hold,
-	.canvas-action--secondary {
+	.canvas-actions > .snap-hold {
 		display: none;
 	}
 

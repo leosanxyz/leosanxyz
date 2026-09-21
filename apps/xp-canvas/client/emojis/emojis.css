@@ -12,6 +12,6 @@
 .emoji-picker__categories { display: flex; padding: 5px; border-top: 1px solid #e4e6e8; background: #f5f5f5; flex-shrink: 0; overflow-x: auto; }
 .emoji-picker__categories button { flex: 1 0 44px; min-width: 44px; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #8a9296; font-size: 22px; padding: 0; }
 .emoji-picker__categories button[aria-pressed='true'] { background: #e2e6e8; color: #313e44; }
-@media (min-width: 600px) and (any-pointer: coarse) { .emoji-picker { left: 76px; width: min(414px, calc(100% - 92px)); } }
+@media (min-width: 600px) { .emoji-picker { left: 76px; width: min(414px, calc(100% - 92px)); } }
 @media (max-height: 600px) { .emoji-picker__tones { display: none; }.emoji-picker__heading { height: 46px; } }
 @media (hover: hover) and (pointer: fine) { .emoji-picker__grid button:hover { background: #e8ebed; } }

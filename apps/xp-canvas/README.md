@@ -43,7 +43,7 @@ Solo los editores pueden duplicar. Los canvases de la papelera deben restaurarse
 
 ## Recursos
 
-Entra como editor y pulsa **Recursos** en la cabecera o en la barra del iPad.
+Entra como editor y pulsa **Recursos** en la barra izquierda. El escritorio y el iPad comparten esta barra; en pantallas menores de 600 px, Recursos aparece en la cabecera.
 
 - **Subir archivos** guarda imágenes, GIFs, videos, audio y documentos. La biblioteca es compartida entre tus canvases y conserva los recursos anteriores.
 - Toca un archivo para insertarlo o arrastra su tarjeta al lienzo. La lista carga más archivos al desplazarte. No tiene buscador, filtros, contadores ni opciones para guardar selecciones.
@@ -90,7 +90,7 @@ El seguimiento táctil actualiza la cámara directamente, sin transiciones ni re
 
 ## Puntero láser
 
-Selecciona **Puntero láser** en la barra del iPad, junto al borrador, y señala con el Apple Pencil. En escritorio está disponible en las herramientas de tldraw y con la tecla **K**. El trazo es temporal, lo ven los demás participantes del canvas y desaparece después de soltar. No añade objetos al documento ni al historial de Deshacer. El dedo conserva la selección y el desplazamiento del lienzo.
+Selecciona **Puntero láser** en la barra izquierda, junto al borrador, y señala con el Apple Pencil o el ratón. También puedes activarlo con la tecla **K**. El trazo es temporal, lo ven los demás participantes del canvas y desaparece después de soltar. No añade objetos al documento ni al historial de Deshacer. El dedo conserva la selección y el desplazamiento del lienzo.
 
 `npm run smoke:laser --workspace=apps/xp-canvas` comprueba selección desde la barra, Pencil, visibilidad en otro cliente, desaparición del trazo, ausencia de cambios en el documento y atajo de teclado. Usa un servidor aislado en 5175.
 
@@ -103,7 +103,7 @@ QuickShape muestra una figura fantasma cuando el Apple Pencil permanece quieto a
 - rectángulo;
 - triángulo.
 
-Si el trazo es ambiguo, pequeño o se cruza consigo mismo, conserva el dibujo original. El control de la cabecera permite desactivarlo.
+Si el trazo es ambiguo, pequeño o se cruza consigo mismo, conserva el dibujo original. El control QuickShape de la barra permite desactivarlo.
 
 El clasificador tolera una abertura pequeña, una cola corta o un lado que sobresalga. Para enderezar el resultado, mantén presionado **Snap** con un dedo mientras terminas el trazo con el Pencil. Las figuras se alinean al múltiplo de 90° más cercano y las líneas quedan horizontales o verticales. Un teclado físico puede usar **Shift** en el momento de la conversión.
 

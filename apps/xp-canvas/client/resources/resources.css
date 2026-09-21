@@ -29,5 +29,5 @@
 .resource-shape__icon { position: absolute; right: 12px; top: 10px; color: #939da3; }
 .resource-shape a { font-size: 13px; color: #07839b; pointer-events: all; width: fit-content; min-height: 44px; padding: 10px 0; }
 .resource-shape audio { width: 100%; height: 40px; min-height: 40px; pointer-events: all; }
-@media (min-width: 600px) and (any-pointer: coarse) { .resource-library { left: 76px; width: min(320px, calc(100% - 92px)); }.header-resources, .header-emojis { display: none; } }
+@media (min-width: 600px) { .resource-library { left: 76px; width: min(320px, calc(100% - 92px)); }.header-resources, .header-emojis { display: none; } }
 @media (hover: hover) and (pointer: fine) { .resource-card:hover .resource-card__preview { border-color: #afc5ce; }.resource-upload:hover { background: #dce6e9; } }

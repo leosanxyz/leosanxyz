@@ -21,8 +21,31 @@
 .portal-student p { margin: 5px 0 0; font-size: 13px; color: #64767f; }
 .portal-student[data-disabled='true'] { background: #f1f2f3; }
 .xp-form textarea { width: 100%; min-height: 180px; padding: 12px; border: 1px solid #dce1e3; border-radius: 10px; font: inherit; font-size: 16px; resize: vertical; }
-.portal-presence { max-width: min(360px, 85vw); font-size: 13px; }
-.portal-presence summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
-.portal-presence ul { position: absolute; right: 16px; z-index: 1000; padding: 12px 24px; background: white; border: 1px solid #dce5e7; border-radius: 12px; box-shadow: 0 6px 24px #15272e20; max-height: 260px; overflow: auto; list-style: none; }
-.portal-presence li { padding: 6px 0; }
+.connected-students { --students-width: 280px; position: relative; z-index: 9; flex: 0 0 var(--students-width); width: var(--students-width); min-height: 0; color: #2a2926; font-size: 13px; }
+.connected-students[data-expanded='false'] { flex-basis: 0; width: 0; }
+.canvas-actions .connected-students__toggle { display: flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; min-width: 52px; height: 44px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+.connected-students__toggle:focus-visible { outline: 2px solid #078ea8; outline-offset: -2px; }
+.connected-students__count { font-size: 11px; line-height: 1; color: #73716c; font-variant-numeric: tabular-nums; }
+.connected-students__panel { position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; width: var(--students-width); display: flex; flex-direction: column; border-left: 1px solid #e0e3e4; background: #faf9f6; transform: translateX(0); opacity: 1; visibility: visible; transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1), opacity 180ms ease-out, visibility 0s; }
+.connected-students[data-expanded='false'] .connected-students__panel { transform: translateX(100%); opacity: 0; visibility: hidden; transition-delay: 0s, 0s, 220ms; }
+.connected-students__heading { flex-shrink: 0; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 12px; border-bottom: 1px solid #e0e3e4; }
+.connected-students__title { margin: 0; font-size: 13px; font-weight: 650; }
+.connected-students__body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 12px max(12px, env(safe-area-inset-bottom)); }
+.connected-students__body ul { list-style: none; margin: 0; padding: 0; }
+.connected-students__body li { display: flex; align-items: center; gap: 10px; padding: 10px 0; overflow-wrap: anywhere; }
+.connected-students__body p { margin: 12px 0; color: #73716c; line-height: 1.5; }
+.connected-students__name { flex: 1; min-width: 0; }
+.hand-raise-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 20px; line-height: 1; }
+.connected-students__raised-hand { display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 8px; background: #fff0c2; color: #805500; }
+.canvas-actions .canvas-raise-hand { display: flex; align-items: center; justify-content: center; gap: 7px; }
+.canvas-actions .canvas-raise-hand[aria-pressed='true'] { background: #fff0c2; border-color: #d3ab45; color: #674600; }
+.connected-students__avatar { display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 50%; background: #eae6f4; color: #6144a5; font-weight: 650; }
+.connected-students[data-instant='true'] .connected-students__panel { transition: none; }
+@media (prefers-reduced-motion: reduce) { .connected-students__panel { transition: none; } }
+@media (hover: hover) and (pointer: fine) { .canvas-actions .connected-students__toggle:hover { background: #eeede9; } }
+@media (max-width: 900px) { .connected-students { --students-width: 230px; } }
+@media (max-width: 599px) {
+	.canvas-workspace:has(> .connected-students) { position: relative; }
+	.connected-students { --students-width: min(280px, calc(100vw - 64px)); position: absolute; top: 0; right: 0; bottom: 0; }
+}
 @media (max-width: 600px) { .portal-entry { padding: 16px; }.portal-entry-card { padding: 24px; }.portal-page { padding: 20px 16px 40px; }.portal-heading { align-items: flex-start; } }

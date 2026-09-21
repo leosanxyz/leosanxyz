@@ -5,7 +5,6 @@ import {
 	atom,
 	createUserId,
 	UserRecordType,
-	useValue,
 	getUserPreferences,
 	react,
 	setUserPreferences,
@@ -37,6 +36,9 @@ import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
 import { navigate } from '../navigation'
 import { CANVAS_TOOLS } from '../eraser/PartialEraserTool'
+import { RaiseHandButton } from '../portal/RaiseHandButton'
+import { getCanvasUserPresence } from '../portal/studentPresence'
+import { ConnectedStudents, ConnectedStudentsToggle } from '../portal/ConnectedStudents'
 import { usePortal } from '../portal/PortalProvider'
 
 const ResourceLibrary = lazy(() => import('../resources/ResourceLibrary'))
@@ -47,6 +49,9 @@ const TLDRAW_ASSET_URLS = {
 		es: '/translations/es.json',
 	},
 } satisfies TLUiAssetUrlOverrides
+
+const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null }
+const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, UserPresenceEditor: null }
 
 const CANVAS_OPTIONS = { camera: { wheelBehavior: 'zoom' as const } }
 const VIEWER_OVERRIDES: TLUiOverrides = {
@@ -124,6 +129,7 @@ function CanvasRoom({
 		}
 	})
 	const [showUnlock, setShowUnlock] = useState(false)
+	const [studentsSidebar, setStudentsSidebar] = useState({ expanded: true, instant: false })
 	const [showResources, setShowResources] = useState(false)
 	const [showEmojis, setShowEmojis] = useState(false)
 	const [rename, setRename] = useState<string | null>(null)
@@ -148,7 +154,7 @@ function CanvasRoom({
 		return new URL(`/api/connect/${encodeURIComponent(roomId)}`, window.location.origin).toString()
 	}, [roomId])
 	const users = useMemo(() => user ? { currentUser: atom('portal user', UserRecordType.create({ id: createUserId(user.id), name: user.name, color: user.role === 'teacher' ? '#078aa3' : '#7555cc' })) } : undefined, [user?.id, user?.name, user?.role])
-	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users })
+	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users, getUserPresence: getCanvasUserPresence })
 
 	useEffect(() => {
 		if (!isEditor) return
@@ -262,7 +268,6 @@ function CanvasRoom({
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
 				<nav className="canvas-actions" aria-label="Acciones del canvas">
-					{mode === 'portal' && isEditor && <ConnectedStudents editor={editor} />}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
 						<>
@@ -285,60 +290,69 @@ function CanvasRoom({
 							/>
 						</>
 					)}
-					<button
+					{!isEditor && <button
 						type="button"
 						className="canvas-action--secondary"
 						onClick={followLeo}
 						disabled={!editor}
 					>
 						Seguir a Leo
-					</button>
+					</button>}
 					{authRequired && !isEditor && mode !== 'portal' && (
 						<button type="button" className="primary-action" onClick={() => setShowUnlock(true)}>
 							Editar
 						</button>
 					)}
+					{mode === 'portal' && user?.role === 'student' && <RaiseHandButton editor={editor} />}
+					{mode === 'portal' && isEditor && <ConnectedStudentsToggle
+						editor={editor}
+						expanded={studentsSidebar.expanded}
+						onToggle={(instant) => setStudentsSidebar((current) => ({ expanded: !current.expanded, instant }))}
+					/>}
 				</nav>
 			</header>
 
-			<main ref={stageRef} className="canvas-stage">
-				<IpadToolbarProvider
-					value={{
-						isEditor,
-						headerTarget,
-						quickShape,
-						onQuickShapeChange: setQuickShape,
-						onSnapHeldChange: handleSnapHeldChange,
-						onSnapContactChange: handleSnapContactChange,
+			<div className="canvas-workspace">
+				<main ref={stageRef} className="canvas-stage">
+					<IpadToolbarProvider
+						value={{
+							isEditor,
+							headerTarget,
+							quickShape,
+							onQuickShapeChange: setQuickShape,
+							onSnapHeldChange: handleSnapHeldChange,
+							onSnapContactChange: handleSnapContactChange,
 							onResourcesToggle: toggleResources,
 							resourcesOpen: showResources,
 							onEmojisToggle: toggleEmojis,
 							emojisOpen: showEmojis,
-					}}
-				>
-					<Tldraw
-						store={store}
-						assetUrls={TLDRAW_ASSET_URLS}
-						components={XP_CANVAS_COMPONENTS}
-						options={CANVAS_OPTIONS}
-						overrides={isEditor ? undefined : VIEWER_OVERRIDES}
-						initialState={isEditor ? 'select' : 'hand'}
-						shapeUtils={CANVAS_SHAPE_UTILS}
-						tools={CANVAS_TOOLS}
-						licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY || undefined}
-						locale="es"
-						maxAssetSize={MAX_ASSET_BYTES}
-						acceptedImageMimeTypes={IMAGE_TYPES}
-						acceptedVideoMimeTypes={VIDEO_TYPES}
-						onMount={handleMount}
-					/>
-				</IpadToolbarProvider>
-				<PencilHoverPreview stageRef={stageRef} />
-				{isEditor && editor && showResources && <Suspense fallback={<div className="canvas-notice">Abriendo recursos…</div>}>
-					<ResourceLibrary editor={editor} onClose={closeResources} />
-				</Suspense>}
-				{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
-			</main>
+						}}
+					>
+						<Tldraw
+							store={store}
+							assetUrls={TLDRAW_ASSET_URLS}
+							components={mode === 'portal' ? (isEditor ? TEACHER_COMPONENTS : STUDENT_COMPONENTS) : XP_CANVAS_COMPONENTS}
+							options={CANVAS_OPTIONS}
+							overrides={isEditor ? undefined : VIEWER_OVERRIDES}
+							initialState={isEditor ? 'select' : 'hand'}
+							shapeUtils={CANVAS_SHAPE_UTILS}
+							tools={CANVAS_TOOLS}
+							licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY || undefined}
+							locale="es"
+							maxAssetSize={MAX_ASSET_BYTES}
+							acceptedImageMimeTypes={IMAGE_TYPES}
+							acceptedVideoMimeTypes={VIDEO_TYPES}
+							onMount={handleMount}
+						/>
+					</IpadToolbarProvider>
+					<PencilHoverPreview stageRef={stageRef} />
+					{isEditor && editor && showResources && <Suspense fallback={<div className="canvas-notice">Abriendo recursos…</div>}>
+						<ResourceLibrary editor={editor} onClose={closeResources} />
+					</Suspense>}
+					{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
+				</main>
+				{mode === 'portal' && isEditor && <ConnectedStudents editor={editor} {...studentsSidebar} />}
+			</div>
 
 			{showUnlock && mode !== 'portal' && (
 				<EditorCodeDialog
@@ -357,10 +371,6 @@ function CanvasRoom({
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
 	)
-}
-function ConnectedStudents({ editor }: { editor: Editor | null }) {
-	const students = useValue('connected students', () => [...new Map((editor?.getCollaborators() ?? []).filter((peer) => peer.userId !== createUserId('teacher')).map((peer) => [peer.userId, peer])).values()], [editor])
-	return <details className="portal-presence"><summary>{students.length} {students.length === 1 ? 'alumno conectado' : 'alumnos conectados'}</summary><ul>{students.length ? students.map((student) => <li key={student.userId}>{student.userName}</li>) : <li>Todavía no hay alumnos conectados.</li>}</ul></details>
 }
 function LoadingScreen() {
 	return (

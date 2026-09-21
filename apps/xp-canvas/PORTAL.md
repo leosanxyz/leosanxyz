@@ -16,6 +16,8 @@ El menú de cuenta del profesor incluye Alumnos y Papelera. Desde Alumnos puede 
 
 Profesor y alumno comparten la navegación de biblioteca. El menú del alumno contiene Mi perfil y Cerrar sesión. Dentro de un canvas, la flecha vuelve a la biblioteca; el espectador usa la mano para desplazarse y la rueda para ampliar. La exportación está en el menú de tldraw. Para duplicar canvases y administrar archivos, consulta el [README del editor](README.md).
 
+El profesor ve los alumnos conectados en una única lista en la barra lateral derecha. Puede colapsarla y cada cuenta aparece una sola vez aunque tenga varias pestañas abiertas. Las herramientas de edición están a la izquierda tanto en escritorio como en iPad. El nombre mostrado en el canvas es el de la cuenta del alumno; el menú de participantes no permite cambiarlo. **Seguir a Leo** solo aparece para los espectadores. Los alumnos tienen un botón **Levantar la mano** que cambia a **Bajar la mano** mientras está activo. El profesor ve una mano junto a su nombre en la lista. Al cerrar la pestaña o salir del canvas se retira esa mano; si el alumno tiene varias pestañas, el indicador permanece mientras alguna de las conectadas tenga la mano levantada.
+
 ## Desarrollo y pruebas
 
 Prepara una carpeta de QA nueva y no uses el estado del servidor de clases. Desde `apps/xp-canvas`:

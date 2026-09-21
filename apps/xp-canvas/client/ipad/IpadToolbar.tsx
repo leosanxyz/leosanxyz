@@ -35,7 +35,7 @@ import {
 	useState,
 } from 'react'
 
-const IPAD_TOOLBAR_MEDIA_QUERY = '(min-width: 600px) and (any-pointer: coarse)'
+const SIDE_TOOLBAR_MEDIA_QUERY = '(min-width: 600px)'
 const IPAD_TOOLS = [
 	{ id: 'select', label: 'Seleccionar' },
 	{ id: 'draw', label: 'Lápiz' },
@@ -105,25 +105,25 @@ function HeaderMenuPanel() {
 }
 
 function ResponsiveQuickActions(props: TLUiQuickActionsProps) {
-	const isIpad = useIpadToolbar(), { isEditor } = useIpadToolbarState()
-	return isIpad || !isEditor ? null : <DefaultQuickActions {...props} />
+	const hasSideToolbar = useSideToolbar(), { isEditor } = useIpadToolbarState()
+	return hasSideToolbar || !isEditor ? null : <DefaultQuickActions {...props} />
 }
 
 function ResponsiveToolbar() {
-	const isIpad = useIpadToolbar()
+	const hasSideToolbar = useSideToolbar()
 	const { isEditor } = useIpadToolbarState()
 
 	if (!isEditor) return <DefaultToolbar minItems={1} minSizePx={44}><HandToolbarItem /></DefaultToolbar>
-	if (!isIpad) return <DefaultToolbar />
+	if (!hasSideToolbar) return <DefaultToolbar />
 
 	return <IpadToolRail />
 }
 
 function ResponsiveStylePanel(props: TLUiStylePanelProps) {
-	const isIpad = useIpadToolbar()
+	const hasSideToolbar = useSideToolbar()
 	const { isEditor } = useIpadToolbarState()
 
-	if (!isEditor || isIpad && !props.isMobile) return null
+	if (!isEditor || hasSideToolbar && !props.isMobile) return null
 	return <DefaultStylePanel {...props} />
 }
 
@@ -164,7 +164,7 @@ function IpadToolRail() {
 			ref={railRef}
 			className="ipad-toolbar"
 			data-testid="ipad-toolbar"
-			aria-label="Herramientas del iPad"
+			aria-label="Herramientas del canvas"
 		>
 			<TldrawUiOrientationProvider orientation="vertical" tooltipSide="right">
 				<div className="ipad-toolbar__body">
@@ -483,13 +483,13 @@ function useIpadToolbarState() {
 	return state
 }
 
-function useIpadToolbar() {
+function useSideToolbar() {
 	const [matches, setMatches] = useState(() =>
-		typeof window === 'undefined' ? false : window.matchMedia(IPAD_TOOLBAR_MEDIA_QUERY).matches
+		typeof window === 'undefined' ? false : window.matchMedia(SIDE_TOOLBAR_MEDIA_QUERY).matches
 	)
 
 	useEffect(() => {
-		const media = window.matchMedia(IPAD_TOOLBAR_MEDIA_QUERY)
+		const media = window.matchMedia(SIDE_TOOLBAR_MEDIA_QUERY)
 		const update = () => setMatches(media.matches)
 		update()
 		media.addEventListener('change', update)
