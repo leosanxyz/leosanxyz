@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { BaseBoxShapeUtil, HTMLContainer, useEditor, useValue } from 'tldraw'
-import { questionShapeProps, type QuestionShape } from '../../shared/questionShape'
+import { questionShapeProps, questionShapeMigrations, type QuestionShape } from '../../shared/questionShape'
 import { Icon } from '../components/Icon'
 import { useQuestion } from './QuestionContext'
 import './questions.css'
@@ -8,8 +8,9 @@ import './questions.css'
 export class QuestionShapeUtil extends BaseBoxShapeUtil<QuestionShape> {
 	static override type = 'question' as const
 	static override props = questionShapeProps
+	static override migrations = questionShapeMigrations
 	override getDefaultProps(): QuestionShape['props'] {
-		return { w: 480, h: 400, question: 'Escribe tu pregunta', answers: ['Respuesta A', 'Respuesta B', 'Respuesta C', 'Respuesta D'], correct: 0, answered: [], revision: crypto.randomUUID() }
+		return { points: 100, w: 480, h: 400, question: 'Escribe tu pregunta', answers: ['Respuesta A', 'Respuesta B', 'Respuesta C', 'Respuesta D'], correct: 0, answered: [], revision: crypto.randomUUID() }
 	}
 	override canEdit() { return false }
 	override canResize() { return false }
@@ -48,6 +49,7 @@ function QuestionCard({ shape }: { shape: QuestionShape }) {
 	const interactive = !isTeacher && canAnswer && cursorActive
 	const stop = (event: { stopPropagation(): void }) => event.stopPropagation()
 	return <HTMLContainer className="question-card" data-question-id={shape.id} data-interactive={interactive}>
+		{latest?.correct && typeof latest.points === 'number' && <div key={latest.id} className="question-points" role="status" aria-label={`${latest.points} puntos ganados`}>+{latest.points}</div>}
 		<div className="question-card__title"><h2>{shape.props.question}</h2>{isTeacher && <button type="button" className="question-card__edit" aria-label="Editar pregunta" title="Editar pregunta" onPointerDown={stop} onTouchStart={stop} onTouchEnd={stop} onClick={() => edit(shape)}><Icon name="edit" size={20} /></button>}</div>
 		<div className="question-card__answers">
 			{shape.props.answers.map((label, index) => {

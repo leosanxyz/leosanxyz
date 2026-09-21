@@ -1,10 +1,10 @@
 import { createTLSchema, defaultShapeSchemas, type TLRecord } from '@tldraw/tlschema'
 import type { RoomSnapshot } from '@tldraw/sync-core'
-import { questionShapeProps } from '../shared/questionShape'
+import { questionShapeProps, questionShapeMigrations } from '../shared/questionShape'
 import { resourceShapeProps } from '../shared/resourceShape'
 
 export const canvasSchema = createTLSchema({
-	shapes: { ...defaultShapeSchemas, resource: { props: resourceShapeProps }, question: { props: questionShapeProps } },
+	shapes: { ...defaultShapeSchemas, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations } },
 })
 
 /** Imports contain document records, never another user's camera or session state. */

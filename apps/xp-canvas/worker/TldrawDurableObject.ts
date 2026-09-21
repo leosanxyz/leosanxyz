@@ -16,6 +16,8 @@ import { canReadBoard, portalEnabled, PORTAL_IDENTITY_HEADER, sessionByHash } fr
 import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
 import type { PortalUser } from '../shared/portal'
+import { savePointAward, type PointAward } from './points'
+import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
 import type { InteractionState, QuestionCommand, QuestionFeedback } from '../shared/questionShape'
 
 interface SocketAttachment {
@@ -41,6 +43,8 @@ function getAttachment(ws: WebSocket): SocketAttachment | null {
 // stay alive at the Cloudflare layer.
 export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	private room: TLSocketRoom<TLRecord, void> | null = null
+	private pointsFlush: Promise<void> | null = null
+	private pointReceiptsImported = false
 	/** Map sessionId → ws so onSessionSnapshot can serialize to the right socket. */
 	private readonly sessionIdToWs = new Map<string, WebSocket>()
 
@@ -131,7 +135,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	private questionPermissions(user: PortalUser): InteractionState {
 		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS question_permissions (user_id TEXT PRIMARY KEY)')
 		const ids = this.ctx.storage.sql.exec<{ user_id: string }>('SELECT user_id FROM question_permissions').toArray().map((row) => row.user_id)
-		return { type: 'question-permissions', allowedUserIds: user.role === 'teacher' ? ids : ids.filter((id) => id === user.id) }
+		return { type: 'question-permissions', allowedUserIds: user.role === 'teacher' ? ids : ids.filter((id) => id === user.id || this.questionPeers().some((peer) => peer.user.id === id)) }
 	}
 
 	private broadcastQuestionPermissions() {
@@ -148,7 +152,23 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		const board = await readBoard(this.env, roomId)
 		if (!session || !board || board.trashedAt || !await canReadBoard(session, roomId, this.env)) return denied(403, 'No tienes acceso a este canvas.')
 		const room = this.getOrCreateRoom(), user = session.user
-		if (!command) return { status: 200, body: this.questionPermissions(user) }
+		if (!command) { this.broadcastQuestionPermissions(); return { status: 200, body: this.questionPermissions(user) } }
+		if (command.action === 'draw') {
+			if (user.role !== 'teacher') return denied(403, 'Solo el maestro puede sortear alumnos.')
+			const peers = this.questionPeers().filter((peer) => peer.user.role === 'student')
+			const students = [...new Map(peers.map((peer) => [peer.user.id, peer.user])).values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+			if (!students.length) return denied(409, 'Todavía no hay alumnos conectados.')
+			// A timestamp survives hibernation and also prevents overlapping draws from other teacher tabs.
+			this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS student_draw (id INTEGER PRIMARY KEY CHECK (id = 1), ends_at INTEGER)')
+			const previous = this.ctx.storage.sql.exec<{ ends_at: number }>('SELECT ends_at FROM student_draw WHERE id = 1').toArray()[0]
+			if (previous && previous.ends_at > Date.now()) return denied(409, 'Espera a que termine el sorteo.')
+			const userIds = students.map((student) => student.id)
+			const random = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296
+			const draw: StudentDraw = { type: 'student-draw', id: crypto.randomUUID(), userIds, winnerId: userIds[Math.floor(random * userIds.length)], startedAt: Date.now() + 200 }
+			this.ctx.storage.sql.exec('INSERT OR REPLACE INTO student_draw (id, ends_at) VALUES (1, ?)', draw.startedAt + DRAW_DURATION)
+			for (const { attachment } of this.questionPeers()) room.sendCustomMessage(attachment.sessionId, draw)
+			return { status: 200, body: this.questionPermissions(user) }
+		}
 		if (command.action === 'permission') {
 			if (user.role !== 'teacher') return denied(403, 'Solo el maestro puede dar permiso.')
 			const peers = this.questionPeers().filter((peer) => peer.user.id === command.userId && peer.user.role === 'student')
@@ -157,25 +177,73 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 			if (command.allowed) this.ctx.storage.sql.exec('INSERT OR IGNORE INTO question_permissions (user_id) VALUES (?)', command.userId)
 			else this.ctx.storage.sql.exec('DELETE FROM question_permissions WHERE user_id = ?', command.userId)
 		} else {
+			this.ensurePointOutbox()
+			await this.importPointReceipts(roomId)
+			// Schedule recovery before recording an answer, including when the last socket closes.
+			if (!await this.ctx.storage.getAlarm()) await this.ctx.storage.setAlarm(Date.now() + 60_000)
+			// Recheck permission after alarm I/O, immediately before the synchronous answer transaction.
 			if (user.role !== 'student' || !this.questionPermissions(user).allowedUserIds.includes(user.id)) return denied(403, 'Espera a que el maestro te dé permiso para responder.')
-			// The record check and write are synchronous, so concurrent answers and
-			// teacher edits cannot pass against the same stale question state.
-			let correct = false
+			const eventId = crypto.randomUUID()
+			let feedback: QuestionFeedback | null = null
 			const result = room.storage.transaction((store) => {
 				const shape = store.get(command.shapeId)
 				if (!shape || shape.typeName !== 'shape' || shape.type !== 'question') return 'Esta pregunta ya no existe.'
 				if (shape.props.revision !== command.revision) return 'La pregunta cambió. Vuelve a elegir una respuesta.'
 				if (shape.props.answered.includes(command.answer)) return 'Esa respuesta ya fue elegida.'
-				correct = command.answer === shape.props.correct
+				const correct = command.answer === shape.props.correct
+				feedback = { type: 'question-result', id: eventId, shapeId: command.shapeId, revision: command.revision, answer: command.answer, correct }
+				if (correct) {
+					const award: PointAward = { sourceKey: JSON.stringify(['question', roomId, shape.id, shape.props.revision]), eventId, userId: user.id, activityKind: 'question', amount: shape.props.points, createdAt: Date.now() }
+					// Reserve the reward with the answer, without waiting for the balance database.
+					const claimed = this.ctx.storage.sql.exec('INSERT OR IGNORE INTO point_receipts (source_key) VALUES (?) RETURNING source_key', award.sourceKey).toArray().length > 0
+					if (claimed) {
+						feedback.points = award.amount
+						this.ctx.storage.sql.exec('INSERT INTO point_outbox (event_id, payload) VALUES (?, ?)', eventId, JSON.stringify({ award, feedback }))
+					}
+				}
 				store.set(shape.id, { ...shape, props: { ...shape.props, answered: [...shape.props.answered, command.answer] } })
 				return null
 			}).result
 			if (result) return denied(409, result)
-			const feedback: QuestionFeedback = { type: 'question-result', id: crypto.randomUUID(), shapeId: command.shapeId, revision: command.revision, answer: command.answer, correct }
-			for (const { attachment } of this.questionPeers()) room.sendCustomMessage(attachment.sessionId, feedback)
+			if (feedback) for (const { attachment } of this.questionPeers()) room.sendCustomMessage(attachment.sessionId, feedback)
+			// The accepted answer celebrates immediately. The durable queue handles saving and retries.
+			this.ctx.waitUntil(this.flushPointAwards().catch(() => { console.warn('Point award synchronization deferred; recovery alarm scheduled.') }))
 		}
 		this.broadcastQuestionPermissions()
 		return { status: 200, body: this.questionPermissions(user) }
+	}
+
+	private ensurePointOutbox() {
+		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS point_outbox (event_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS point_receipts (source_key TEXT PRIMARY KEY)')
+		this.ctx.storage.sql.exec("INSERT OR IGNORE INTO point_receipts (source_key) SELECT json_extract(payload, '$.award.sourceKey') FROM point_outbox")
+	}
+
+	private async importPointReceipts(roomId: string) {
+		if (this.pointReceiptsImported) return
+		try {
+			// Preserve deduplication for awards saved before local receipts were introduced.
+			const saved = await this.env.PORTAL_DB!.prepare("SELECT source_key FROM point_awards WHERE activity_kind = 'question' AND json_extract(source_key, '$[1]') = ?").bind(roomId).all<{ source_key: string }>()
+			this.ctx.storage.transactionSync(() => {
+				for (const row of saved.results) this.ctx.storage.sql.exec('INSERT OR IGNORE INTO point_receipts (source_key) VALUES (?)', row.source_key)
+			})
+			this.pointReceiptsImported = true
+		} catch { /* A missing balance database cannot block an accepted answer. */ }
+	}
+
+	private flushPointAwards(): Promise<void> {
+		if (this.pointsFlush) return this.pointsFlush
+		this.ensurePointOutbox()
+		this.pointsFlush = (async () => {
+			while (true) {
+				const row = this.ctx.storage.sql.exec<{ event_id: string; payload: string }>('SELECT event_id, payload FROM point_outbox LIMIT 1').toArray()[0]
+				if (!row) return
+				const { award } = JSON.parse(row.payload) as { award: PointAward }
+				await savePointAward(this.env, award)
+				this.ctx.storage.sql.exec('DELETE FROM point_outbox WHERE event_id = ?', row.event_id)
+			}
+		})().finally(() => { this.pointsFlush = null })
+		return this.pointsFlush
 	}
 
 	referencesAsset(uploadId: string): boolean {
@@ -203,7 +271,11 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		if (this.ctx.getWebSockets().some((ws) => ws.readyState === WebSocket.OPEN)) await this.ctx.storage.setAlarm(Date.now() + 60_000)
 	}
 
-	override async alarm() { await this.revalidatePortalSessions() }
+	override async alarm() {
+		await this.revalidatePortalSessions()
+		try { await this.flushPointAwards() }
+		catch { await this.ctx.storage.setAlarm(Date.now() + 60_000) }
+	}
 
 	private revokeSocket(ws: WebSocket, attachment: SocketAttachment | null) {
 		if (attachment) ws.serializeAttachment({ ...attachment, revoked: true, snapshot: null })

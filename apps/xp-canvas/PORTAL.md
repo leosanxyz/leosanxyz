@@ -55,6 +55,8 @@ npx wrangler deploy --dry-run --config dist/xp_canvas_portal/wrangler.json
 npx wrangler deploy --config dist/xp_canvas_portal/wrangler.json
 ```
 
+La función de puntos necesita la migración `0003_points.sql` aplicada en el entorno de destino. Aplicarla en QA local no la aplica en producción; la migración remota requiere autorización específica y debe preceder al despliegue de esa función.
+
 Antes del último comando, comprueba que los bindings del dry-run coincidan con los [recursos de producción](../../ARCHITECTURE.md#worker-y-persistencia) y revisa cualquier migración pendiente. No apliques migraciones remotas como efecto secundario de publicar código ni subas la carpeta `dist` completa.
 
 Después de publicar, comprueba HTTPS sin omitir la validación del certificado, `/api/health`, `/api/portal/session`, el rechazo de `/api/library` sin sesión y el acceso con una cuenta autorizada. Abre también un canvas y sus archivos; un HTTP 200 de la portada no demuestra que los datos y permisos funcionen. Los cambios del portal no deben alterar DNS de otros servicios.

@@ -12,6 +12,7 @@ export interface PortalSession {
 }
 
 export interface Student extends PortalUser {
+	points: number
 	groupId: string | null
 	disabled: boolean
 }

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Collapsible } from 'radix-ui'
 import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
@@ -15,8 +15,20 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 	const { user } = usePortal()
 	const { profile } = usePass()
 	const { library } = useBoardLibrary()
+	const [points, setPoints] = useState<number | null>(null)
+	const [pointsError, setPointsError] = useState(false)
+	useEffect(() => {
+		if (user?.role !== 'student') return
+		let active = true
+		const load = () => { if (!document.hidden) void portalRequest<{ points: number }>('points').then((result) => { if (active) { setPoints(result.points); setPointsError(false) } }).catch(() => { if (active) setPointsError(true) }) }
+		load()
+		window.addEventListener('focus', load)
+		document.addEventListener('visibilitychange', load)
+		return () => { active = false; window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', load) }
+	}, [user?.id, user?.role])
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
+				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? '…' : points.toLocaleString('es-MX')}</strong></div>}
 				<Collapsible.Root className="profile-password">
 					<Collapsible.Trigger className="profile-settings-row"><Icon name="lock" size={20} /><span>Cambiar contraseña</span><Icon name="chevron" size={17} /></Collapsible.Trigger>
 					<Collapsible.Content className="profile-password-content"><ChangePassword /></Collapsible.Content>

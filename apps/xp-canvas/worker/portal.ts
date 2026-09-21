@@ -6,6 +6,7 @@ import { studentLibrary } from './studentLibrary'
 import { isBoardId } from '../shared/boards'
 import type { BoardGrant, Student } from '../shared/portal'
 import { validPass } from '../shared/pass'
+import { readPoints } from './points'
 import { readPass } from './studentPass'
 import {
 	allowedBoardIds, canReadBoard, clearPortalCookie, constantMatch, createPortalSession,
@@ -130,6 +131,7 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 				return json(await readPass(session.user, env))
 			}
 		}
+		if (path === '/api/portal/points' && method === 'GET') return json({ points: await readPoints(env, session.user.id) })
 		if (session.user.role !== 'teacher') throw new PortalError(403, 'Solo el profesor puede administrar el portal.')
 		if (import.meta.env.DEV && path === '/api/portal/review-passes' && method === 'GET') {
 			const { results } = await db.prepare("SELECT * FROM users WHERE role = 'student' AND group_id = 'pipelines-sd26' ORDER BY name").all<UserRow>()
@@ -137,10 +139,10 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 		}
 		if (path === '/api/portal/roster' && method === 'GET') {
 			const [students, groups] = await Promise.all([
-				db.prepare("SELECT * FROM users WHERE role = 'student' ORDER BY name").all<UserRow>(),
+				db.prepare("SELECT users.*, COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = users.id), 0) AS points FROM users WHERE role = 'student' ORDER BY name").all<UserRow & { points: number }>(),
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
 			])
-			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results })
+			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results })
 		}
 		if (path === '/api/portal/groups' && method === 'POST') {
 			const group = { id: crypto.randomUUID(), name: name((await body(request)).name) }

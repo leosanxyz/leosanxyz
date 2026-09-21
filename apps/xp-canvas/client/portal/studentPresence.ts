@@ -1,3 +1,5 @@
+import { useValue, type Editor } from 'tldraw'
+import type { PortalUser } from '../../shared/portal'
 import { createUserId, getDefaultUserPresence, TLINSTANCE_ID, type TLInstancePresence, type TLStore, type TLUser } from '@tldraw/tlschema'
 
 export function getCanvasUserPresence(store: TLStore, user: TLUser) {
@@ -19,4 +21,13 @@ export function collectConnectedStudents(peers: Pick<TLInstancePresence, 'userId
 		})
 	}
 	return [...students.values()].sort((a, b) => a.userName.localeCompare(b.userName, 'es'))
+}
+
+export function useConnectedStudents(editor: Editor | null, user?: PortalUser | null) {
+	return useValue('connected students including self', () => {
+		const peers = editor?.store.query.records('instance_presence').get() ?? []
+		return collectConnectedStudents(user?.role === 'student' && editor ? [...peers, {
+			userId: createUserId(user.id), userName: user.name, meta: editor.getInstanceState().meta,
+		}] : peers)
+	}, [editor, user])
 }

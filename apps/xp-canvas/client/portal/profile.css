@@ -73,3 +73,6 @@
 @media (prefers-reduced-motion: reduce) {
 	.profile-edit-controls .pass-holo-styles button[aria-pressed='true'] { background: #e3e9e8; }
 }
+
+.profile-points { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e1e4df; color: #59635b; }
+.profile-points strong { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: #237a3b; }

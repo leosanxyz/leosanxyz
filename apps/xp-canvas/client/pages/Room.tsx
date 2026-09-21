@@ -38,6 +38,7 @@ import { navigate } from '../navigation'
 import { CANVAS_TOOLS } from '../eraser/PartialEraserTool'
 import { RaiseHandButton } from '../portal/RaiseHandButton'
 import { getCanvasUserPresence } from '../portal/studentPresence'
+import { useStudentDraw } from '../portal/useStudentDraw'
 import { ConnectedStudents, ConnectedStudentsToggle } from '../portal/ConnectedStudents'
 import { QuestionCelebrations } from '../questions/QuestionCelebrations'
 import { StudentToolbar } from '../questions/StudentToolbar'
@@ -57,7 +58,7 @@ const TLDRAW_ASSET_URLS = {
 } satisfies TLUiAssetUrlOverrides
 
 const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null }
-const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null }
+const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null, SharePanel: null }
 
 const CANVAS_OPTIONS = { camera: { wheelBehavior: 'zoom' as const } }
 const VIEWER_OVERRIDES: TLUiOverrides = {
@@ -137,8 +138,10 @@ function CanvasRoom({
 	const [questionDialog, setQuestionDialog] = useState<QuestionShape | 'new' | null>(null)
 	const [syncConnected, setSyncConnected] = useState(false)
 	const questions = useQuestionInteractions(roomId, mode === 'portal', syncConnected, user?.id)
+	const draw = useStudentDraw(questions.draw, mode === 'portal')
 	const [showUnlock, setShowUnlock] = useState(false)
 	const [studentsSidebar, setStudentsSidebar] = useState({ expanded: true, instant: false })
+	useEffect(() => { if (questions.draw) setStudentsSidebar({ expanded: true, instant: false }) }, [questions.draw])
 	const [showResources, setShowResources] = useState(false)
 	const [showEmojis, setShowEmojis] = useState(false)
 	const [rename, setRename] = useState<string | null>(null)
@@ -322,7 +325,8 @@ function CanvasRoom({
 						</button>
 					)}
 					{mode === 'portal' && user?.role === 'student' && <RaiseHandButton editor={editor} />}
-					{mode === 'portal' && isEditor && <ConnectedStudentsToggle
+					{mode === 'portal' && <ConnectedStudentsToggle
+						user={user}
 						editor={editor}
 						expanded={studentsSidebar.expanded}
 						onToggle={(instant) => setStudentsSidebar((current) => ({ expanded: !current.expanded, instant }))}
@@ -369,7 +373,7 @@ function CanvasRoom({
 					</Suspense>}
 					{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
 				</main>
-				{mode === 'portal' && isEditor && <ConnectedStudents editor={editor} {...studentsSidebar} allowedUserIds={questions.allowedUserIds} permissionPending={questions.pending} onPermission={questions.permission} />}
+				{mode === 'portal' && <ConnectedStudents user={user} draw={draw} onDraw={questions.drawStudent} editor={editor} {...studentsSidebar} allowedUserIds={questions.allowedUserIds} permissionPending={questions.pending} onPermission={questions.permission} />}
 			</div>
 
 			{showUnlock && mode !== 'portal' && (
