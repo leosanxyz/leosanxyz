@@ -1,3 +1,6 @@
+export const REWARD_SKINS = ['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'] as const
+export type RewardSkin = (typeof REWARD_SKINS)[number]
+export const isRewardSkin = (value: unknown): value is RewardSkin => REWARD_SKINS.includes(value as RewardSkin)
 export const SKINS = [
 	'xp',
 	'long-dark',
@@ -24,6 +27,7 @@ export const SKINS = [
 	'kingdom-hearts',
 	'dark-souls',
 	'cult-of-the-lamb',
+	...REWARD_SKINS,
 ] as const
 export type PassSkin = (typeof SKINS)[number]
 export const FINISHES = ['matte', 'prism', 'foil', 'stars'] as const
@@ -55,7 +59,7 @@ export const defaultHologram = (): PassHologram => ({
 	hue: 195,
 })
 export function passHologram(
-	draft: Pick<PassDraft, 'finish' | 'hologram'>,
+	draft: Pick<PassDraft, 'finish' | 'hologram'> & { skin?: PassSkin },
 ): Required<PassHologram> {
 	const saved = draft.hologram
 	return {
@@ -65,7 +69,7 @@ export function passHologram(
 			draft.finish === 'stars' && saved?.area === undefined
 				? 'stars'
 				: (saved?.pattern ?? 'grid'),
-		area: saved?.area ?? 'all',
+		area: isRewardSkin(draft.skin) ? 'all' : saved?.area ?? 'all',
 		hue: saved?.hue ?? 195,
 	}
 }
@@ -114,6 +118,7 @@ export interface PassDraft {
 	signature?: PassSignature | null
 }
 export interface PassProfile {
+	unlockedSkins?: RewardSkin[]
 	intro: { name: string; message: string; skin: PassSkin }
 	draft: PassDraft
 	completed: boolean

@@ -1,3 +1,9 @@
+import reward0 from '../../../design/gachapon/arcane-knight.jpg'
+import reward1 from '../../../design/gachapon/moon-magic.webp'
+import reward2 from '../../../design/gachapon/sunset-riders.jpg'
+import reward3 from '../../../design/gachapon/lunar-witch.jpg'
+import reward4 from '../../../design/gachapon/golden-warrior.webp'
+import reward5 from '../../../design/gachapon/starlight-duo.png'
 import xp from '../../../design/pass-skins/xp-logo.png'
 import longDark from '../../../design/pass-skins/the-long-dark-cabin.jpg'
 import slime from '../../../design/pass-skins/slime-rancher-aurora.png'
@@ -23,13 +29,14 @@ import helldivers from '../../../design/pass-skins/helldivers.jpg'
 import kingdomHearts from '../../../design/pass-skins/kingdom-hearts.jpg'
 import darkSouls from '../../../design/pass-skins/dark-souls.jpg'
 import cultOfTheLamb from '../../../design/pass-skins/cult-of-the-lamb.jpg'
-import { STICKERS, type PassSkin, type StickerId } from '../../../shared/pass'
+import { REWARD_SKINS, STICKERS, type PassSkin, type StickerId } from '../../../shared/pass'
 
 export const skins: {
 	id: PassSkin
 	name: string
 	edition: string
 	image: string
+	position?: string
 	color: string
 }[] = [
 	{
@@ -117,6 +124,12 @@ export const skins: {
 	{ id: 'kingdom-hearts', name: 'Kingdom Hearts', edition: 'HD 1.5 + 2.5 ReMIX', image: kingdomHearts, color: '#b0c9f4' },
 	{ id: 'dark-souls', name: 'Dark Souls', edition: 'Remastered', image: darkSouls, color: '#e9b476' },
 	{ id: 'cult-of-the-lamb', name: 'Cult of the Lamb', edition: 'Unholy Alliance', image: cultOfTheLamb, color: '#eeb0cc' },
+	{ id: 'arcane-knight', name: 'Caballero arcano', edition: 'Colección gachapon', image: reward0, color: '#5cbaff' },
+	{ id: 'moon-magic', name: 'Magia lunar', edition: 'Colección gachapon', image: reward1, position: '79% center', color: '#f7addd' },
+	{ id: 'sunset-riders', name: 'Jinetes del ocaso', edition: 'Colección gachapon', image: reward2, color: '#fb7657' },
+	{ id: 'lunar-witch', name: 'Bruja lunar', edition: 'Colección gachapon', image: reward3, color: '#84b9ee' },
+	{ id: 'golden-warrior', name: 'Guerrera dorada', edition: 'Colección gachapon', image: reward4, color: '#edc76e' },
+	{ id: 'starlight-duo', name: 'Dúo estelar', edition: 'Colección gachapon', image: reward5, color: '#db92ee' },
 ]
 export const stickerArt: Record<StickerId, { glyph: string; name: string }> = {
 	spark: { glyph: '✦', name: 'Destello' },
@@ -134,6 +147,7 @@ export const stickerArt: Record<StickerId, { glyph: string; name: string }> = {
 }
 const pack = (...first: StickerId[]): StickerId[] => [...first, ...STICKERS.filter((id) => !first.includes(id))]
 export const packs: Record<PassSkin, StickerId[]> = {
+	...Object.fromEntries(REWARD_SKINS.map((skin) => [skin, [...STICKERS]])) as Record<(typeof REWARD_SKINS)[number], StickerId[]>,
 	minecraft: pack('pencil', 'frog', 'mushroom'),
 	'rocket-league': pack('controller', 'star', 'spark'),
 	tetris: pack('code', 'spark', 'planet'),

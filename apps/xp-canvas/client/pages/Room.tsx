@@ -40,6 +40,10 @@ import { RaiseHandButton } from '../portal/RaiseHandButton'
 import { getCanvasUserPresence } from '../portal/studentPresence'
 import { useStudentDraw } from '../portal/useStudentDraw'
 import { ConnectedStudents, ConnectedStudentsToggle } from '../portal/ConnectedStudents'
+import { GachaponContext } from '../gachapon/GachaponContext'
+import { GachaponDialog } from '../gachapon/GachaponDialog'
+import { GachaponReveal } from '../gachapon/GachaponReveal'
+import type { GachaponShape } from '../../shared/gachaponShape'
 import { QuestionCelebrations } from '../questions/QuestionCelebrations'
 import { StudentToolbar } from '../questions/StudentToolbar'
 import { QuestionContext } from '../questions/QuestionContext'
@@ -135,13 +139,17 @@ function CanvasRoom({
 			return true
 		}
 	})
+	const [gachaponDialog, setGachaponDialog] = useState<GachaponShape | 'new' | null>(null)
 	const [questionDialog, setQuestionDialog] = useState<QuestionShape | 'new' | null>(null)
 	const [syncConnected, setSyncConnected] = useState(false)
 	const questions = useQuestionInteractions(roomId, mode === 'portal', syncConnected, user?.id)
 	const draw = useStudentDraw(questions.draw, mode === 'portal')
 	const [showUnlock, setShowUnlock] = useState(false)
 	const [studentsSidebar, setStudentsSidebar] = useState({ expanded: true, instant: false })
-	useEffect(() => { if (questions.draw) setStudentsSidebar({ expanded: true, instant: false }) }, [questions.draw])
+	useEffect(() => {
+		// Open on every shared draw before the first selection beat, including collapsed student panels.
+		if (questions.draw?.id) setStudentsSidebar({ expanded: true, instant: true })
+	}, [questions.draw?.id])
 	const [showResources, setShowResources] = useState(false)
 	const [showEmojis, setShowEmojis] = useState(false)
 	const [rename, setRename] = useState<string | null>(null)
@@ -282,12 +290,14 @@ function CanvasRoom({
 	if (mode === 'portal' && store.status === 'error') return <div className="board-welcome"><h1>No pude abrir este canvas</h1><p>Tu sesión o tus permisos pueden haber cambiado.</p><button className="xp-primary" onClick={() => navigate('/')}>Mis clases</button></div>
 
 	return (
+		<GachaponContext.Provider value={{ userId: user?.id, isTeacher: isEditor, canUse: questions.canAnswer, pending: questions.pending, results: questions.gachaResults, spin: questions.spinGachapon, edit: setGachaponDialog }}>
 		<QuestionContext.Provider value={{ feedback: questions.feedback, isTeacher: isEditor, canAnswer: questions.canAnswer, pending: questions.pending, answer: questions.answer, edit: setQuestionDialog }}>
 		<div className="canvas-room">
 			<header className="canvas-header">
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
 				<nav className="canvas-actions" aria-label="Acciones del canvas">
+					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setGachaponDialog('new')}>Gachapon</button>}
 					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
@@ -385,6 +395,8 @@ function CanvasRoom({
 					}}
 				/>
 			)}
+			{questions.gachaResults.map((result) => <GachaponReveal key={result.id} result={result} />)}
+			{gachaponDialog && editor && <GachaponDialog editor={editor} roomId={roomId} shape={gachaponDialog === 'new' ? null : gachaponDialog} onClose={() => setGachaponDialog(null)} />}
 			<QuestionCelebrations feedback={questions.feedback} />
 			{questions.error && <div className="canvas-notice" role="alert">{questions.error}</div>}
 			{questionDialog && editor && <QuestionDialog editor={editor} shape={questionDialog === 'new' ? null : questionDialog} onClose={() => setQuestionDialog(null)} />}
@@ -396,6 +408,7 @@ function CanvasRoom({
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
 		</QuestionContext.Provider>
+		</GachaponContext.Provider>
 	)
 }
 function LoadingScreen() {

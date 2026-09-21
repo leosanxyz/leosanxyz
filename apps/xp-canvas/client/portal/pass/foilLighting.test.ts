@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { foilLighting, foilPattern } from './foilLighting'
 import { hologramMask } from './hologramMasks'
-import { SKINS } from '../../../shared/pass'
+import { SKINS, isRewardSkin } from '../../../shared/pass'
 
 describe('printed foil and reflected light', () => {
 	it('changes the light color without dimming or moving the printed pattern', () => {
@@ -35,6 +35,7 @@ describe('printed foil and reflected light', () => {
 	it('defines complementary subject and background masks for every cover', () => {
 		for (const skin of SKINS) {
 			expect(hologramMask(skin, 'all')).toBeUndefined()
+			if (isRewardSkin(skin)) { expect(hologramMask(skin, 'subject')).toBeUndefined(); continue }
 			if (skin === 'xp') {
 				const logo = hologramMask(skin, 'subject')
 				expect(logo).toContain('xp-logo.png')

@@ -16,7 +16,8 @@ import {
 import { passStickers, type PassDraft, type PassSkin } from '../../../shared/pass'
 import { carouselOffset, nearestCard, wrapCard } from './carouselPosition'
 import { PassCard } from './PassCard'
-import { skins } from './catalog'
+import { skins as allSkins } from './catalog'
+import { isRewardSkin } from '../../../shared/pass'
 import { clamp } from './stickerGeometry'
 import { usePassReducedMotion } from './usePassReducedMotion'
 import type { ReaderCard } from './PassReader'
@@ -38,6 +39,7 @@ export function PassCarousel({
 	mode,
 	cardControls,
 	align = 'center',
+	unlockedSkins = [],
 }: {
 	draft: PassDraft
 	phase: MotionValue<number>
@@ -49,7 +51,9 @@ export function PassCarousel({
 	mode: 'identity' | 'design' | 'stickers' | 'celebration' | 'reader'
 	cardControls?: Pick<ComponentProps<typeof PassCard>, 'back' | 'actions'>
 	align?: 'center' | 'start'
+	unlockedSkins?: readonly PassSkin[]
 }) {
+	const skins = allSkins.filter((skin) => !isRewardSkin(skin.id) || unlockedSkins.includes(skin.id))
 	const index = skins.findIndex((s) => s.id === draft.skin),
 		reduced = usePassReducedMotion()
 	const position = useMotionValue(index),
@@ -178,6 +182,7 @@ export function PassCarousel({
 				<CarouselCard
 					key={skin.id}
 					index={i}
+					skins={skins}
 					selected={index === i}
 					position={position}
 					width={width}
@@ -213,6 +218,7 @@ export function PassCarousel({
 }
 
 function CarouselCard({
+	skins,
 	index,
 	position,
 	width,
@@ -228,6 +234,7 @@ function CarouselCard({
 	cardControls,
 	align,
 }: {
+	skins: typeof allSkins
 	index: number
 	position: MotionValue<number>
 	width: number

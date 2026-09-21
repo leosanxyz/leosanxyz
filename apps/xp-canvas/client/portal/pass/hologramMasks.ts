@@ -1,4 +1,4 @@
-import type { HoloArea, PassSkin } from '../../../shared/pass'
+import { isRewardSkin, type RewardSkin, type HoloArea, type PassSkin } from '../../../shared/pass'
 import xpLogo from '../../../design/pass-skins/xp-logo.png'
 import { additionalSubjects } from './additionalHologramSubjects'
 
@@ -11,7 +11,7 @@ const portraits = Array.from({ length: 100 }, (_, i) => {
 	return `<rect x="${25 + half * 960 + col * 94.5}" y="${12 + row * 121}" width="82" height="109" rx="5"/>`
 }).join('')
 
-type IllustratedSkin = Exclude<PassSkin, 'xp'>
+type IllustratedSkin = Exclude<PassSkin, 'xp' | RewardSkin>
 
 const subjects: Record<
 	IllustratedSkin,
@@ -69,7 +69,7 @@ const subjects: Record<
 }
 
 export const subjectLabel = (skin: PassSkin) =>
-	skin === 'xp' ? 'Logotipo' : subjects[skin].label
+	skin === 'xp' ? 'Logotipo' : isRewardSkin(skin) ? 'Ilustración' : subjects[skin].label
 
 const masks = Object.fromEntries(
 	Object.entries(subjects).map(([skin, subject]) => {
@@ -80,7 +80,7 @@ const masks = Object.fromEntries(
 ) as Record<IllustratedSkin, Record<'subject' | 'background', string>>
 
 export const hologramMask = (skin: PassSkin, area: HoloArea) => {
-	if (area === 'all') return undefined
+	if (area === 'all' || isRewardSkin(skin)) return undefined
 	if (skin === 'xp') {
 		const logo = `url("${xpLogo}")`
 		return area === 'subject' ? logo : `linear-gradient(white, white), ${logo}`

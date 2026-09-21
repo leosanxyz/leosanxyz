@@ -5,7 +5,7 @@ import { subjectLabel } from './hologramMasks'
 
 it('keeps every published cover selectable, valid and complete', () => {
 	expect(skins.map((skin) => skin.id)).toEqual([...SKINS])
-	expect(new Set(SKINS).size).toBe(25)
+	expect(new Set(SKINS).size).toBe(31)
 	for (const skin of skins) {
 		expect(skin.image).toBeTruthy()
 		expect(subjectLabel(skin.id)).toBeTruthy()

@@ -7,6 +7,7 @@ import {
 	type MotionValue,
 } from 'motion/react'
 import {
+	isRewardSkin,
 	passHologram,
 	type HoloArea,
 	type HoloPattern,
@@ -57,8 +58,7 @@ export function HologramControls({
 	const areas: { id: HoloArea | null; name: string }[] = [
 		{ id: null, name: 'Mate' },
 		{ id: 'all', name: 'Toda' },
-		{ id: 'subject', name: subjectLabel(draft.skin) },
-		{ id: 'background', name: 'Fondo' },
+		...(!isRewardSkin(draft.skin) ? [{ id: 'subject' as const, name: subjectLabel(draft.skin) }, { id: 'background' as const, name: 'Fondo' }] : []),
 	]
 	const areaIndex = areas.findIndex((s) =>
 		draft.finish === 'matte' ? s.id === null : s.id === holo.area,

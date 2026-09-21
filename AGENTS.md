@@ -18,6 +18,7 @@ Si hace falta, lee [ARCHITECTURE.md](ARCHITECTURE.md) para entender cómo se con
 | Pencil, gestos y herramientas | `apps/xp-canvas/client/ipad/`, `client/pencil/`, `client/quickShape/` |
 | Interfaz de recursos y emojis | `apps/xp-canvas/client/resources/`, `client/emojis/`, `shared/resourceShape.ts` |
 | Preguntas interactivas y permiso para responder | `apps/xp-canvas/client/questions/`, `shared/questionShape.ts`, `worker/questions.ts` |
+| Preguntas y gachapon | `apps/xp-canvas/client/questions/`, `client/gachapon/`, `shared/questionShape.ts`, `shared/gachaponShape.ts` |
 | Perfil, bienvenida y pase | `apps/xp-canvas/client/portal/`, `client/portal/pass/` |
 | Imágenes y sonidos del pase | `apps/xp-canvas/design/` |
 | API y permisos del portal | `apps/xp-canvas/worker/worker.ts`, `worker/portal.ts`, `worker/portalAuth.ts` |

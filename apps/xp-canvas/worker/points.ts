@@ -22,6 +22,6 @@ export async function savePointAward(env: CanvasEnv, award: PointAward): Promise
 }
 
 export async function readPoints(env: CanvasEnv, userId: string) {
-	const row = await portalDb(env).prepare('SELECT COALESCE(SUM(amount), 0) AS points FROM point_awards WHERE user_id = ?').bind(userId).first<{ points: number }>()
+	const row = await portalDb(env).prepare('SELECT COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0) AS points').bind(userId, userId).first<{ points: number }>()
 	return row?.points ?? 0
 }

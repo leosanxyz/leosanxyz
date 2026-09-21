@@ -1,0 +1,132 @@
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import { chromium, devices } from 'playwright-core'
+
+// Creates synthetic accounts and documents. Use an isolated portal QA server.
+const baseURL = process.env.BASE_URL ?? 'http://127.0.0.1:5190'
+if (!['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) throw new Error('Gachapon smoke requires localhost and isolated QA state.')
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
+const errors = []
+try {
+	const teacher = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } })
+	assert.equal((await teacher.request.post('/api/portal/login', { data: { username: 'leo', password: process.env.PORTAL_QA_PASSWORD ?? 'qa-teacher-password-only-local' } })).status(), 200)
+	const board = await (await teacher.request.post('/api/boards', { data: { name: 'Gachapon QA' } })).json()
+	const students = []
+	for (const [index, name] of ['Ana Gachapon', 'Luis Gachapon'].entries()) {
+		const username = `Q${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`
+		assert.equal((await teacher.request.post('/api/portal/students', { data: { students: [{ username, name }] } })).status(), 201)
+		const roster = await (await teacher.request.get('/api/portal/roster')).json()
+		const id = roster.students.find((s) => s.username === username).id
+		const context = await browser.newContext({ baseURL, ...(index === 0 ? devices['iPad Pro 11 landscape'] : {}) })
+		assert.equal((await context.request.post('/api/portal/login', { data: { username, password: username } })).status(), 200)
+		assert.equal((await context.request.post('/api/portal/password', { data: { password: 'qa-questions-password' } })).status(), 200)
+		const pass = await (await context.request.get('/api/portal/pass')).json()
+		assert.equal((await context.request.put('/api/portal/pass', { data: { draft: { ...pass.draft, step: 4, opened: true, signature: { kind: 'drawn', strokes: [[[20, 100], [100, 45], [160, 220]]] } }, revision: pass.revision, completed: true } })).status(), 200)
+		students.push({ context, id, name, username })
+	}
+	assert.equal((await teacher.request.put(`/api/portal/boards/${board.id}/access`, { data: { grants: students.map(({ id }) => ({ kind: 'user', subjectId: id })) } })).status(), 200)
+	for (const actor of [{ context: teacher }, ...students]) {
+		actor.page = await actor.context.newPage()
+		actor.page.on('pageerror', (error) => errors.push(error.message))
+		await actor.page.goto(`/board/${board.id}`)
+		await actor.page.waitForFunction(() => !!window.__xpCanvasEditor)
+		if (actor.context === teacher) teacher.page = actor.page
+	}
+	const manager = teacher.page, ana = students[0], luis = students[1]
+
+	await manager.getByRole('button', { name: 'Gachapon', exact: true }).click()
+	const dialog = manager.getByRole('dialog')
+	await dialog.getByLabel(ana.name, { exact: true }).check()
+	for (const name of ['Magia lunar', 'Jinetes del ocaso', 'Bruja lunar', 'Guerrera dorada', 'Dúo estelar']) await dialog.getByLabel(name, { exact: true }).uncheck()
+	await dialog.getByRole('button', { name: 'Añadir al canvas', exact: true }).click()
+	await ana.page.locator('.gachapon').waitFor()
+	await luis.page.locator('.gachapon').waitFor()
+	let shape = await manager.evaluate(() => window.__xpCanvasEditor.getCurrentPageShapes().find((s) => s.type === 'gachapon'))
+	const endpoint = `/api/boards/${board.id}/interactions`
+	const spin = (actor, revision = shape.props.revision) => actor.request.post(endpoint, { data: { action: 'gachapon', shapeId: shape.id, revision, cost: shape.props.cost, skin: 'starlight-duo', userId: luis.id } })
+	const profile = async (actor) => (await actor.request.get('/api/portal/pass')).json()
+	const before = await profile(ana.context)
+	assert.deepEqual(before.unlockedSkins, [])
+	assert.equal((await ana.context.request.put('/api/portal/pass', { data: { draft: { ...before.draft, skin: 'arcane-knight' }, revision: before.revision, completed: true } })).status(), 403)
+	assert.equal((await spin(ana.context)).status(), 403)
+	assert.equal(await ana.page.getByRole('button', { name: 'Girar gachapon' }).isDisabled(), true)
+	assert.equal((await spin(teacher)).status(), 403)
+	for (const student of students) assert.equal((await teacher.request.post(endpoint, { data: { action: 'permission', userId: student.id, allowed: true } })).status(), 200)
+	assert.equal((await spin(luis.context)).status(), 403, 'global permission does not grant this machine')
+	assert.equal((await spin(ana.context, 'stale')).status(), 409)
+	await ana.page.getByTestId('tools.hand').tap()
+	assert.equal(await ana.page.getByRole('button', { name: 'Girar gachapon' }).isDisabled(), true)
+	await ana.page.getByRole('button', { name: 'Ver premios' }).tap()
+	assert.equal(await ana.page.locator('.gachapon__prizes').evaluate((e) => getComputedStyle(e).visibility), 'visible')
+	await ana.page.getByTestId('tools.select').tap()
+	await ana.page.getByRole('button', { name: 'Girar gachapon' }).tap()
+	for (const page of [manager, ana.page, luis.page]) {
+		await page.locator('.gachapon-reveal').waitFor()
+		assert.equal(await page.locator('.gachapon-reveal__prize').textContent(), `${ana.name} ganóCaballero arcanoTarjeta desbloqueada`)
+	}
+	const eventIds = await Promise.all([manager, ana.page, luis.page].map((page) => page.locator('.gachapon-reveal').getAttribute('data-gachapon-result')))
+	assert.equal(new Set(eventIds).size, 1, 'all viewers receive the same reward event')
+	await manager.waitForFunction(() => Number(getComputedStyle(document.querySelector('.gachapon-reveal__prize')).opacity) > .99)
+	await manager.screenshot({ path: '/tmp/gachapon-reveal.png' })
+	assert.equal((await spin(ana.context)).status(), 409, 'retry cannot award again')
+	const won = await profile(ana.context)
+	assert.deepEqual(won.unlockedSkins, ['arcane-knight'])
+	assert.deepEqual((await profile(luis.context)).unlockedSkins, [])
+	assert.equal((await ana.context.request.put('/api/portal/pass', { data: { draft: { ...won.draft, skin: 'arcane-knight' }, revision: won.revision, completed: true } })).status(), 200)
+	await ana.page.goto('/perfil')
+	await ana.page.getByRole('button', { name: 'Personalizar mi pase' }).click()
+	assert.equal(await ana.page.getByLabel('Portada Caballero arcano', { exact: true }).count(), 1)
+	assert.equal(await ana.page.getByRole('button', { name: 'Portada Magia lunar', exact: true }).count(), 0)
+	await ana.page.screenshot({ path: '/tmp/gachapon-profile.png' })
+	await ana.page.goto(`/board/${board.id}`)
+	await ana.page.locator('.gachapon').waitFor()
+	assert.equal(await ana.page.getByRole('button', { name: 'Girar gachapon' }).isDisabled(), true)
+	await manager.locator('.gachapon-reveal').waitFor({ state: 'hidden' })
+	await manager.getByRole('button', { name: 'Configurar gachapon' }).click()
+	await manager.getByRole('button', { name: 'Guardar', exact: true }).click()
+	assert.equal((await spin(ana.context)).status(), 409, 'editing does not restore a spin')
+	await manager.getByRole('button', { name: 'Configurar gachapon' }).click()
+	await manager.getByRole('button', { name: 'Reiniciar tiradas', exact: true }).click()
+	shape = await manager.evaluate(() => window.__xpCanvasEditor.getCurrentPageShapes().find((s) => s.type === 'gachapon'))
+	await ana.page.emulateMedia({ reducedMotion: 'reduce' })
+	const attempts = await Promise.all([spin(ana.context), spin(ana.context)])
+	assert.deepEqual(attempts.map((r) => r.status()).sort(), [200, 409])
+	await ana.page.locator('.gachapon-reveal').waitFor()
+	assert.equal(await ana.page.locator('.gachapon-reveal__capsule').evaluate((e) => getComputedStyle(e).display), 'none')
+	assert.deepEqual((await profile(ana.context)).unlockedSkins, ['arcane-knight'], 'duplicates remain a single selectable card')
+	await manager.locator('.gachapon-reveal').waitFor({ state: 'hidden' })
+	await manager.evaluate((id) => { const e = window.__xpCanvasEditor; e.updateShape({ id, type: 'gachapon', props: { usedUserIds: [] } }) }, shape.id)
+	assert.equal((await spin(ana.context)).status(), 409, 'undo cannot remove the permanent claim')
+
+	// Paid spins use the same permanent claim as the debit. Racing two machines cannot overdraw.
+	const paidIds = await manager.evaluate((userId) => {
+		const e = window.__xpCanvasEditor, prefix = crypto.randomUUID()
+		const ids = [0, 1].map((n) => `shape:paid-${prefix}-${n}`)
+		e.createShapes(ids.map((id, n) => ({ id, type: 'gachapon', x: 400 * n, y: 500, props: { cost: 60, pool: ['arcane-knight'], allowedUserIds: [userId], usedUserIds: [], revision: 'paid' } })))
+		e.createShape({ id: `shape:fund-${prefix}`, type: 'question', x: 900, y: 0, props: { question: 'Fondos de prueba', answers: ['Sí', 'No', 'Otro', 'Nada'], correct: 0, points: 100, revision: 'fund', answered: [] } })
+		return { machines: ids, question: `shape:fund-${prefix}` }
+	}, ana.id)
+	await ana.page.locator('.question-card').waitFor()
+	const paidSpin = (id, cost = 60) => ana.context.request.post(endpoint, { data: { action: 'gachapon', shapeId: id, revision: 'paid', cost, skin: 'starlight-duo' } })
+	assert.equal((await paidSpin(paidIds.machines[0])).status(), 409, 'zero balance cannot buy a spin')
+	assert.equal((await ana.context.request.post(endpoint, { data: { action: 'answer', shapeId: paidIds.question, revision: 'fund', answer: 0 } })).status(), 200)
+	await ana.page.waitForFunction(async () => (await (await fetch('/api/portal/points')).json()).points === 100)
+	assert.equal((await paidSpin(paidIds.machines[0], 0)).status(), 409, 'a stale or forged price cannot be charged')
+	const purchases = await Promise.all(paidIds.machines.map((id) => paidSpin(id)))
+	assert.deepEqual(purchases.map((r) => r.status()).sort(), [200, 409], 'only one of two purchases fits the balance')
+	assert.equal((await (await ana.context.request.get('/api/portal/points')).json()).points, 40)
+	const boughtIndex = purchases.findIndex((r) => r.status() === 200)
+	assert.equal((await paidSpin(paidIds.machines[boughtIndex])).status(), 409)
+	assert.equal((await (await ana.context.request.get('/api/portal/points')).json()).points, 40, 'retry is never charged twice')
+	const unbought = paidIds.machines[1 - boughtIndex]
+	await manager.evaluate((id) => { window.__xpCanvasEditor.updateShape({ id, type: 'gachapon', props: { cost: 40 } }) }, unbought)
+	await ana.page.waitForFunction((id) => window.__xpCanvasEditor.getShape(id)?.props.cost === 40, unbought)
+	assert.equal((await paidSpin(unbought, 40)).status(), 200, 'insufficient funds did not consume the turn')
+	assert.equal((await (await ana.context.request.get('/api/portal/points')).json()).points, 0)
+	const rosterAfter = await (await teacher.request.get('/api/portal/roster')).json()
+	assert.equal(rosterAfter.students.find((s) => s.id === ana.id).points, 0, 'teacher sees net balance')
+	await manager.locator('.gachapon-reveal').first().waitFor({ state: 'hidden' })
+	await manager.screenshot({ path: '/tmp/gachapon-machine.png' })
+	assert.deepEqual(errors, [])
+	console.log('Gachapon smoke passed: shared reveal, touch/cursor gates, teacher pool, permanent unlock/equip, privacy, reset, concurrent claims, undo, reduced motion, atomic paid spins and insufficient balance.')
+} finally { await browser.close() }

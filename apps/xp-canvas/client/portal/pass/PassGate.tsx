@@ -37,6 +37,12 @@ export function PassGate({ children }: { children: ReactNode }) {
 		// Account changes reset the entire pass, never reuse another student's draft.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [required, user?.id])
+	useEffect(() => {
+		if (!required) return
+		const unlock = (event: Event) => { if ((event as CustomEvent).detail?.userId === user?.id) void refresh().catch(() => {}) }
+		window.addEventListener('xp-skin-unlocked', unlock)
+		return () => window.removeEventListener('xp-skin-unlocked', unlock)
+	}, [required, user?.id])
 	if (required && !profile)
 		return (
 			<main className="portal-entry">

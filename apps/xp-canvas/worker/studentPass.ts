@@ -1,6 +1,6 @@
 import type { CanvasEnv } from './access'
 import type { PortalUser } from '../shared/portal'
-import { defaultPass, SKINS, type PassProfile } from '../shared/pass'
+import { defaultPass, SKINS, type PassProfile, type RewardSkin } from '../shared/pass'
 import { portalDb } from './portalAuth'
 
 export async function readPass(user: PortalUser, env: CanvasEnv): Promise<PassProfile> {
@@ -18,7 +18,9 @@ export async function readPass(user: PortalUser, env: CanvasEnv): Promise<PassPr
 			'Qué gusto tenerte por aquí. Preparé este espacio para compartir lo que vamos creando en clase. Ojalá te acompañe con las ideas que vienen.',
 		skin: SKINS.includes(saved.skin) ? saved.skin : 'xp',
 	}
+	const unlocked = await portalDb(env).prepare('SELECT DISTINCT skin FROM gachapon_spins WHERE user_id = ?').bind(user.id).all<{ skin: RewardSkin }>()
 	return {
+		unlockedSkins: unlocked.results.map((row) => row.skin),
 		intro,
 		draft: row?.draft_json ? JSON.parse(row.draft_json) : defaultPass(intro.name, intro.skin),
 		completed: Boolean(row?.completed_at),

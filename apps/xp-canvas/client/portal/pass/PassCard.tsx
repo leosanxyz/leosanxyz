@@ -181,6 +181,7 @@ export function PassCard({
 							>
 								<img
 									src={skin.image}
+									style={{ objectPosition: skin.position }}
 									alt={`Arte de ${skin.name}`}
 									draggable={false}
 								/>
@@ -189,6 +190,7 @@ export function PassCard({
 								<img
 									className="pass-art-blur"
 									src={skin.image}
+									style={{ objectPosition: skin.position }}
 									alt=""
 									draggable={false}
 								/>

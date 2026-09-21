@@ -41,11 +41,11 @@ En el portal, pulsa **Pregunta** en la cabecera para escribir un enunciado y cua
 
 El profesor y los alumnos ven la misma sidebar de alumnos conectados, con manos levantadas. Cada alumno también aparece en su propia lista. Quien tiene permiso se distingue por toda su fila azul y el icono de cursor. Solo el profesor puede cambiar los permisos.
 
-Los alumnos comienzan con la herramienta Mano y el cursor bloqueado. Después de que levanten la mano, pulsa el icono de cursor **Permitir responder** en su fila del panel de alumnos conectados. El permiso se conserva hasta volver a pulsar el cursor para **Retirar permiso**, incluso si el alumno recarga. Al dar permiso se activa el cursor. El alumno puede alternar entre el cursor, para responder, y la mano, para desplazarse. Pasar el cursor sobre una respuesta la resalta; el clic envía la elección. Retirar el permiso bloquea el cursor y vuelve a activar la mano. El permiso se aplica a las preguntas de ese canvas y no permite dibujar ni editar otros elementos.
+Los alumnos comienzan con la herramienta Mano y el cursor bloqueado. Después de que levanten la mano, pulsa el icono de cursor **Permitir responder** en su fila del panel de alumnos conectados. El permiso se conserva hasta volver a pulsar el cursor para **Retirar permiso**, incluso si el alumno recarga. Al dar permiso se activa el cursor. El alumno puede alternar entre el cursor, para responder, y la mano, para desplazarse. Pasar el cursor sobre una respuesta la resalta; el clic envía la elección. Retirar el permiso bloquea el cursor y vuelve a activar la mano. El permiso se aplica a las preguntas y máquinas de ese canvas y no permite dibujar ni editar otros elementos.
 
 Una respuesta elegida queda roja si es incorrecta y verde si es correcta, con una etiqueta que también identifica el resultado. Todos ven el cambio. Un acierto hace rebotar ligeramente el botón y deja caer confeti y emojis que se acumulan abajo; a los tres segundos comienzan a desvanecerse. Una respuesta incorrecta sacude el botón hacia los lados. Con movimiento reducido, el resultado usa un cambio de opacidad y emojis estáticos. Cada opción se puede elegir una vez hasta que el maestro reinicie o edite la pregunta. El permiso sigue activo después de responder. Los aciertos confirmados reproducen al mismo tiempo `correct.mp3`, `1gift-confetti.mp3` y `confetti-pop-sound.mp3`; los errores usan el sonido de Leapster. Se reproducen en las pestañas visibles que tengan el audio habilitado por el navegador. Si está bloqueado, un toque o una tecla dentro del canvas lo habilita para los siguientes resultados. Recargar no vuelve a reproducir respuestas anteriores. Los archivos originales están documentados en [Sonidos de las preguntas](design/question-sounds/README.md).
 
-El botón de dados a la derecha de **Alumnos conectados** sortea entre los alumnos presentes. La selección recorre sus filas y suena en cada paso, cada vez más despacio, hasta marcar al elegido. Todos ven el mismo resultado; el profesor decide después si le da permiso. Durante el sorteo no puede empezar otro. Con movimiento reducido se muestra únicamente la selección final. Recargar no repite el sorteo.
+El botón de dados a la derecha de **Alumnos conectados** sortea entre los alumnos presentes. La selección recorre sus filas y suena en cada paso, cada vez más despacio, hasta marcar al elegido. Al iniciar el sorteo, el panel de alumnos se abre de inmediato para todos los presentes, aunque lo hubieran cerrado. Todos ven el mismo resultado; el profesor decide después si le da permiso. Durante el sorteo no puede empezar otro. Con movimiento reducido se muestra únicamente la selección final. Recargar no repite el sorteo.
 
 Al crear o editar una pregunta puedes elegir su premio en **Puntos por respuesta correcta**. El valor inicial es 100. El alumno que acierta recibe el premio y todos ven `+puntos` encima de la pregunta. Los errores no restan puntos. Reintentar o deshacer una respuesta ya premiada no concede otro premio; reiniciar o editar la pregunta inicia una nueva ronda que sí puede premiarse.
 
@@ -58,6 +58,20 @@ BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/questions-smoke.mjs
 ```
 
 Crea cuentas y canvases ficticios. Comprueba autoría, bloqueo, permiso individual, colores compartidos, recarga, varias pestañas, reinicio y rechazo de escrituras directas. La emulación táctil de Chromium no demuestra el comportamiento físico de Safari o Apple Pencil.
+
+## Gachapon
+
+En el portal, pulsa **Gachapon** en la cabecera. Selecciona las tarjetas de la colección, los alumnos habilitados y el **Costo por tirada**. 0 significa gratis. Puedes filtrar por grupo; solo aparecen alumnos con acceso al canvas. El engranaje de la máquina vuelve a abrir estos ajustes.
+
+Para girar, el alumno necesita estar seleccionado en esa máquina, tener permiso de interacción y usar el cursor. Pasar el cursor sobre la máquina muestra sus premios; en pantalla táctil usa el icono del ojo. La perilla saca una cápsula y revela la tarjeta a todos los presentes. Con movimiento reducido aparece directamente la tarjeta. El premio se añade a las portadas de **Mi perfil**.
+
+Cada alumno tiene una tirada hasta que pulses **Reiniciar tiradas**. Guardar ajustes conserva las tiradas usadas. Si faltan puntos, no se cobra ni se consume el turno. Todas las tarjetas seleccionadas tienen la misma probabilidad y pueden repetirse; una repetida también cuesta los puntos indicados.
+
+El contrato de premios y cobros está en [Arquitectura](../../ARCHITECTURE.md#gachapon-y-tarjetas-desbloqueadas). Prueba en un portal QA aislado:
+
+```bash
+BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/gachapon-smoke.mjs
+```
 
 ## Copiar canvases
 

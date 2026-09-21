@@ -43,12 +43,14 @@ export type QuestionFeedback = { type: 'question-result'; id: string; shapeId: s
 export type InteractionState = { type: 'question-permissions'; allowedUserIds: string[] }
 export type QuestionCommand =
 	| { action: 'draw' }
+	| { action: 'gachapon'; shapeId: string; revision: string; cost: number }
 	| { action: 'permission'; userId: string; allowed: boolean }
 	| { action: 'answer'; shapeId: string; revision: string; answer: number }
 
 export function parseQuestionCommand(value: unknown): QuestionCommand {
 	if (!value || typeof value !== 'object') throw new Error('Solicitud inválida.')
 	const data = value as Record<string, unknown>
+	if (data.action === 'gachapon' && typeof data.shapeId === 'string' && data.shapeId.startsWith('shape:') && data.shapeId.length <= 100 && typeof data.revision === 'string' && data.revision.length <= 100) return { action: 'gachapon', shapeId: data.shapeId, revision: data.revision, cost: questionPoints.validate(data.cost) }
 	if (data.action === 'draw') return { action: 'draw' }
 	if (data.action === 'permission' && typeof data.userId === 'string' && data.userId.length <= 100 && typeof data.allowed === 'boolean') {
 		return { action: 'permission', userId: data.userId, allowed: data.allowed }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 
 const paths = {
+	eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
 	dice: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01',
 	back: 'm14 6-6 6 6 6',
 	arrowLeft: 'M19 12H5m7-7-7 7 7 7',

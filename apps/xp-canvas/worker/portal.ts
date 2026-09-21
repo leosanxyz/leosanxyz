@@ -5,7 +5,7 @@ import type { BoardLibrary } from '../shared/boards'
 import { studentLibrary } from './studentLibrary'
 import { isBoardId } from '../shared/boards'
 import type { BoardGrant, Student } from '../shared/portal'
-import { validPass } from '../shared/pass'
+import { validPass, isRewardSkin } from '../shared/pass'
 import { readPoints } from './points'
 import { readPass } from './studentPass'
 import {
@@ -124,6 +124,7 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			if (method === 'PUT') {
 				const data = await body(request, 32_000)
 				if (!validPass(data.draft) || !Number.isInteger(data.revision) || typeof data.completed !== 'boolean') throw new PortalError(400, 'Revisa el nombre y el diseño de tu pase.')
+				if (isRewardSkin(data.draft.skin) && !await db.prepare('SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ? LIMIT 1').bind(session.user.id, data.draft.skin).first()) throw new PortalError(403, 'Todavía no has ganado esa tarjeta.')
 				await db.prepare('INSERT OR IGNORE INTO student_passes (user_id) VALUES (?)').bind(session.user.id).run()
 				const result = await db.prepare('UPDATE student_passes SET draft_json = ?, completed_at = COALESCE(completed_at, ?), revision = revision + 1, updated_at = ? WHERE user_id = ? AND revision = ? RETURNING revision')
 					.bind(JSON.stringify(data.draft), data.completed ? Date.now() : null, Date.now(), session.user.id, data.revision).first()
@@ -139,7 +140,7 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 		}
 		if (path === '/api/portal/roster' && method === 'GET') {
 			const [students, groups] = await Promise.all([
-				db.prepare("SELECT users.*, COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = users.id), 0) AS points FROM users WHERE role = 'student' ORDER BY name").all<UserRow & { points: number }>(),
+				db.prepare("SELECT users.*, COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = users.id), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = users.id), 0) AS points FROM users WHERE role = 'student' ORDER BY name").all<UserRow & { points: number }>(),
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
 			])
 			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results })

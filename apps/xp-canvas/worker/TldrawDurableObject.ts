@@ -17,6 +17,8 @@ import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
 import type { PortalUser } from '../shared/portal'
 import { savePointAward, type PointAward } from './points'
+import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
+import type { RewardSkin } from '../shared/pass'
 import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
 import type { InteractionState, QuestionCommand, QuestionFeedback } from '../shared/questionShape'
 
@@ -43,6 +45,7 @@ function getAttachment(ws: WebSocket): SocketAttachment | null {
 // stay alive at the Cloudflare layer.
 export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	private room: TLSocketRoom<TLRecord, void> | null = null
+	private gachaBusy = new Set<string>()
 	private pointsFlush: Promise<void> | null = null
 	private pointReceiptsImported = false
 	/** Map sessionId → ws so onSessionSnapshot can serialize to the right socket. */
@@ -153,6 +156,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		if (!session || !board || board.trashedAt || !await canReadBoard(session, roomId, this.env)) return denied(403, 'No tienes acceso a este canvas.')
 		const room = this.getOrCreateRoom(), user = session.user
 		if (!command) { this.broadcastQuestionPermissions(); return { status: 200, body: this.questionPermissions(user) } }
+		if (command.action === 'gachapon') return this.spinGachapon(roomId, user, command)
 		if (command.action === 'draw') {
 			if (user.role !== 'teacher') return denied(403, 'Solo el maestro puede sortear alumnos.')
 			const peers = this.questionPeers().filter((peer) => peer.user.role === 'student')
@@ -211,6 +215,42 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		}
 		this.broadcastQuestionPermissions()
 		return { status: 200, body: this.questionPermissions(user) }
+	}
+
+	private async spinGachapon(roomId: string, user: PortalUser, command: Extract<QuestionCommand, { action: 'gachapon' }>) {
+		const denied = (status: number, message: string) => ({ status, body: { error: message } })
+		if (user.role !== 'student' || !this.questionPermissions(user).allowedUserIds.includes(user.id)) return denied(403, 'Espera el permiso del maestro y activa el cursor.')
+		const room = this.getOrCreateRoom()
+		const shape = room.storage.transaction((store) => store.get(command.shapeId)).result
+		if (!shape || shape.typeName !== 'shape' || shape.type !== 'gachapon' || shape.props.revision !== command.revision) return denied(409, 'La máquina cambió. Vuelve a intentarlo.')
+		if (shape.props.cost !== command.cost) return denied(409, 'El costo cambió. Revisa el precio antes de girar.')
+		if (!shape.props.allowedUserIds.includes(user.id)) return denied(403, 'El maestro aún no te habilita en esta máquina.')
+		if (shape.props.usedUserIds.includes(user.id)) return denied(409, 'Ya usaste tu tirada. Espera a que el maestro reinicie la máquina.')
+		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS gachapon_busy (shape_id TEXT PRIMARY KEY, ends_at INTEGER NOT NULL)')
+		const previous = this.ctx.storage.sql.exec<{ ends_at: number }>('SELECT ends_at FROM gachapon_busy WHERE shape_id = ?', shape.id).toArray()[0]
+		if (this.gachaBusy.has(shape.id) || previous && previous.ends_at > Date.now()) return denied(409, 'Espera a que salga el premio actual.')
+		this.gachaBusy.add(shape.id)
+		try {
+			const skin = shape.props.pool[Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * shape.props.pool.length)] as RewardSkin
+			const source = JSON.stringify(['gachapon', roomId, shape.id, shape.props.revision, user.id])
+			// The unique claim and the permanent unlock are the same D1 row. A retry cannot choose again.
+			const claimed = await this.env.PORTAL_DB!.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
+				SELECT ?, ?, ?, ?, ? WHERE ? <=
+				COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0)
+				RETURNING skin`).bind(source, user.id, skin, Date.now(), shape.props.cost, shape.props.cost, user.id, user.id).first()
+			if (!claimed) {
+				const used = await this.env.PORTAL_DB!.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(source).first()
+				return denied(409, used ? 'Ya usaste tu tirada. Espera a que el maestro reinicie la máquina.' : `Necesitas ${shape.props.cost} puntos para esta tirada.`)
+			}
+			room.storage.transaction((store) => {
+				const current = store.get(shape.id)
+				if (current?.typeName === 'shape' && current.type === 'gachapon' && current.props.revision === shape.props.revision) store.set(current.id, { ...current, props: { ...current.props, usedUserIds: [...new Set([...current.props.usedUserIds, user.id])] } })
+			})
+			const result: GachaponResult = { type: 'gachapon-result', id: crypto.randomUUID(), shapeId: shape.id, userId: user.id, name: user.name, skin, startedAt: Date.now() + 150 }
+			this.ctx.storage.sql.exec('INSERT OR REPLACE INTO gachapon_busy (shape_id, ends_at) VALUES (?, ?)', shape.id, result.startedAt + GACHAPON_DURATION)
+			for (const { attachment } of this.questionPeers()) room.sendCustomMessage(attachment.sessionId, result)
+			return { status: 200, body: result }
+		} finally { this.gachaBusy.delete(shape.id) }
 	}
 
 	private ensurePointOutbox() {

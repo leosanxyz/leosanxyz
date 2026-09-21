@@ -73,7 +73,7 @@ export function ProfilePass({ profile, account, initiallyEditing = false }: {
 			{(stickerCard) => <section className="profile-pass-panel" aria-labelledby="profile-pass-title">
 				<h2 id="profile-pass-title" className="xp-sr-only">Mi pase</h2>
 				<div className="profile-card-stage" ref={stage} inert={busy}>
-					<PassCarousel draft={shownDraft} phase={phase} design={editing && !back} mode={editing ? 'design' : 'celebration'} align="start"
+					<PassCarousel unlockedSkins={profile.unlockedSkins} draft={shownDraft} phase={phase} design={editing && !back} mode={editing ? 'design' : 'celebration'} align="start"
 						stickerCard={stickerCard} onSelect={(skin) => { if (skin !== draft.skin) update({ skin }) }}
 						cardControls={{ back, actions: <div className="profile-pass-toolbar" role="group" aria-label="Opciones del pase">
 							{!editing && <button ref={editButton} className="xp-icon-button" aria-label="Personalizar mi pase" title="Personalizar mi pase" onClick={begin}><Icon name="edit" size={20} /></button>}

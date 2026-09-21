@@ -374,7 +374,7 @@ export function Onboarding({
 												onSound={sounds.play}
 											>
 												{(reader) => (
-													<PassCarousel
+													<PassCarousel unlockedSkins={profile.unlockedSkins}
 														draft={draft}
 														phase={holoPhase}
 														onSelect={(skin) => {

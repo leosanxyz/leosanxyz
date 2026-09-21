@@ -1,0 +1,1 @@
+ALTER TABLE gachapon_spins ADD COLUMN cost INTEGER NOT NULL DEFAULT 0 CHECK (cost >= 0 AND cost <= 1000000);
