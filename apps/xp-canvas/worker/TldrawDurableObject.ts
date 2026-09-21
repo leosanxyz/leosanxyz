@@ -16,6 +16,7 @@ import { canReadBoard, portalEnabled, PORTAL_IDENTITY_HEADER, sessionByHash } fr
 import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
 import type { PortalUser } from '../shared/portal'
+import type { InteractionState, QuestionCommand, QuestionFeedback } from '../shared/questionShape'
 
 interface SocketAttachment {
 	sessionId: string
@@ -117,6 +118,64 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	// The Worker only exposes document export to authenticated editors.
 	getDocumentSnapshot(): RoomSnapshot {
 		return this.getOrCreateRoom().getCurrentSnapshot()
+	}
+
+	private questionPeers() {
+		return this.ctx.getWebSockets().flatMap((ws) => {
+			const attachment = getAttachment(ws)
+			return ws.readyState === WebSocket.OPEN && attachment?.portal && !this.hasExpired(attachment)
+				? [{ ws, attachment, user: attachment.portal.user }] : []
+		})
+	}
+
+	private questionPermissions(user: PortalUser): InteractionState {
+		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS question_permissions (user_id TEXT PRIMARY KEY)')
+		const ids = this.ctx.storage.sql.exec<{ user_id: string }>('SELECT user_id FROM question_permissions').toArray().map((row) => row.user_id)
+		return { type: 'question-permissions', allowedUserIds: user.role === 'teacher' ? ids : ids.filter((id) => id === user.id) }
+	}
+
+	private broadcastQuestionPermissions() {
+		const room = this.getOrCreateRoom()
+		for (const { attachment, user } of this.questionPeers()) {
+			room.sendCustomMessage(attachment.sessionId, this.questionPermissions(user))
+		}
+	}
+
+	async questionInteraction(roomId: string, tokenHash: string, command: QuestionCommand | null) {
+		const denied = (status: number, message: string) => ({ status, body: { error: message } })
+		if (!portalEnabled(this.env)) return denied(403, 'Interacción no disponible.')
+		const session = await sessionByHash(tokenHash, this.env)
+		const board = await readBoard(this.env, roomId)
+		if (!session || !board || board.trashedAt || !await canReadBoard(session, roomId, this.env)) return denied(403, 'No tienes acceso a este canvas.')
+		const room = this.getOrCreateRoom(), user = session.user
+		if (!command) return { status: 200, body: this.questionPermissions(user) }
+		if (command.action === 'permission') {
+			if (user.role !== 'teacher') return denied(403, 'Solo el maestro puede dar permiso.')
+			const peers = this.questionPeers().filter((peer) => peer.user.id === command.userId && peer.user.role === 'student')
+			if (command.allowed && !peers.length) return denied(409, 'El alumno ya no está conectado.')
+			this.questionPermissions(user)
+			if (command.allowed) this.ctx.storage.sql.exec('INSERT OR IGNORE INTO question_permissions (user_id) VALUES (?)', command.userId)
+			else this.ctx.storage.sql.exec('DELETE FROM question_permissions WHERE user_id = ?', command.userId)
+		} else {
+			if (user.role !== 'student' || !this.questionPermissions(user).allowedUserIds.includes(user.id)) return denied(403, 'Espera a que el maestro te dé permiso para responder.')
+			// The record check and write are synchronous, so concurrent answers and
+			// teacher edits cannot pass against the same stale question state.
+			let correct = false
+			const result = room.storage.transaction((store) => {
+				const shape = store.get(command.shapeId)
+				if (!shape || shape.typeName !== 'shape' || shape.type !== 'question') return 'Esta pregunta ya no existe.'
+				if (shape.props.revision !== command.revision) return 'La pregunta cambió. Vuelve a elegir una respuesta.'
+				if (shape.props.answered.includes(command.answer)) return 'Esa respuesta ya fue elegida.'
+				correct = command.answer === shape.props.correct
+				store.set(shape.id, { ...shape, props: { ...shape.props, answered: [...shape.props.answered, command.answer] } })
+				return null
+			}).result
+			if (result) return denied(409, result)
+			const feedback: QuestionFeedback = { type: 'question-result', id: crypto.randomUUID(), shapeId: command.shapeId, revision: command.revision, answer: command.answer, correct }
+			for (const { attachment } of this.questionPeers()) room.sendCustomMessage(attachment.sessionId, feedback)
+		}
+		this.broadcastQuestionPermissions()
+		return { status: 200, body: this.questionPermissions(user) }
 	}
 
 	referencesAsset(uploadId: string): boolean {

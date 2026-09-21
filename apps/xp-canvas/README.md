@@ -35,6 +35,22 @@ El modo local permite edición abierta; no lo expongas a Internet. Para exigir c
 
 La diferencia entre este acceso y las cuentas del portal se explica en [Cuentas y secretos](../../ARCHITECTURE.md#cuentas-y-secretos).
 
+## Preguntas interactivas
+
+En el portal, pulsa **Pregunta** en la cabecera para escribir un enunciado y cuatro respuestas. Marca una como correcta y añade la tarjeta al canvas. Puedes moverla como cualquier otra figura. El icono de lápiz permite cambiar su contenido o **Reiniciar respuestas** para borrar los colores.
+
+Los alumnos comienzan con la herramienta Mano y el cursor bloqueado. Después de que levanten la mano, pulsa el icono de cursor **Permitir responder** en su fila del panel de alumnos conectados. El permiso se conserva hasta volver a pulsar el cursor para **Retirar permiso**, incluso si el alumno recarga. Al dar permiso se activa el cursor. El alumno puede alternar entre el cursor, para responder, y la mano, para desplazarse. Pasar el cursor sobre una respuesta la resalta; el clic envía la elección. Retirar el permiso bloquea el cursor y vuelve a activar la mano. El permiso se aplica a las preguntas de ese canvas y no permite dibujar ni editar otros elementos.
+
+Una respuesta elegida queda roja si es incorrecta y verde si es correcta, con una etiqueta que también identifica el resultado. Todos ven el cambio. Un acierto hace rebotar ligeramente el botón y deja caer confeti y emojis que se acumulan abajo; a los tres segundos comienzan a desvanecerse. Una respuesta incorrecta sacude el botón hacia los lados. Con movimiento reducido, el resultado usa un cambio de opacidad y emojis estáticos. Cada opción se puede elegir una vez hasta que el maestro reinicie o edite la pregunta. El permiso sigue activo después de responder.
+
+El contrato y la validación del servidor están en [Arquitectura](../../ARCHITECTURE.md#worker-y-persistencia). La prueba completa usa el [portal QA aislado](PORTAL.md#desarrollo-y-pruebas):
+
+```bash
+BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/questions-smoke.mjs
+```
+
+Crea cuentas y canvases ficticios. Comprueba autoría, bloqueo, permiso individual, colores compartidos, recarga, varias pestañas, reinicio y rechazo de escrituras directas. La emulación táctil de Chromium no demuestra el comportamiento físico de Safari o Apple Pencil.
+
 ## Copiar canvases
 
 En el menú de tres puntos de cada canvas, **Duplicar canvas** crea **Copia de …** en la misma carpeta. Copia todas las páginas, objetos, grupos, conexiones, recortes del borrador y miniatura. El nuevo canvas tiene su propia URL y documento; los cambios posteriores en uno no afectan al otro. Los archivos de imágenes y videos se reutilizan, sin añadir entradas repetidas a Recursos.

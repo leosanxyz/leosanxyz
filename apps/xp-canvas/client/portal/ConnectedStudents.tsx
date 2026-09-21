@@ -2,7 +2,7 @@ import { createUserId, useValue, type Editor } from 'tldraw'
 import { collectConnectedStudents } from './studentPresence'
 import { Icon } from '../components/Icon'
 
-export function ConnectedStudents({ editor, expanded, instant }: { editor: Editor | null; expanded: boolean; instant: boolean }) {
+export function ConnectedStudents({ editor, expanded, instant, allowedUserIds, permissionPending, onPermission }: { editor: Editor | null; expanded: boolean; instant: boolean; allowedUserIds: string[]; permissionPending: boolean; onPermission: (userId: string, allowed: boolean) => void }) {
 	const students = useValue('connected students', () => collectConnectedStudents(
 		editor?.store.query.records('instance_presence').get() ?? []
 	), [editor])
@@ -14,13 +14,19 @@ export function ConnectedStudents({ editor, expanded, instant }: { editor: Edito
 					<h2 className="connected-students__title">Alumnos conectados</h2>
 				</div>
 				<div className="connected-students__body">
-					{students.length ? <ul>{students.map((student) => (
+					{students.length ? <ul>{students.map((student) => {
+						const userId = student.userId.slice(5), allowed = allowedUserIds.includes(userId)
+						const label = allowed ? 'Retirar permiso' : 'Permitir responder'
+						return (
 						<li key={student.userId} data-hand-raised={student.handRaised}>
 							<span className="connected-students__avatar" aria-hidden="true">{student.userName.trim().slice(0, 1).toLocaleUpperCase('es')}</span>
 							<span className="connected-students__name">{student.userName}</span>
+							<div className="connected-students__actions">
 							{student.handRaised && <span className="connected-students__raised-hand" role="img" aria-label="Mano levantada" title="Mano levantada"><span className="hand-raise-emoji" aria-hidden="true">🖐️</span></span>}
+							<button type="button" className="connected-students__permission" aria-label={label} title={label} aria-pressed={allowed} disabled={permissionPending} onClick={() => onPermission(userId, !allowed)}><Icon name="cursor" size={20} /></button>
+							</div>
 						</li>
-					))}</ul> : <p>Todavía no hay alumnos conectados.</p>}
+					)})}</ul> : <p>Todavía no hay alumnos conectados.</p>}
 				</div>
 			</div>
 		</aside>

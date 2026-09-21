@@ -32,7 +32,7 @@
 .connected-students__title { margin: 0; font-size: 13px; font-weight: 650; }
 .connected-students__body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 12px max(12px, env(safe-area-inset-bottom)); }
 .connected-students__body ul { list-style: none; margin: 0; padding: 0; }
-.connected-students__body li { display: flex; align-items: center; gap: 10px; padding: 10px 0; overflow-wrap: anywhere; }
+.connected-students__body li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 0; overflow-wrap: anywhere; }
 .connected-students__body p { margin: 12px 0; color: #73716c; line-height: 1.5; }
 .connected-students__name { flex: 1; min-width: 0; }
 .hand-raise-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 20px; line-height: 1; }

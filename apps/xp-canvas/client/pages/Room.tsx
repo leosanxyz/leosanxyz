@@ -39,6 +39,12 @@ import { CANVAS_TOOLS } from '../eraser/PartialEraserTool'
 import { RaiseHandButton } from '../portal/RaiseHandButton'
 import { getCanvasUserPresence } from '../portal/studentPresence'
 import { ConnectedStudents, ConnectedStudentsToggle } from '../portal/ConnectedStudents'
+import { QuestionCelebrations } from '../questions/QuestionCelebrations'
+import { StudentToolbar } from '../questions/StudentToolbar'
+import { QuestionContext } from '../questions/QuestionContext'
+import { QuestionDialog } from '../questions/QuestionDialog'
+import { useQuestionInteractions } from '../questions/useQuestionInteractions'
+import type { QuestionShape } from '../../shared/questionShape'
 import { usePortal } from '../portal/PortalProvider'
 
 const ResourceLibrary = lazy(() => import('../resources/ResourceLibrary'))
@@ -51,11 +57,11 @@ const TLDRAW_ASSET_URLS = {
 } satisfies TLUiAssetUrlOverrides
 
 const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null }
-const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, UserPresenceEditor: null }
+const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null }
 
 const CANVAS_OPTIONS = { camera: { wheelBehavior: 'zoom' as const } }
 const VIEWER_OVERRIDES: TLUiOverrides = {
-	tools: (_editor, tools) => ({ hand: tools.hand }),
+	tools: (_editor, tools) => ({ hand: tools.hand, select: { ...tools.select, readonlyOk: true } }),
 	actions: (_editor, actions) => Object.fromEntries(Object.entries(actions).filter(([id]) => id !== 'toggle-grid' && id !== 'select-all')),
 }
 
@@ -128,6 +134,9 @@ function CanvasRoom({
 			return true
 		}
 	})
+	const [questionDialog, setQuestionDialog] = useState<QuestionShape | 'new' | null>(null)
+	const [syncConnected, setSyncConnected] = useState(false)
+	const questions = useQuestionInteractions(roomId, mode === 'portal', syncConnected, user?.id)
 	const [showUnlock, setShowUnlock] = useState(false)
 	const [studentsSidebar, setStudentsSidebar] = useState({ expanded: true, instant: false })
 	const [showResources, setShowResources] = useState(false)
@@ -154,7 +163,8 @@ function CanvasRoom({
 		return new URL(`/api/connect/${encodeURIComponent(roomId)}`, window.location.origin).toString()
 	}, [roomId])
 	const users = useMemo(() => user ? { currentUser: atom('portal user', UserRecordType.create({ id: createUserId(user.id), name: user.name, color: user.role === 'teacher' ? '#078aa3' : '#7555cc' })) } : undefined, [user?.id, user?.name, user?.role])
-	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users, getUserPresence: getCanvasUserPresence })
+	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users, getUserPresence: getCanvasUserPresence, onCustomMessageReceived: questions.receive })
+	useEffect(() => { setSyncConnected(store.status === 'synced-remote' && store.connectionStatus === 'online') }, [store])
 
 	useEffect(() => {
 		if (!isEditor) return
@@ -204,6 +214,15 @@ function CanvasRoom({
 	}, [editor, isEditor, quickShape])
 
 	useEffect(() => {
+		if (!editor || isEditor) return
+		editor.cancel().selectNone().setCurrentTool(questions.canAnswer ? 'select' : 'hand')
+		return react('student navigation tools', () => {
+			const tool = editor.getCurrentToolId()
+			if (tool !== 'hand' && !(questions.canAnswer && tool === 'select')) editor.setCurrentTool('hand')
+		})
+	}, [editor, isEditor, questions.canAnswer])
+
+	useEffect(() => {
 		if (!import.meta.env.DEV || !editor) return
 		window.__xpCanvasEditor = editor
 		return () => {
@@ -240,10 +259,7 @@ function CanvasRoom({
 		if (!isEditor) {
 			nextEditor.updateInstanceState({ isReadonly: true, isGridMode: false })
 			nextEditor.setCurrentTool('hand')
-			// Escape in tldraw's hand tool normally returns to selection.
-			return react('viewer navigation', () => {
-				if (nextEditor.getCurrentToolId() !== 'hand') nextEditor.setCurrentTool('hand')
-			})
+			return
 		}
 		if (isEditor) nextEditor.registerExternalContentHandler('files', async ({ files, point }) => {
 			if (files.length > 20) { setNotice('Sube hasta 20 archivos a la vez.'); return }
@@ -263,11 +279,13 @@ function CanvasRoom({
 	if (mode === 'portal' && store.status === 'error') return <div className="board-welcome"><h1>No pude abrir este canvas</h1><p>Tu sesión o tus permisos pueden haber cambiado.</p><button className="xp-primary" onClick={() => navigate('/')}>Mis clases</button></div>
 
 	return (
+		<QuestionContext.Provider value={{ feedback: questions.feedback, isTeacher: isEditor, canAnswer: questions.canAnswer, pending: questions.pending, answer: questions.answer, edit: setQuestionDialog }}>
 		<div className="canvas-room">
 			<header className="canvas-header">
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
 				<nav className="canvas-actions" aria-label="Acciones del canvas">
+					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
 						<>
@@ -351,7 +369,7 @@ function CanvasRoom({
 					</Suspense>}
 					{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
 				</main>
-				{mode === 'portal' && isEditor && <ConnectedStudents editor={editor} {...studentsSidebar} />}
+				{mode === 'portal' && isEditor && <ConnectedStudents editor={editor} {...studentsSidebar} allowedUserIds={questions.allowedUserIds} permissionPending={questions.pending} onPermission={questions.permission} />}
 			</div>
 
 			{showUnlock && mode !== 'portal' && (
@@ -363,6 +381,9 @@ function CanvasRoom({
 					}}
 				/>
 			)}
+			<QuestionCelebrations feedback={questions.feedback} />
+			{questions.error && <div className="canvas-notice" role="alert">{questions.error}</div>}
+			{questionDialog && editor && <QuestionDialog editor={editor} shape={questionDialog === 'new' ? null : questionDialog} onClose={() => setQuestionDialog(null)} />}
 			{notice && <div className="canvas-notice">{notice}</div>}
 			{rename !== null && <Modal title="Renombrar canvas" onClose={() => { if (!renaming) setRename(null) }}><form className="xp-form" onSubmit={(event) => {
 				event.preventDefault(); if (!rename.trim() || renaming) return
@@ -370,6 +391,7 @@ function CanvasRoom({
 				void boardRequest<Board>(`boards/${roomId}`, 'PATCH', { name: rename }).then((updated) => { onBoardChange(updated); setRename(null) }).catch((cause) => setNotice(cause instanceof Error ? cause.message : 'No pude renombrar el canvas.')).finally(() => setRenaming(false))
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
+		</QuestionContext.Provider>
 	)
 }
 function LoadingScreen() {

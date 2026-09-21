@@ -243,6 +243,8 @@ export async function portalGate(request: Request, env: CanvasEnv): Promise<Resp
 	if (path.startsWith('/api/editor-session') && (path !== '/api/editor-session' || request.method !== 'GET')) return json({ error: 'Usa el acceso del portal.' }, 403)
 	if (session.user.role === 'teacher') return undefined
 	if (!session.passCompleted) return json({ error: 'Termina tu bienvenida antes de entrar a tus clases.' }, 403)
+	const interaction = /^\/api\/boards\/([^/]+)\/interactions$/.exec(path)
+	if (interaction && ['GET', 'POST'].includes(request.method) && isBoardId(interaction[1]) && await canReadBoard(session, interaction[1], env)) return undefined
 	if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Tu cuenta solo puede observar canvases.' }, 403)
 	if (path === '/api/editor-session') return undefined
 	if (path === '/api/library') {

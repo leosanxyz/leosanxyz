@@ -1,4 +1,5 @@
 import { BaseBoxShapeUtil, HTMLContainer, defaultShapeUtils } from 'tldraw'
+import { QuestionShapeUtil } from '../questions/QuestionShapeUtil'
 import { CanvasVideoShapeUtil } from './CanvasVideoShapeUtil'
 import { CanvasImageShapeUtil, CanvasTextShapeUtil } from '../emojis/EmojiShapeUtils'
 import { MASKED_SHAPE_UTILS } from '../eraser/MaskedShapeUtils'
@@ -44,5 +45,5 @@ export class ResourceShapeUtil extends BaseBoxShapeUtil<ResourceShape> {
 export const CANVAS_SHAPE_UTILS = [
 	...defaultShapeUtils.filter((util) => !['video', 'image', 'text', 'draw', 'highlight', 'geo', 'line'].includes(util.type)),
 	...MASKED_SHAPE_UTILS,
-	ResourceShapeUtil, CanvasImageShapeUtil, CanvasTextShapeUtil, CanvasVideoShapeUtil.configure({ autoplay: false }),
+	ResourceShapeUtil, QuestionShapeUtil, CanvasImageShapeUtil, CanvasTextShapeUtil, CanvasVideoShapeUtil.configure({ autoplay: false }),
 ]

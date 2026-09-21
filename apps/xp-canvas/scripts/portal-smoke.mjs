@@ -284,7 +284,8 @@ try {
 	assert.equal(await viewer.evaluate(() => window.__xpCanvasEditor.getInstanceState().isReadonly), true)
 	assert.equal(await viewer.getByTestId('canvas-grid-toggle').count(), 0)
 	assert.equal(await viewer.evaluate(() => window.__xpCanvasEditor.getCurrentToolId()), 'hand')
-	assert.deepEqual(await viewer.locator('.tlui-main-toolbar [data-testid^="tools."]').evaluateAll((buttons) => buttons.map((button) => button.dataset.testid)), ['tools.hand'])
+	assert.deepEqual(await viewer.locator('.tlui-main-toolbar [data-testid^="tools."]').evaluateAll((buttons) => buttons.map((button) => button.dataset.testid)), ['tools.select', 'tools.hand'])
+	assert.equal(await viewer.getByTestId('tools.select').isDisabled(), true)
 	for (const name of ['Compartir', 'Guardar copia', 'Salir', 'Salir de edición']) assert.equal(await viewer.getByRole('button', { name, exact: true }).count(), 0)
 	await viewer.locator('.tl-background').click({ position: { x: 50, y: 100 } })
 	for (const key of ['v', 'l', 'Escape']) {

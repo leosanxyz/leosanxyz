@@ -16,6 +16,7 @@ import { listResources, removeResource, saveEmoji, saveExistingResource, moveRes
 import { handleLibraryRequest, handleBoardRequest, handleThumbnail, readBoard } from './boards'
 import { handlePortalRequest, portalGate } from './portal'
 import { getPortalSession, portalEnabled, PORTAL_IDENTITY_HEADER } from './portalAuth'
+import { handleQuestionInteraction } from './questions'
 import { exportBoard, importBoard } from './boardTransfer'
 
 export { TldrawDurableObject } from './TldrawDurableObject'
@@ -118,6 +119,8 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	.post('/api/boards/import', importBoard)
 	.get('/api/boards/:boardId/export', exportBoard)
 	.post('/api/boards/:boardId/copy', handleLibraryRequest)
+	.get('/api/boards/:boardId/interactions', handleQuestionInteraction)
+	.post('/api/boards/:boardId/interactions', handleQuestionInteraction)
 	.get('/api/boards/:boardId', handleBoardRequest)
 	.patch('/api/boards/:boardId', handleLibraryRequest)
 	.post('/api/folders', handleLibraryRequest)
