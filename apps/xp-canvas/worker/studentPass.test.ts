@@ -138,6 +138,11 @@ describe('student pass validation', () => {
 			}),
 		).toMatchObject({ area: 'background', hue: 45, pattern: 'rings' })
 	})
+	it('keeps separate hologram areas on set 2 rewards', () => {
+		const hologram = { pattern: 'grid' as const, intensity: 65, phase: 0.2, area: 'subject' as const }
+		expect(passHologram({ finish: 'prism', skin: 'emilia', hologram }).area).toBe('subject')
+		expect(passHologram({ finish: 'prism', skin: 'arcane-knight', hologram }).area).toBe('all')
+	})
 	it('rejects arbitrary signature markup, unbounded strokes and invalid coordinates', () => {
 		for (const signature of [
 			'<svg onload="alert(1)">',

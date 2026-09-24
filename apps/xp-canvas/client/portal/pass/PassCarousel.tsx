@@ -53,7 +53,10 @@ export function PassCarousel({
 	align?: 'center' | 'start'
 	unlockedSkins?: readonly PassSkin[]
 }) {
-	const skins = allSkins.filter((skin) => !isRewardSkin(skin.id) || unlockedSkins.includes(skin.id))
+	const skins = [
+		...unlockedSkins.map((id) => allSkins.find((skin) => skin.id === id)).filter((skin): skin is (typeof allSkins)[number] => Boolean(skin && isRewardSkin(skin.id))),
+		...allSkins.filter((skin) => !isRewardSkin(skin.id)),
+	]
 	const index = skins.findIndex((s) => s.id === draft.skin),
 		reduced = usePassReducedMotion()
 	const position = useMotionValue(index),

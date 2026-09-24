@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createShapeId, type Editor } from 'tldraw'
-import { REWARD_SKINS } from '../../shared/pass'
+import { REWARD_SKIN_SETS } from '../../shared/pass'
 import type { GachaponShape } from '../../shared/gachaponShape'
 import type { BoardGrant, Roster } from '../../shared/portal'
 import { skins } from '../portal/pass/catalog'
@@ -10,7 +10,7 @@ import { Modal } from '../components/Modal'
 export function GachaponDialog({ editor, roomId, shape, onClose }: { editor: Editor; roomId: string; shape: GachaponShape | null; onClose: () => void }) {
 	const [cost, setCost] = useState(String(shape?.props.cost ?? 0))
 	const validCost = cost.trim() !== '' && Number.isInteger(Number(cost)) && Number(cost) >= 0 && Number(cost) <= 1_000_000
-	const [pool, setPool] = useState<string[]>(shape?.props.pool ?? [...REWARD_SKINS])
+	const [pool, setPool] = useState<string[]>(shape?.props.pool ?? [...REWARD_SKIN_SETS[0]])
 	const [allowed, setAllowed] = useState(shape?.props.allowedUserIds ?? [])
 	const [roster, setRoster] = useState<Roster | null>(null), [grants, setGrants] = useState<BoardGrant[]>([])
 	const [group, setGroup] = useState(''), [error, setError] = useState('')
@@ -36,7 +36,7 @@ export function GachaponDialog({ editor, roomId, shape, onClose }: { editor: Edi
 		onClose()
 	}
 	return <Modal title={shape ? 'Configurar gachapon' : 'Nuevo gachapon'} onClose={onClose}><form className="xp-form gachapon-form" onSubmit={(event) => { event.preventDefault(); save() }}>
-		<fieldset><legend>Tarjetas disponibles</legend><div className="gachapon-pool">{skins.filter((skin) => REWARD_SKINS.some((id) => id === skin.id)).map((skin) => <label key={skin.id} data-selected={pool.includes(skin.id)}><img style={{ objectPosition: skin.position }} src={skin.image} alt="" /><span><input type="checkbox" checked={pool.includes(skin.id)} onChange={() => setPool(toggle(pool, skin.id))} />{skin.name}</span></label>)}</div></fieldset>
+		<fieldset><legend>Tarjetas disponibles</legend>{REWARD_SKIN_SETS.map((set, index) => <div className="gachapon-set" key={index}><h3>Set {index + 1}</h3><div className="gachapon-pool">{set.map((id) => { const skin = skins.find((s) => s.id === id)!; return <label key={id} data-selected={pool.includes(id)}><img style={{ objectPosition: skin.position }} src={skin.image} alt="" /><span><input type="checkbox" checked={pool.includes(id)} onChange={() => setPool(toggle(pool, id))} />{skin.name}</span></label> })}</div></div>)}</fieldset>
 		<fieldset><legend>Alumnos habilitados</legend>{roster ? <><label>Grupo<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="">Todos los grupos de este canvas</option>{roster.groups.filter((g) => students.some((s) => s.groupId === g.id)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label><div className="gachapon-students">{students.filter((s) => !group || s.groupId === group).map((student) => <label key={student.id}><input type="checkbox" checked={allowed.includes(student.id)} onChange={() => setAllowed(toggle(allowed, student.id))} />{student.name}{shape?.props.usedUserIds.includes(student.id) && <small>Ya participó</small>}</label>)}</div>{!students.length && <p>Comparte este canvas con un grupo o alumno para poder seleccionarlo.</p>}</> : <p role="status">{error || 'Cargando alumnos…'}</p>}</fieldset>
 		<label>Costo por tirada<input type="number" min={0} max={1000000} step={1} required value={cost} onChange={(event) => setCost(event.target.value)} /><small>0 puntos = gratis</small></label>
 		<p>Una tirada por alumno. Necesitan permiso de interacción y el cursor activo. Todas las tarjetas elegidas tienen la misma probabilidad; pueden repetirse.</p>

@@ -4,6 +4,15 @@ import reward2 from '../../../design/gachapon/sunset-riders.jpg'
 import reward3 from '../../../design/gachapon/lunar-witch.jpg'
 import reward4 from '../../../design/gachapon/golden-warrior.webp'
 import reward5 from '../../../design/gachapon/starlight-duo.png'
+import zeldaCampfire from '../../../design/gachapon/zelda-campfire.jpg'
+import tracer from '../../../design/gachapon/tracer.jpeg'
+import soraka from '../../../design/gachapon/soraka.webp'
+import shadowWarrior from '../../../design/gachapon/shadow-warrior.jpg'
+import luke from '../../../design/gachapon/luke.jpg'
+import attackTitan from '../../../design/gachapon/attack-titan.jpg'
+import rengoku from '../../../design/gachapon/rengoku.jpg'
+import gyro from '../../../design/gachapon/gyro.jpeg'
+import emilia from '../../../design/gachapon/emilia.jpg'
 import xp from '../../../design/pass-skins/xp-logo.png'
 import longDark from '../../../design/pass-skins/the-long-dark-cabin.jpg'
 import slime from '../../../design/pass-skins/slime-rancher-aurora.png'
@@ -130,6 +139,15 @@ export const skins: {
 	{ id: 'lunar-witch', name: 'Bruja lunar', edition: 'Colección gachapon', image: reward3, color: '#84b9ee' },
 	{ id: 'golden-warrior', name: 'Guerrera dorada', edition: 'Colección gachapon', image: reward4, color: '#edc76e' },
 	{ id: 'starlight-duo', name: 'Dúo estelar', edition: 'Colección gachapon', image: reward5, color: '#db92ee' },
+	{ id: 'zelda-campfire', name: 'Fogata de Hyrule', edition: 'Gachapon · Set 2', image: zeldaCampfire, position: '50% 42%', color: '#78c9f7' },
+	{ id: 'tracer', name: 'Tracer', edition: 'Gachapon · Set 2', image: tracer, position: '50% 37%', color: '#f4a845' },
+	{ id: 'soraka', name: 'Soraka', edition: 'Gachapon · Set 2', image: soraka, position: '52% 38%', color: '#e6b4ef' },
+	{ id: 'shadow-warrior', name: 'Guerrero sombrío', edition: 'Gachapon · Set 2', image: shadowWarrior, position: '50% 37%', color: '#c47b70' },
+	{ id: 'luke', name: 'Luke', edition: 'Gachapon · Set 2', image: luke, position: '54% center', color: '#e99855' },
+	{ id: 'attack-titan', name: 'Titán de ataque', edition: 'Gachapon · Set 2', image: attackTitan, position: '50% 46%', color: '#8cabb8' },
+	{ id: 'rengoku', name: 'Rengoku', edition: 'Gachapon · Set 2', image: rengoku, position: '50% 37%', color: '#f0a14d' },
+	{ id: 'gyro', name: 'Gyro Zeppeli', edition: 'Gachapon · Set 2', image: gyro, position: '53% 40%', color: '#b7d67e' },
+	{ id: 'emilia', name: 'Emilia', edition: 'Gachapon · Set 2', image: emilia, position: '50% 100%', color: '#98b8f2' },
 ]
 export const stickerArt: Record<StickerId, { glyph: string; name: string }> = {
 	spark: { glyph: '✦', name: 'Destello' },

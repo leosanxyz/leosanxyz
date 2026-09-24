@@ -1,4 +1,8 @@
-export const REWARD_SKINS = ['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'] as const
+export const REWARD_SKIN_SETS = [
+	['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'],
+	['zelda-campfire', 'tracer', 'soraka', 'shadow-warrior', 'luke', 'attack-titan', 'rengoku', 'gyro', 'emilia'],
+] as const
+export const REWARD_SKINS = [...REWARD_SKIN_SETS[0], ...REWARD_SKIN_SETS[1]] as const
 export type RewardSkin = (typeof REWARD_SKINS)[number]
 export const isRewardSkin = (value: unknown): value is RewardSkin => REWARD_SKINS.includes(value as RewardSkin)
 export const SKINS = [
@@ -69,7 +73,7 @@ export function passHologram(
 			draft.finish === 'stars' && saved?.area === undefined
 				? 'stars'
 				: (saved?.pattern ?? 'grid'),
-		area: isRewardSkin(draft.skin) ? 'all' : saved?.area ?? 'all',
+		area: REWARD_SKIN_SETS[0].includes(draft.skin as (typeof REWARD_SKIN_SETS)[0][number]) ? 'all' : saved?.area ?? 'all',
 		hue: saved?.hue ?? 195,
 	}
 }

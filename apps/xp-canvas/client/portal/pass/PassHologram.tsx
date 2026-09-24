@@ -8,6 +8,7 @@ import {
 import { passHologram, type PassDraft } from '../../../shared/pass'
 import { hologramMask } from './hologramMasks'
 import { foilLighting, foilPattern } from './foilLighting'
+import { skins } from './catalog'
 
 export function PassHologram({
 	draft,
@@ -50,6 +51,7 @@ export function PassHologram({
 			data-area={holo.area}
 			style={{
 				maskImage: hologramMask(draft.skin, holo.area),
+				maskPosition: skins.find((skin) => skin.id === draft.skin)?.position,
 				maskComposite:
 					draft.skin === 'xp' && holo.area === 'background'
 						? 'exclude'

@@ -61,7 +61,7 @@ Crea cuentas y canvases ficticios. Comprueba autoría, bloqueo, permiso individu
 
 ## Gachapon
 
-En el portal, pulsa **Gachapon** en la cabecera. Selecciona las tarjetas de la colección, los alumnos habilitados y el **Costo por tirada**. 0 significa gratis. Puedes filtrar por grupo; solo aparecen alumnos con acceso al canvas. El engranaje de la máquina vuelve a abrir estos ajustes.
+En el portal, pulsa **Gachapon** en la cabecera. Selecciona las tarjetas del set 1 y del set 2, los alumnos habilitados y el **Costo por tirada**. Puedes combinar tarjetas de ambos sets; las máquinas nuevas empiezan con el set 1 seleccionado. 0 puntos significa gratis. Puedes filtrar por grupo; solo aparecen alumnos con acceso al canvas. El engranaje de la máquina vuelve a abrir estos ajustes.
 
 Para girar, el alumno necesita estar seleccionado en esa máquina, tener permiso de interacción y usar el cursor. Pasar el cursor sobre la máquina muestra sus premios; en pantalla táctil usa el icono del ojo. La perilla saca una cápsula y revela la tarjeta a todos los presentes. Con movimiento reducido aparece directamente la tarjeta. El premio se añade a las portadas de **Mi perfil**.
 

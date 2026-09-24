@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { foilLighting, foilPattern } from './foilLighting'
 import { hologramMask } from './hologramMasks'
-import { SKINS, isRewardSkin } from '../../../shared/pass'
+import { SKINS, REWARD_SKIN_SETS } from '../../../shared/pass'
 
 describe('printed foil and reflected light', () => {
 	it('changes the light color without dimming or moving the printed pattern', () => {
@@ -35,7 +35,7 @@ describe('printed foil and reflected light', () => {
 	it('defines complementary subject and background masks for every cover', () => {
 		for (const skin of SKINS) {
 			expect(hologramMask(skin, 'all')).toBeUndefined()
-			if (isRewardSkin(skin)) { expect(hologramMask(skin, 'subject')).toBeUndefined(); continue }
+			if (REWARD_SKIN_SETS[0].includes(skin as (typeof REWARD_SKIN_SETS)[0][number])) { expect(hologramMask(skin, 'subject')).toBeUndefined(); continue }
 			if (skin === 'xp') {
 				const logo = hologramMask(skin, 'subject')
 				expect(logo).toContain('xp-logo.png')
@@ -46,8 +46,8 @@ describe('printed foil and reflected light', () => {
 			}
 			const subject = decodeURIComponent(hologramMask(skin, 'subject')!)
 			const background = decodeURIComponent(hologramMask(skin, 'background')!)
-			expect(subject).toContain('<g fill="white" color="white">')
-			expect(background).toContain('<g fill="black" color="black">')
+			expect(subject).toContain('<g fill="white"')
+			expect(background).toContain('<g fill="black"')
 			expect(subject.split('<g')[1].split('>')[1]).toBe(
 				background.split('<g')[1].split('>')[1],
 			)

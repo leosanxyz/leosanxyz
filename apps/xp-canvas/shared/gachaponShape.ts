@@ -2,7 +2,7 @@ import { createShapePropsMigrationIds, createShapePropsMigrationSequence } from 
 import { questionPoints } from './questionShape'
 import { T } from '@tldraw/validate'
 import type { TLShape } from '@tldraw/tlschema'
-import { isRewardSkin, type RewardSkin } from './pass'
+import { isRewardSkin, REWARD_SKINS, type RewardSkin } from './pass'
 
 const id = T.string.refine((value) => {
 	if (!value || value.length > 100) throw new Error('Identificador inválido.')
@@ -21,7 +21,7 @@ export const gachaponShapeProps = {
 		if (!isRewardSkin(value)) throw new Error('Premio inválido.')
 		return value
 	})).refine((value) => {
-		if (!value.length || value.length > 6 || new Set(value).size !== value.length) throw new Error('Elige al menos un premio.')
+		if (!value.length || value.length > REWARD_SKINS.length || new Set(value).size !== value.length) throw new Error('Elige al menos un premio.')
 		return value
 	}),
 	allowedUserIds: ids,

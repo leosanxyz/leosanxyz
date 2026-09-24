@@ -7,14 +7,13 @@ import {
 	type MotionValue,
 } from 'motion/react'
 import {
-	isRewardSkin,
 	passHologram,
 	type HoloArea,
 	type HoloPattern,
 	type PassDraft,
 } from '../../../shared/pass'
 import { clamp } from './stickerGeometry'
-import { subjectLabel } from './hologramMasks'
+import { hasHologramAreas, subjectLabel } from './hologramMasks'
 import { foilPattern } from './foilLighting'
 import { usePassReducedMotion } from './usePassReducedMotion'
 
@@ -58,7 +57,7 @@ export function HologramControls({
 	const areas: { id: HoloArea | null; name: string }[] = [
 		{ id: null, name: 'Mate' },
 		{ id: 'all', name: 'Toda' },
-		...(!isRewardSkin(draft.skin) ? [{ id: 'subject' as const, name: subjectLabel(draft.skin) }, { id: 'background' as const, name: 'Fondo' }] : []),
+		...(hasHologramAreas(draft.skin) ? [{ id: 'subject' as const, name: subjectLabel(draft.skin) }, { id: 'background' as const, name: 'Fondo' }] : []),
 	]
 	const areaIndex = areas.findIndex((s) =>
 		draft.finish === 'matte' ? s.id === null : s.id === holo.area,

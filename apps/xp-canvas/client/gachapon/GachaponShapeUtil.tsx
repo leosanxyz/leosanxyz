@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { BaseBoxShapeUtil, HTMLContainer, useEditor, useValue } from 'tldraw'
 import { gachaponShapeProps, gachaponShapeMigrations, type GachaponShape } from '../../shared/gachaponShape'
-import { REWARD_SKINS } from '../../shared/pass'
+import { REWARD_SKIN_SETS } from '../../shared/pass'
 import { skins } from '../portal/pass/catalog'
 import { Icon } from '../components/Icon'
 import { useGachapon } from './GachaponContext'
@@ -11,7 +11,7 @@ export class GachaponShapeUtil extends BaseBoxShapeUtil<GachaponShape> {
 	static override type = 'gachapon' as const
 	static override props = gachaponShapeProps
 	static override migrations = gachaponShapeMigrations
-	override getDefaultProps(): GachaponShape['props'] { return { cost: 0, w: 300, h: 440, pool: [...REWARD_SKINS], allowedUserIds: [], usedUserIds: [], revision: crypto.randomUUID() } }
+	override getDefaultProps(): GachaponShape['props'] { return { cost: 0, w: 300, h: 440, pool: [...REWARD_SKIN_SETS[0]], allowedUserIds: [], usedUserIds: [], revision: crypto.randomUUID() } }
 	override canEdit() { return false }
 	override canResize() { return false }
 	override getText() { return 'Gachapon' }

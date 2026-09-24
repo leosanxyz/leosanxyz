@@ -1,6 +1,7 @@
 import { isRewardSkin, type RewardSkin, type HoloArea, type PassSkin } from '../../../shared/pass'
 import xpLogo from '../../../design/pass-skins/xp-logo.png'
 import { additionalSubjects } from './additionalHologramSubjects'
+import { rewardSubjects } from './rewardHologramSubjects'
 
 // Vector masks in the artwork's coordinates. CSS applies the same cover crop
 // and object position to the mask and the image. Original image files stay intact.
@@ -69,7 +70,9 @@ const subjects: Record<
 }
 
 export const subjectLabel = (skin: PassSkin) =>
-	skin === 'xp' ? 'Logotipo' : isRewardSkin(skin) ? 'Ilustración' : subjects[skin].label
+	skin === 'xp' ? 'Logotipo' : isRewardSkin(skin) ? rewardSubjects[skin]?.label ?? 'Ilustración' : subjects[skin].label
+
+export const hasHologramAreas = (skin: PassSkin) => !isRewardSkin(skin) || Boolean(rewardSubjects[skin])
 
 const masks = Object.fromEntries(
 	Object.entries(subjects).map(([skin, subject]) => {
@@ -79,8 +82,17 @@ const masks = Object.fromEntries(
 	}),
 ) as Record<IllustratedSkin, Record<'subject' | 'background', string>>
 
+const rewardMasks = Object.fromEntries(
+	Object.entries(rewardSubjects).map(([skin, subject]) => {
+		const svg = (inverse: boolean) =>
+			`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${subject.width}" height="${subject.height}" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="${inverse ? 'white' : 'black'}"/><g fill="${inverse ? 'black' : 'white'}">${subject.shapes}</g></svg>`)}")`
+		return [skin, { subject: svg(false), background: svg(true) }]
+	}),
+) as Partial<Record<RewardSkin, Record<'subject' | 'background', string>>>
+
 export const hologramMask = (skin: PassSkin, area: HoloArea) => {
-	if (area === 'all' || isRewardSkin(skin)) return undefined
+	if (area === 'all') return undefined
+	if (isRewardSkin(skin)) return rewardMasks[skin]?.[area]
 	if (skin === 'xp') {
 		const logo = `url("${xpLogo}")`
 		return area === 'subject' ? logo : `linear-gradient(white, white), ${logo}`
