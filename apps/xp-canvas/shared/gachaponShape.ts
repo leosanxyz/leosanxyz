@@ -34,7 +34,7 @@ declare module '@tldraw/tlschema' {
 	}
 }
 export type GachaponShape = TLShape<'gachapon'>
-export const GACHAPON_DURATION = 6000
+export const GACHAPON_DURATION = 7000
 export type GachaponResult = { type: 'gachapon-result'; id: string; shapeId: string; userId: string; name: string; skin: RewardSkin; startedAt: number }
 export function isGachaponResult(value: unknown): value is GachaponResult {
 	if (!value || typeof value !== 'object') return false
