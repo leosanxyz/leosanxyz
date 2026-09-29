@@ -1,9 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "node scripts/vercel-ignore.mjs",
-  "git": {
-    "deploymentEnabled": {
-      "codex/tldraw-canvas": false
-    }
-  }
+  "ignoreCommand": "node scripts/vercel-ignore.mjs"
 }
