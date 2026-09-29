@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url'
 
 // Vercel: exit 0 skips the build; exit 1 continues it.
 export function affectsSite(path) {
-  if (path.startsWith('apps/xp-canvas/') || path.startsWith('.codex/')) return false
+  if (path.startsWith('apps/xp-canvas/') || path.startsWith('.codex/') || path.startsWith('.claude/')) return false
   if (path.startsWith('docs/')) return false
   if (!path.includes('/') && /\.md$/i.test(path)) return false
   return true

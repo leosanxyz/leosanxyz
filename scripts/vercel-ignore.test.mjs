@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { affectsSite, shouldSkipBuild } from './vercel-ignore.mjs'
 
 test('canvas and project docs skip the site; shared inputs and site content rebuild', () => {
-  for (const path of ['apps/xp-canvas/client/App.tsx', 'AGENTS.md', 'ARCHITECTURE.md', 'docs/guide.md']) assert.equal(affectsSite(path), false, path)
+  for (const path of ['apps/xp-canvas/client/App.tsx', 'AGENTS.md', 'CLAUDE.md', 'ARCHITECTURE.md', 'docs/guide.md', '.codex/skills/animate/SKILL.md', '.claude/skills']) assert.equal(affectsSite(path), false, path)
   for (const path of ['src/app/page.tsx', 'public/img/art.png', 'content/blog/post.md', 'package.json', 'package-lock.json', 'next.config.ts', 'tsconfig.json', 'vercel.json', 'scripts/vercel-ignore.mjs']) assert.equal(affectsSite(path), true, path)
 })
 

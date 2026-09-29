@@ -144,3 +144,6 @@ dist
 
 # macOS
 .DS_Store
+
+# Local showcase media and captures.
+/.codex/showcase/

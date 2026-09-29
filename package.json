@@ -9,7 +9,6 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "dev:site": "npm run dev",
     "build:site": "npm run build",
     "start:site": "npm run start",

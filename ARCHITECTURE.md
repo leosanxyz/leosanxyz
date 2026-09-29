@@ -159,7 +159,7 @@ Ambas aplicaciones se publican desde `main`; las mejoras usan ramas cortas. Verc
 
 Cloudflare Workers Builds está conectado al mismo repositorio y despliega el Worker existente `xp-canvas-portal`. Vigila la carpeta del canvas y los manifiestos compartidos de npm. La licencia del frontend está guardada como variable cifrada del build; el secreto de contraseñas permanece separado en el Worker. Los builds de otras ramas están desactivados para no usar los datos de producción en previews.
 
-Los comandos y filtros están en [Publicación desde Git](apps/xp-canvas/PORTAL.md#publicación-desde-git). `vercel.json` mantiene desactivada la rama de transición `codex/tldraw-canvas`.
+Los comandos y filtros están en [Publicación desde Git](apps/xp-canvas/PORTAL.md#publicación-desde-git). `vercel.json` mantiene desactivada la antigua rama de transición `codex/tldraw-canvas`; no es la convención actual de ramas.
 
 Los filtros reducen builds, no aíslan datos ni sustituyen las pruebas. Si falla un despliegue, identificar el commit y la versión activa antes de reintentar. Revertir código no revierte migraciones ni escrituras de usuarios. No recrear buckets, bases o Durable Objects como parte de una reversión de código.
 

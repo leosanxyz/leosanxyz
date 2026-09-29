@@ -1,61 +1,39 @@
 # Mapa para trabajar en leosanxyz
 
-Este repositorio contiene el sitio personal de Leo y XP Canvas.
+Este repositorio contiene el sitio personal de Leo y XP Canvas, un canvas tldraw para sus clases. Mantén los cambios simples y limitados a lo que pide la tarea.
 
-Si hace falta, lee [ARCHITECTURE.md](ARCHITECTURE.md) para entender cómo se conectan sus componentes. Mantén los cambios simples y limitados a lo que pide la tarea.
+Para trabajar en XP Canvas, lee primero [apps/xp-canvas/AGENTS.md](apps/xp-canvas/AGENTS.md). Sus reglas se suman a las de este archivo.
 
-## Dónde buscar
+## Sitio personal
 
 | Trabajo | Punto de entrada |
 | --- | --- |
-| Sitio personal en Vercel | `src/app/`, `src/app/layout.tsx`, `src/app/globals.css` |
-| Portada, arte, escritura y software | `src/app/page.tsx`, `src/app/arte/`, `src/app/escritura/`, `src/app/software/` |
-| Componentes del sitio | `src/app/components/`, `src/hooks/`, `src/utils/`, `src/data/` |
+| Páginas, layout y estilos | `src/app/`, `src/app/layout.tsx`, `src/app/globals.css` |
+| Componentes y utilidades | `src/app/components/`, `src/hooks/`, `src/utils/`, `src/data/` |
 | Textos, GIFs y archivos públicos | `content/`, `public/` |
-| APIs del sitio | `src/app/api/posts/`, `src/app/api/arena/` |
-| Rutas y acceso del portal | `apps/xp-canvas/client/App.tsx`, `client/portal/PortalProvider.tsx` |
-| Biblioteca y canvas | `apps/xp-canvas/client/boards/`, `client/pages/Room.tsx` |
-| Pencil, gestos y herramientas | `apps/xp-canvas/client/ipad/`, `client/pencil/`, `client/quickShape/` |
-| Interfaz de recursos y emojis | `apps/xp-canvas/client/resources/`, `client/emojis/`, `shared/resourceShape.ts` |
-| Preguntas interactivas y permiso para responder | `apps/xp-canvas/client/questions/`, `shared/questionShape.ts`, `worker/questions.ts` |
-| Preguntas y gachapon | `apps/xp-canvas/client/questions/`, `client/gachapon/`, `shared/questionShape.ts`, `shared/gachaponShape.ts` |
-| Perfil, bienvenida y pase | `apps/xp-canvas/client/portal/`, `client/portal/pass/` |
-| Imágenes y sonidos del pase | `apps/xp-canvas/design/` |
-| API y permisos del portal | `apps/xp-canvas/worker/worker.ts`, `worker/portal.ts`, `worker/portalAuth.ts` |
-| Documentos colaborativos | `apps/xp-canvas/worker/TldrawDurableObject.ts` |
-| Catálogo de canvases y carpetas | `apps/xp-canvas/worker/BoardCatalog.ts` |
-| Archivos y biblioteca de recursos | `apps/xp-canvas/worker/assetUploads.ts`, `worker/resources.ts` |
-| Tipos compartidos y esquema de usuarios | `apps/xp-canvas/shared/`, `apps/xp-canvas/migrations/` |
-| Pruebas | Tests `*.test.ts` y `apps/xp-canvas/scripts/*smoke.mjs` |
-| Publicación | `vercel.json`, `scripts/vercel-ignore.mjs`, `apps/xp-canvas/wrangler.portal.toml` |
+| APIs | `src/app/api/` |
+| Publicación en Vercel | `vercel.json`, `scripts/vercel-ignore.mjs` |
 
-Las rutas abreviadas de una celda pertenecen a la misma app. Antes de editar un módulo, revisa los archivos que importa y sus pruebas cercanas.
+Desarrollo con `npm run dev:site`; valida con `npm run build:site`. Si cambias el filtro de Vercel, ejecuta `node --test scripts/vercel-ignore.test.mjs`.
 
 ## Dónde documentar cada tema
 
 | Documento | Responsabilidad |
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Componentes, almacenamiento, permisos técnicos, contratos de datos, secretos y separación de entornos y despliegues. |
-| [README del editor](apps/xp-canvas/README.md) | Uso del canvas, herramientas, desarrollo local y pruebas del editor. |
-| [PORTAL.md](apps/xp-canvas/PORTAL.md) | Gestión de cuentas, entorno QA, pruebas del portal, publicación y transferencia de datos. |
-| [ONBOARDING.md](apps/xp-canvas/ONBOARDING.md) | Experiencia del pase y perfil, interacción, sonido y criterios de revisión. |
-| README de `design/` | Procedencia y condiciones de uso de imágenes y sonidos. |
+| [apps/xp-canvas/AGENTS.md](apps/xp-canvas/AGENTS.md) | Mapa del canvas, validación y documentos propios de esa app. |
 
 Cada explicación tiene un documento responsable. En los demás, enlaza la sección; no copies su contenido. El README de la raíz es el perfil público de GitHub de Leo, no el manual del proyecto.
-
-Para el sitio personal usa `npm run dev:site` y `npm run build:site`. Para el filtro de Vercel, `node --test scripts/vercel-ignore.test.mjs`. Los comandos del canvas están en los documentos de la tabla. El script heredado `npm run lint` usa `next lint`, no disponible en Next 16; no lo presentes como una comprobación que funciona.
 
 ## Límites que debes conservar
 
 - Revisa `git status` antes de editar. Conserva cambios ajenos a la tarea y añade a Git solo rutas revisadas.
 - Antes de tocar persistencia, acceso o despliegues, consulta [ARCHITECTURE.md](ARCHITECTURE.md). No debilites permisos para resolver una prueba o una publicación.
 - No publiques secretos, sesiones, datos personales ni respaldos. Revisa tanto los archivos que añadirás a Git como los assets del build.
-- No borres ni reutilices datos de clases para QA. Migraciones remotas, cambios de credenciales, DNS y limpiezas requieren autorización específica.
-- Usa los procedimientos de prueba del entorno afectado. La emulación de Chromium no demuestra el comportamiento físico de Safari o Apple Pencil.
-- Para trabajo con Tailscale, SSH, `leosan-linux` o `steamdeck`, usa la skill `manage-tailnet-hosts`, comprueba el estado actual y respeta los alias SSH.
+- Si un cambio solo puede comprobarse en un dispositivo físico o en un servicio remoto, dilo y pide a Leo que lo verifique; no lo presentes como probado.
 
 ## Flujo de cambios
 
-`main` es la rama estable para ambas aplicaciones. Usa ramas cortas `codex/<cambio>` para las siguientes mejoras. Valida la app afectada; cuando cambien dependencias o configuración compartidas, valida ambas. Publicar, desplegar y migrar datos son acciones distintas: informa cuál se ha verificado realmente.
+`main` es la rama estable para ambas aplicaciones. Trabaja en ramas cortas con el prefijo del agente que hace los cambios, por ejemplo `codex/<cambio>` o `claude/<cambio>`. Valida la app afectada; cuando cambien dependencias o configuración compartidas, valida ambas. Publicar, desplegar y migrar datos son acciones distintas: informa cuál se ha verificado realmente.
 
-Mantén este mapa y `ARCHITECTURE.md` actualizados cuando cambien rutas, almacenamiento, comandos o publicación. Documenta el funcionamiento vigente; retira planes ya ejecutados, bitácoras de migración y resultados puntuales de pruebas. El historial de Git conserva ese contexto. Mantén las notas de compatibilidad mientras protejan datos existentes. No guardes aquí contraseñas ni inventarios personales.
+Mantén estos mapas y `ARCHITECTURE.md` actualizados cuando cambien carpetas, almacenamiento, comandos o publicación. Los mapas nombran carpetas y puntos de entrada, no cada archivo. Documenta el funcionamiento vigente; retira planes ya ejecutados, bitácoras de migración y resultados puntuales de pruebas. El historial de Git conserva ese contexto. Mantén las notas de compatibilidad mientras protejan datos existentes. No guardes aquí contraseñas ni inventarios personales.
