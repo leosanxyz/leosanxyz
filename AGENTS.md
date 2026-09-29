@@ -34,7 +34,7 @@ Cada explicación tiene un documento responsable. En los demás, enlaza la secci
 
 ## Flujo de cambios
 
-`main` es la rama estable para ambas aplicaciones. Trabaja en ramas cortas con el prefijo del agente que hace los cambios, por ejemplo `codex/<cambio>` o `claude/<cambio>`. Valida la app afectada; cuando cambien dependencias o configuración compartidas, valida ambas. Publicar, desplegar y migrar datos son acciones distintas: informa cuál se ha verificado realmente.
+`main` es la rama estable para ambas aplicaciones. Trabaja en ramas cortas con el prefijo del agente que hace los cambios, por ejemplo `codex/<cambio>` o `claude/<cambio>`. Después de fusionar una rama en `main`, bórrala en local y en GitHub; no borres ramas con commits sin fusionar sin preguntar. Valida la app afectada; cuando cambien dependencias o configuración compartidas, valida ambas. Publicar, desplegar y migrar datos son acciones distintas: informa cuál se ha verificado realmente.
 
 Las skills del proyecto están en `.agents/skills/`; `.claude/skills` es un enlace a esa carpeta para que Claude use las mismas. Añade o edita skills solo en `.agents/skills/`.
 
