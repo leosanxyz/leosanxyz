@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon'
 import { navigate } from '../navigation'
 import { usePortal } from './PortalProvider'
 import { portalRequest } from './api'
-import { usePass } from './pass/PassGate'
+import { PassPending, usePass } from './pass/PassGate'
 import { ProfilePass } from './pass/ProfilePass'
 import './profile.css'
 
@@ -26,6 +26,8 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 		document.addEventListener('visibilitychange', load)
 		return () => { active = false; window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', load) }
 	}, [user?.id, user?.role])
+	// A finished student enters class before the pass loads; the profile waits for it here instead.
+	if (user?.role === 'student' && !profile) return <PassPending label="Abriendo tu perfil…" />
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
 				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? '…' : points.toLocaleString('es-MX')}</strong></div>}

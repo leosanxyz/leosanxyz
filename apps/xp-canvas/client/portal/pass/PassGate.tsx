@@ -1,5 +1,7 @@
 import {
 	createContext,
+	lazy,
+	Suspense,
 	useContext,
 	useEffect,
 	useState,
@@ -8,20 +10,27 @@ import {
 import type { PassProfile } from '../../../shared/pass'
 import { portalRequest } from '../api'
 import { usePortal } from '../PortalProvider'
-import { Onboarding } from './Onboarding'
 import { navigate } from '../../navigation'
+// Profile, gachapon and onboarding share these styles; keep them out of the lazy onboarding chunk.
+import './pass.css'
+
+const Onboarding = lazy(() => import('./Onboarding').then((module) => ({ default: module.Onboarding })))
 
 const PassContext = createContext<{
 	profile: PassProfile | null
+	error: string
 	refresh: () => Promise<void>
 	accept: (profile: PassProfile) => void
-}>({ profile: null, refresh: async () => {}, accept: () => {} })
+}>({ profile: null, error: '', refresh: async () => {}, accept: () => {} })
 export const usePass = () => useContext(PassContext)
 export function PassGate({ children }: { children: ReactNode }) {
-	const { mode, user, logout } = usePortal(),
+	const { mode, user, passCompleted, logout } = usePortal(),
 		[profile, setProfile] = useState<PassProfile | null>(null),
 		[error, setError] = useState('')
 	const required = mode === 'portal' && user?.role === 'student'
+	// The session already says whether the welcome is finished, so class does not wait for the pass.
+	// Once loaded, the profile wins: finishing the welcome updates it before the session refreshes.
+	const onboarding = required && (profile ? !profile.completed : !passCompleted)
 	async function refresh() {
 		const p = await portalRequest<PassProfile>('pass')
 		setProfile(p)
@@ -43,7 +52,15 @@ export function PassGate({ children }: { children: ReactNode }) {
 		window.addEventListener('xp-skin-unlocked', unlock)
 		return () => window.removeEventListener('xp-skin-unlocked', unlock)
 	}, [required, user?.id])
-	if (required && !profile)
+	const waiting = (
+		<main className="portal-entry">
+			<section className="portal-entry-card">
+				<h1>Preparando tu pase</h1>
+				<p role="status">Un momento…</p>
+			</section>
+		</main>
+	)
+	if (onboarding && !profile)
 		return (
 			<main className="portal-entry">
 				<section className="portal-entry-card">
@@ -68,37 +85,61 @@ export function PassGate({ children }: { children: ReactNode }) {
 			</main>
 		)
 	return (
-		<PassContext.Provider value={{ profile, refresh, accept: setProfile }}>
-			{required && profile && !profile.completed ? (
-				<Onboarding
-					key={user!.id}
-					profile={profile}
-					onComplete={async () => {
-						await refresh()
-						navigate('/')
-					}}
-					onExit={logout}
-				/>
+		<PassContext.Provider value={{ profile, error, refresh, accept: setProfile }}>
+			{onboarding && profile ? (
+				<Suspense fallback={waiting}>
+					<Onboarding
+						key={user!.id}
+						profile={profile}
+						onComplete={async () => {
+							await refresh()
+							navigate('/')
+						}}
+						onExit={logout}
+					/>
+				</Suspense>
 			) : (
 				children
 			)}
 		</PassContext.Provider>
 	)
 }
+/** Pages that need the pass wait here; finished students reach them before it loads. */
+export function PassPending({ label }: { label: string }) {
+	const { error, refresh } = usePass()
+	return (
+		<div className="board-loading" role={error ? 'alert' : 'status'}>
+			{error || label}
+			{error && (
+				<>
+					<button className="xp-primary" onClick={() => void refresh().catch(() => {})}>
+						Reintentar
+					</button>
+					<button className="portal-link" onClick={() => navigate('/')}>
+						Mis clases
+					</button>
+				</>
+			)}
+		</div>
+	)
+}
 export function ReplayOnboarding() {
 	const { profile, refresh } = usePass()
-	if (!profile) return null
+	const loading = <PassPending label="Preparando el pase…" />
+	if (!profile) return loading
 	return (
-		<Onboarding
-			profile={{ ...profile, draft: { ...profile.draft, step: 0, opened: false } }}
-			onExit={async () => {
-				await refresh()
-				navigate('/perfil')
-			}}
-			onComplete={async () => {
-				await refresh()
-				navigate('/perfil')
-			}}
-		/>
+		<Suspense fallback={loading}>
+			<Onboarding
+				profile={{ ...profile, draft: { ...profile.draft, step: 0, opened: false } }}
+				onExit={async () => {
+					await refresh()
+					navigate('/perfil')
+				}}
+				onComplete={async () => {
+					await refresh()
+					navigate('/perfil')
+				}}
+			/>
+		</Suspense>
 	)
 }

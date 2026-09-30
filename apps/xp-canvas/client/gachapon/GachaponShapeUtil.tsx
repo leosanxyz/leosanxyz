@@ -70,7 +70,7 @@ function Machine({ shape }: { shape: GachaponShape }) {
 		: !cursor ? 'Activa el cursor para girar' : needsCoin ? `Inserta una moneda · ${cost} puntos` : 'Jala la palanca'
 	const prizes = <>
 		<button className="gachapon__prizes-toggle" aria-label="Ver premios" aria-expanded={prizesOpen} {...guard} onClick={() => setPrizesOpen(!prizesOpen)}><Icon name="eye" size={19} /></button>
-		<div className="gachapon__prizes" aria-label="Premios de esta máquina">{shape.props.pool.map((id) => { const skin = skins.find((s) => s.id === id)!; return <figure key={id}><img style={{ objectPosition: skin.position }} src={skin.image} alt={skin.name} draggable={false} /></figure> })}</div>
+		<div className="gachapon__prizes" aria-label="Premios de esta máquina">{shape.props.pool.map((id) => { const skin = skins.find((s) => s.id === id)!; return <figure key={id}><img style={{ objectPosition: skin.position }} src={skin.image} alt={skin.name} loading="lazy" draggable={false} /></figure> })}</div>
 	</>
 
 	if (status3d === 'failed') {

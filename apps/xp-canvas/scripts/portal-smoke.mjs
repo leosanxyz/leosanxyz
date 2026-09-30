@@ -259,6 +259,13 @@ try {
 	await viewer.getByRole('button', { name: 'Repetir la bienvenida', exact: true }).click()
 	await viewer.getByRole('button', { name: 'Comenzar', exact: true }).waitFor()
 	assert.equal((await student.request.get('/api/library')).status(), 200, 'replaying does not revoke completed access')
+	// A finished student reaches routes before the pass loads; a failed load must stay recoverable.
+	await viewer.route('**/api/portal/pass', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"QA"}' }))
+	await viewer.reload()
+	await viewer.getByRole('alert').filter({ hasText: 'No pude cargar tu pase.' }).waitFor()
+	await viewer.unroute('**/api/portal/pass')
+	await viewer.getByRole('button', { name: 'Reintentar', exact: true }).click()
+	await viewer.getByRole('button', { name: 'Comenzar', exact: true }).waitFor()
 	await viewer.goto('/perfil')
 	await viewer.getByRole('button', { name: 'Cambiar contraseña', exact: true }).click()
 	await viewer.getByLabel('Contraseña actual', { exact: true }).fill('contraseña incorrecta')

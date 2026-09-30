@@ -65,7 +65,8 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 	try {
 		const path = new URL(request.url).pathname, method = request.method
 		if (path === '/api/portal/session' && method === 'GET') {
-			return json({ mode: portalEnabled(env) ? 'portal' : 'local', user: portalEnabled(env) ? (await getPortalSession(request, env))?.user ?? null : null })
+			const session = portalEnabled(env) ? await getPortalSession(request, env) : null
+			return json({ mode: portalEnabled(env) ? 'portal' : 'local', user: session?.user ?? null, ...(session ? { passCompleted: session.passCompleted } : {}) })
 		}
 		if (!portalEnabled(env)) return json({ error: 'El portal no está habilitado.' }, 404)
 		if (method !== 'GET' && !isSameOrigin(request)) return json({ error: 'Origen inválido.' }, 403)

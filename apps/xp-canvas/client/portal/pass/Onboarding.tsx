@@ -28,7 +28,6 @@ import { PassDownload } from './PassDownload'
 import { usePassReducedMotion } from './usePassReducedMotion'
 import { usePassSounds } from './usePassSounds'
 import { skins } from './catalog'
-import './pass.css'
 
 const steps = [
 	'Bienvenida',

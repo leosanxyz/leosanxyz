@@ -293,21 +293,20 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 
 	async revalidatePortalSessions() {
 		if (!portalEnabled(this.env)) return
-		for (const ws of this.ctx.getWebSockets()) {
-			if (ws.readyState !== WebSocket.OPEN) continue
+		const sockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
+		// Every socket in this object belongs to the same room, so one catalog read covers the sweep.
+		const roomId = sockets.map((ws) => getAttachment(ws)?.portal?.roomId).find(Boolean)
+		const board = roomId ? await readBoard(this.env, roomId).catch(() => null) : null
+		await Promise.all(sockets.map(async (ws) => {
 			const attachment = getAttachment(ws), identity = attachment?.portal
 			let allowed = false
-			if (identity) {
+			if (identity && board && !board.trashedAt && identity.roomId === board.id) {
 				try {
-					const session = await sessionByHash(identity.tokenHash, this.env)
-					const board = await readBoard(this.env, identity.roomId)
-					allowed = Boolean(board && !board.trashedAt && await canReadBoard(session, identity.roomId, this.env))
+					allowed = await canReadBoard(await sessionByHash(identity.tokenHash, this.env), identity.roomId, this.env)
 				} catch { /* Fail closed if authorization is unavailable. */ }
 			}
-			if (!allowed) {
-				this.revokeSocket(ws, attachment)
-			}
-		}
+			if (!allowed) this.revokeSocket(ws, attachment)
+		}))
 		if (this.ctx.getWebSockets().some((ws) => ws.readyState === WebSocket.OPEN)) await this.ctx.storage.setAlarm(Date.now() + 60_000)
 	}
 
