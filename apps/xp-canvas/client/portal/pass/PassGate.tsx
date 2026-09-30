@@ -104,9 +104,28 @@ export function PassGate({ children }: { children: ReactNode }) {
 		</PassContext.Provider>
 	)
 }
+/** Pages that need the pass wait here; finished students reach them before it loads. */
+export function PassPending({ label }: { label: string }) {
+	const { error, refresh } = usePass()
+	return (
+		<div className="board-loading" role={error ? 'alert' : 'status'}>
+			{error || label}
+			{error && (
+				<>
+					<button className="xp-primary" onClick={() => void refresh().catch(() => {})}>
+						Reintentar
+					</button>
+					<button className="portal-link" onClick={() => navigate('/')}>
+						Mis clases
+					</button>
+				</>
+			)}
+		</div>
+	)
+}
 export function ReplayOnboarding() {
 	const { profile, refresh } = usePass()
-	const loading = <div className="board-loading">Preparando el pase…</div>
+	const loading = <PassPending label="Preparando el pase…" />
 	if (!profile) return loading
 	return (
 		<Suspense fallback={loading}>
