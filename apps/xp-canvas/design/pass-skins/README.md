@@ -16,7 +16,7 @@ Estas cinco imágenes sustituyen las portadas anteriores de XP, Slime Rancher, V
 | `destiny-traveler.png` | El Viajero | 2160 × 3840 |
 | `marvel-rivals-team.png` | Storm, Iron Man, Rocket y Loki | 736 × 1308 |
 
-Las nuevas portadas de juegos usan máscaras trazadas en sus propias coordenadas. El logotipo XP utiliza la transparencia del PNG y se muestra completo sobre un fondo oscuro. El archivo de Destiny conserva sus 12,8 MB originales; conviene preparar una copia optimizada antes de publicar, manteniendo este original.
+Las nuevas portadas de juegos usan máscaras trazadas en sus propias coordenadas. El logotipo XP utiliza la transparencia del PNG y se muestra completo sobre un fondo oscuro. El archivo de Destiny conserva sus 12,8 MB originales. El portal importa la copia optimizada de `web/`, descrita abajo.
 
 ## Fuentes iniciales
 
@@ -94,3 +94,12 @@ Las otras tres descargas son:
 - Roblox: https://store-images.s-microsoft.com/image/apps.3683.68327322396008232.ddd32983-30da-4856-a0ef-70bb8840e88d.cb3ff148-2c1f-4b84-9eea-ff80eda50c2d
 
 Las máscaras adicionales están en `additionalHologramSubjects.ts`. Seleccionan personajes, bloques, runas o paneles según la composición. El complemento cubre el fondo. Las fuentes oficiales no conceden por sí solas una licencia de reutilización; se mantiene la advertencia de derechos anterior.
+
+## Copias para pantalla
+
+`web/` guarda copias WebP de los originales de más de 300 KB. El catálogo importa esas copias; los originales se conservan sin modificar. Cada copia cubre una tarjeta de 1200 px de ancho, la resolución de la descarga del pase, sin ampliar el original. Para regenerar una copia desde `apps/xp-canvas`, con `W` y `H` como medidas del original:
+
+```bash
+vips resize design/pass-skins/<archivo> /tmp/copia.v "$(python3 -c 'print(min(1, max(1200/W, 1749/H)))')"
+vips webpsave /tmp/copia.v design/pass-skins/web/<nombre>.webp --Q 82 --keep none
+```

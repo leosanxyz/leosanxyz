@@ -17,13 +17,20 @@ export async function handleLibraryRequest(request: IRequest, env: CanvasEnv) {
 	if (!(await requestCanEdit(request, env)) || (request.method !== 'GET' && !isSameOrigin(request))) {
 		return Response.json({ error: 'Necesitas acceso de edición.' }, { status: 403 })
 	}
-	const response = await catalog(env).fetch(request.url, { method: request.method, headers: request.headers, body: request.method === 'GET' ? undefined : request.body })
-	if (portalEnabled(env) && response.ok && request.method === 'PATCH' && request.params.boardId) {
+	const body = request.method === 'GET' ? undefined : await request.text()
+	const response = await catalog(env).fetch(request.url, { method: request.method, headers: request.headers, body })
+	if (portalEnabled(env) && response.ok && request.method === 'PATCH' && request.params.boardId && patchAffectsAccess(body)) {
 		await env.TLDRAW_DURABLE_OBJECT.get(env.TLDRAW_DURABLE_OBJECT.idFromName(request.params.boardId)).revalidatePortalSessions()
 	}
 	const result = new Response(response.body, response)
 	result.headers.set('cache-control', 'no-store')
 	return result
+}
+
+/** Only trashing changes who may read a board. Renames, moves and thumbnail touches do not. */
+export function patchAffectsAccess(body: string | undefined) {
+	try { return 'trashed' in JSON.parse(body ?? '') }
+	catch { return true }
 }
 
 export async function handleBoardRequest(request: IRequest, env: CanvasEnv) {

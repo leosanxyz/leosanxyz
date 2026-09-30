@@ -9,8 +9,10 @@ import {
 	react,
 	setUserPreferences,
 	Tldraw,
+	type TLStore,
 	type TLUiAssetUrlOverrides,
 	type TLUiOverrides,
+	type TLUser,
 } from 'tldraw'
 import { getEditorSession } from '../access'
 import {
@@ -73,13 +75,16 @@ const VIEWER_OVERRIDES: TLUiOverrides = {
 type AccessState = 'checking' | 'viewer' | 'editor'
 
 export function Room({ roomId }: { roomId: string }) {
-	const [access, setAccess] = useState<AccessState>('checking')
+	const { mode, user } = usePortal()
+	// The portal session already carries the role; the server still checks every write.
+	const [access, setAccess] = useState<AccessState>(mode === 'portal' ? user?.role === 'teacher' ? 'editor' : 'viewer' : 'checking')
 	const [authRequired, setAuthRequired] = useState(true)
 	const [board, setBoard] = useState<Board | null>(null)
 	const [error, setError] = useState('')
 	const onAccessChange = useCallback((isEditor: boolean) => setAccess(isEditor ? 'editor' : 'viewer'), [])
 
 	useEffect(() => {
+		if (mode === 'portal') return
 		let cancelled = false
 		getEditorSession()
 			.then(({ isEditor, authRequired }) => {
@@ -92,7 +97,7 @@ export function Room({ roomId }: { roomId: string }) {
 		return () => {
 			cancelled = true
 		}
-	}, [])
+	}, [mode])
 
 	useEffect(() => {
 		const abort = new AbortController()
@@ -173,8 +178,12 @@ function CanvasRoom({
 	const syncUri = useMemo(() => {
 		return new URL(`/api/connect/${encodeURIComponent(roomId)}`, window.location.origin).toString()
 	}, [roomId])
-	const users = useMemo(() => user ? { currentUser: atom('portal user', UserRecordType.create({ id: createUserId(user.id), name: user.name, color: user.role === 'teacher' ? '#078aa3' : '#7555cc' })) } : undefined, [user?.id, user?.name, user?.role])
-	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users, getUserPresence: getCanvasUserPresence, onCustomMessageReceived: questions.receive })
+	const portalUser = useMemo(() => user ? UserRecordType.create({ id: createUserId(user.id), name: user.name, color: user.role === 'teacher' ? '#078aa3' : '#7555cc' }) : null, [user?.id, user?.name, user?.role])
+	// tldraw stores the current user as a document record. The server discards that write from
+	// read-only sessions and tldraw retries it immediately, so viewers keep their identity in presence only.
+	const users = useMemo(() => isEditor ? portalUser ? { currentUser: atom('portal user', portalUser) } : undefined : { currentUser: atom<TLUser | null>('viewer', null) }, [isEditor, portalUser])
+	const getUserPresence = useCallback((store: TLStore, fallback: TLUser) => getCanvasUserPresence(store, portalUser ?? fallback), [portalUser])
+	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users, getUserPresence, onCustomMessageReceived: questions.receive })
 	useEffect(() => { setSyncConnected(store.status === 'synced-remote' && store.connectionStatus === 'online') }, [store])
 
 	useEffect(() => {

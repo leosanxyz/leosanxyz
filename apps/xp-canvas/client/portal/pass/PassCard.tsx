@@ -183,6 +183,7 @@ export function PassCard({
 									src={skin.image}
 									style={{ objectPosition: skin.position }}
 									alt={`Arte de ${skin.name}`}
+									loading="lazy"
 									draggable={false}
 								/>
 							</div>
@@ -192,6 +193,7 @@ export function PassCard({
 									src={skin.image}
 									style={{ objectPosition: skin.position }}
 									alt=""
+									loading="lazy"
 									draggable={false}
 								/>
 							)}

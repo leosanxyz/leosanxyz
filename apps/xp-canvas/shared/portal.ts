@@ -9,6 +9,8 @@ export interface PortalUser {
 export interface PortalSession {
 	mode: 'local' | 'portal'
 	user: PortalUser | null
+	/** Lets a finished student enter class without waiting for the whole pass. */
+	passCompleted?: boolean
 }
 
 export interface Student extends PortalUser {

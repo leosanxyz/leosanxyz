@@ -67,7 +67,9 @@ Los alumnos acceden a canvases concedidos individualmente o a su grupo y su cone
 
 Los archivos se autorizan por sus referencias en documentos permitidos, antes de responder a GET, HEAD, Range o solicitudes condicionales. El navegador aporta el canvas de origen para acotar la consulta; sin esa pista se revisan los canvases concedidos. Esta búsqueda consulta los Durable Objects. Antes de ampliar el volumen de grupos y archivos, conviene medirla e indexar las referencias si hace falta. Las respuestas del portal usan `private, no-store` y no consultan ni llenan la caché pública del editor local.
 
-El Worker fija el rol y la identidad del WebSocket. No acepta encabezados internos ni nombres del cliente como prueba de identidad. `TldrawDurableObject` impide escrituras del alumno y revalida conexiones al retirar permisos, cambiar una cuenta, restablecer su contraseña o cerrar sesión. Una alarma cada minuto respalda la revocación inmediata ante fallos; no garantiza un plazo exacto de ejecución. Los cambios de cuenta invalidan las sesiones para evitar nombres o grupos desactualizados.
+El Worker fija el rol y la identidad del WebSocket. No acepta encabezados internos ni nombres del cliente como prueba de identidad. `TldrawDurableObject` impide escrituras del alumno y revalida conexiones al retirar permisos, cambiar una cuenta, restablecer su contraseña o cerrar sesión. Mandar un canvas a la papelera también revalida sus conexiones; renombrarlo, moverlo o actualizar su miniatura no, porque no cambia quién puede leerlo. Cada revalidación lee el canvas una vez y comprueba las sesiones en paralelo. Una alarma cada minuto respalda la revocación inmediata ante fallos; no garantiza un plazo exacto de ejecución. Los cambios de cuenta invalidan las sesiones para evitar nombres o grupos desactualizados.
+
+Las conexiones de solo lectura no guardan el registro `user:` de tldraw en el documento. El servidor descartaría esa escritura y tldraw la repetiría sin pausa, así que la identidad del espectador viaja únicamente en su presencia.
 
 La mano levantada viaja como `meta.handRaised` en la presencia de tldraw, vinculada a la identidad autenticada del WebSocket. El estado nace en los metadatos locales de la instancia y no forma parte del documento ni de su historial. La sidebar compartida por profesor y alumnos reúne las sesiones de cada alumno, incluye al propio alumno que la consulta y muestra la mano si cualquiera de ellas la tiene levantada.
 
@@ -124,6 +126,8 @@ Git contiene código, migraciones y plantillas. Las cuentas reales, sesiones, sa
 ## Persistencia del pase
 
 La migración `0002_passes.sql` añade `student_passes`. Guarda por cuenta la introducción del profesor, el diseño, el progreso, la revisión y la fecha de finalización.
+
+`GET /api/portal/session` indica con `passCompleted` si el alumno terminó la bienvenida. Con ese dato entra a clase sin esperar el pase completo, que se carga en segundo plano para el perfil. El servidor sigue exigiendo la bienvenida terminada para abrir canvases.
 
 `GET/PUT /api/portal/pass` exige una sesión de alumno que ya cambió su contraseña. Obtiene la identidad de esa sesión, nunca de un parámetro enviado por el cliente. Valida nombres, valores finitos, catálogo de imágenes y stickers, límites de posición y tamaño. No admite URLs o HTML arbitrarios.
 

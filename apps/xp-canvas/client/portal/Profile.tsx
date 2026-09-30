@@ -13,7 +13,7 @@ import './profile.css'
 
 export default function Profile({ initiallyEditing = false }: { initiallyEditing?: boolean }) {
 	const { user } = usePortal()
-	const { profile } = usePass()
+	const { profile, error: passError, refresh: refreshPass } = usePass()
 	const { library } = useBoardLibrary()
 	const [points, setPoints] = useState<number | null>(null)
 	const [pointsError, setPointsError] = useState(false)
@@ -26,6 +26,8 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 		document.addEventListener('visibilitychange', load)
 		return () => { active = false; window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', load) }
 	}, [user?.id, user?.role])
+	// A finished student enters class before the pass loads; the profile waits for it here instead.
+	if (user?.role === 'student' && !profile) return <div className="board-loading" role={passError ? 'alert' : 'status'}>{passError || 'Abriendo tu perfil…'}{passError && <button className="xp-primary" onClick={() => void refreshPass().catch(() => {})}>Reintentar</button>}</div>
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
 				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? '…' : points.toLocaleString('es-MX')}</strong></div>}
