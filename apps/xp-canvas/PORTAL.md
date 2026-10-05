@@ -12,9 +12,9 @@ Conocer una matrícula permite usar la cuenta mientras conserve la contraseña i
 
 Desde el menú de cada canvas, Compartir con alumnos concede acceso a grupos o alumnos individuales. Dar de alta una cuenta no comparte canvases. Los alumnos solo pueden observar; la implementación de los permisos está en [Worker y persistencia](../../ARCHITECTURE.md#worker-y-persistencia).
 
-El menú de cuenta del profesor incluye Alumnos y Papelera. Desde Alumnos puede cambiar el grupo, deshabilitar una cuenta o restablecer su contraseña a la matrícula. Restablecerla no borra su pase. Lo que una persona ya vio o descargó no puede retirarse de su dispositivo.
+El menú de cuenta del profesor incluye Alumnos, Ver la tienda y Papelera. Desde Alumnos puede cambiar el grupo, deshabilitar una cuenta o restablecer su contraseña a la matrícula. Restablecerla no borra su pase. Lo que una persona ya vio o descargó no puede retirarse de su dispositivo.
 
-Profesor y alumno comparten la navegación de biblioteca. El menú del alumno contiene Mi perfil y Cerrar sesión. Dentro de un canvas, la flecha vuelve a la biblioteca; el espectador usa la mano para desplazarse y la rueda para ampliar. La exportación está en el menú de tldraw. Para duplicar canvases y administrar archivos, consulta el [README del editor](README.md).
+Profesor y alumno comparten la navegación de biblioteca. El menú del alumno contiene Mi perfil y Cerrar sesión. Su barra lateral incluye la Tienda, con un punto mientras no haya visto las cartas del día. Dentro de un canvas, la flecha vuelve a la biblioteca; el espectador usa la mano para desplazarse y la rueda para ampliar. La exportación está en el menú de tldraw. Para duplicar canvases y administrar archivos, consulta el [README del editor](README.md).
 
 El profesor ve los alumnos conectados en una única lista en la barra lateral derecha. Puede colapsarla y cada cuenta aparece una sola vez aunque tenga varias pestañas abiertas. Las herramientas de edición están a la izquierda tanto en escritorio como en iPad. El nombre mostrado en el canvas es el de la cuenta del alumno; el menú de participantes no permite cambiarlo. **Seguir a Leo** solo aparece para los espectadores. Los alumnos tienen un botón **Levantar la mano** que cambia a **Bajar la mano** mientras está activo. El profesor ve una mano junto a su nombre en la lista. Al cerrar la pestaña o salir del canvas se retira esa mano; si el alumno tiene varias pestañas, el indicador permanece mientras alguna de las conectadas tenga la mano levantada.
 
@@ -39,10 +39,11 @@ npm run typecheck:xp-canvas
 npm run test:xp-canvas
 BASE_URL=http://127.0.0.1:5177 npm run smoke:onboarding-api --workspace=apps/xp-canvas
 BASE_URL=http://127.0.0.1:5177 npm run smoke:portal --workspace=apps/xp-canvas
+BASE_URL=http://127.0.0.1:5177 npm run smoke:shop --workspace=apps/xp-canvas
 npm run build:portal --workspace=apps/xp-canvas
 ```
 
-Los smokes crean cuentas y documentos ficticios. Comprueban el acceso inicial, bienvenida, perfil, descarga, guardado, grupos, biblioteca y archivos privados, lectura en tiempo real, identidad, revocación, límites de intentos y origen de escrituras. No los ejecutes contra datos de clases. La revisión de interacción del pase está en [Verificación](ONBOARDING.md#verificación).
+Los smokes crean cuentas y documentos ficticios. Comprueban el acceso inicial, bienvenida, perfil, descarga, guardado, grupos, biblioteca y archivos privados, lectura en tiempo real, identidad, revocación, límites de intentos y origen de escrituras. El de la tienda gana puntos con preguntas y comprueba las cartas del día, el punto de novedades, el repaso, las tiradas, la compra y el saldo exacto. No los ejecutes contra datos de clases. La revisión de interacción del pase está en [Verificación](ONBOARDING.md#verificación).
 
 ## Publicación y comprobaciones
 
@@ -55,7 +56,7 @@ npx wrangler deploy --dry-run --config dist/xp_canvas_portal/wrangler.json
 npx wrangler deploy --config dist/xp_canvas_portal/wrangler.json
 ```
 
-La función de puntos necesita `0003_points.sql`; el gachapon requiere además `0004_gachapon.sql` y `0005_gachapon_cost.sql` en el entorno de destino. Aplicarla en QA local no la aplica en producción; la migración remota requiere autorización específica y debe preceder al despliegue de esa función.
+La función de puntos necesita `0003_points.sql`; el gachapon requiere además `0004_gachapon.sql` y `0005_gachapon_cost.sql`, y la tienda, `0006_shop.sql` en el entorno de destino. Aplicarla en QA local no la aplica en producción; la migración remota requiere autorización específica y debe preceder al despliegue de esa función.
 
 Antes del último comando, comprueba que los bindings del dry-run coincidan con los [recursos de producción](../../ARCHITECTURE.md#worker-y-persistencia) y revisa cualquier migración pendiente. No apliques migraciones remotas como efecto secundario de publicar código ni subas la carpeta `dist` completa.
 

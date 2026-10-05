@@ -38,6 +38,7 @@ Las rutas públicas son `/`, `/arte`, `/escritura` y `/software`; `/test-screens
 | `/board/<id>` | Documento tldraw colaborativo |
 | `/alumnos` | Administración del profesor |
 | `/perfil` | Cuenta, contraseña y pase |
+| `/tienda` | Tienda de cartas del alumno; el profesor la ve sin comprar |
 | `/mi-pase` | Acceso anterior al editor del pase |
 | `/bienvenida` | Repetición de la bienvenida del alumno |
 | `/bienvenida/demo`, `/bienvenida/revision` | Herramientas de desarrollo, excluidas del build de producción |
@@ -86,7 +87,7 @@ El Worker transmite las cargas por streaming y valida permisos, tamaño, tipo MI
 
 ## Puntos de los alumnos
 
-Cada alumno parte de cero. La migración D1 `0003_points.sql` crea `point_awards`, un registro de premios del servidor; el saldo es la suma de premios menos el costo de las tiradas de gachapon del usuario. Ningún cliente puede enviar un saldo ni concederse premios. Por ahora, las respuestas correctas a preguntas generan premios de entre 0 y 1 000 000 puntos enteros, con 100 por defecto. El sistema de premios está separado del documento para poder usarlo también en otras actividades.
+Cada alumno parte de cero. La migración D1 `0003_points.sql` crea `point_awards`, un registro de premios del servidor; el saldo es la suma de premios menos el costo de las tiradas de gachapon y de las compras de la tienda del usuario. Ningún cliente puede enviar un saldo ni concederse premios. Por ahora, las respuestas correctas a preguntas generan premios de entre 0 y 1 000 000 puntos enteros, con 100 por defecto. El sistema de premios está separado del documento para poder usarlo también en otras actividades.
 
 Una respuesta correcta guarda su cambio en el documento, una reserva única en `point_receipts` y un premio pendiente en `point_outbox` dentro de la misma transacción SQLite del Durable Object. La celebración se emite al aceptar esa transacción; el premio se escribe en D1 en segundo plano. Su clave única reúne actividad, canvas, shape y revisión; reintentos, solicitudes simultáneas o deshacer una respuesta no duplican el premio. Reiniciar o editar la pregunta crea otra revisión y permite premiarla de nuevo. Si D1 falla, una alarma vuelve a intentar los premios pendientes incluso sin alumnos conectados. Los premios no se revierten al borrar preguntas, borrar canvases o editar documentos. Copiar o importar un canvas no copia saldos.
 
@@ -103,6 +104,16 @@ La acción `gachapon` de la API de interacciones exige sesión de alumno, acceso
 Las tarjetas configuradas tienen la misma probabilidad y pueden repetirse; una repetida conserva un único desbloqueo y cobra el costo de esa tirada. Borrar la máquina, editarla o deshacer el documento no revierte premios ni gastos. La tabla local `gachapon_busy` impide otra tirada en la misma máquina durante la revelación. Tras guardar el premio se difunde `gachapon-result` con alumno, tarjeta e instante de inicio, sin saldo. La respuesta HTTP permite al participante recibir también su resultado; el cliente evita duplicarlo. La animación es efímera y no se reproduce al reconectar.
 
 `GET /api/portal/pass` devuelve las tarjetas ganadas únicamente para la identidad de la sesión, ordenadas por su primer desbloqueo, de la más reciente a la más antigua. `PUT` rechaza equipar una tarjeta de recompensa sin una tirada registrada para ese alumno. El carrusel muestra primero las tarjetas desbloqueadas en ese orden y después las portadas anteriores. El selector del gachapon separa las recompensas en dos sets y permite combinarlas. Las nueve ilustraciones del set 2 tienen máscaras para aplicar el holograma al personaje o al fondo; las seis del set 1 conservan el holograma de tarjeta completa. Su procedencia está en [design/gachapon](apps/xp-canvas/design/gachapon/README.md).
+
+## Tienda
+
+`/tienda` vende las tarjetas de recompensa a cambio de puntos. Cada día, en la hora de Ciudad de México, `shopPool` en `shared/shop.ts` elige seis de las quince tarjetas a partir de la fecha. Cliente y Worker calculan la misma selección; no se guarda en ninguna tabla. México no tiene horario de verano desde 2022, así que la rotación ocurre cada 24 horas a medianoche.
+
+Una tirada cuesta 150 puntos y una compra directa, 300. La tirada elige al azar entre las tarjetas del día que el alumno aún no tiene; si ya las tiene todas, la máquina se desactiva. Solo se compran tarjetas del día que no se tengan. Las adquisiciones son filas de `gachapon_spins`, igual que los premios de la máquina del canvas, así que desbloquean la tarjeta en el pase y descuentan el saldo del perfil y del roster sin otra tabla. Sus claves son `["shop-spin", alumno, tirada]`, `["shop-free", alumno, día]` y `["shop-card", alumno, tarjeta]`. El cliente genera el identificador de cada tirada: repetir la misma solicitud no cobra dos veces. El INSERT condicional comprueba el saldo y que el alumno no tenga ya esa tarjeta en la misma sentencia D1, por lo que solicitudes simultáneas no pueden gastar de más ni pagar dos veces la misma tarjeta.
+
+La tirada gratis se gana una vez al día respondiendo bien tres preguntas de repaso, con hasta tres intentos. `0006_shop.sql` crea `shop_reviews`: cada intento guarda el día, las preguntas elegidas con su respuesta correcta, las respuestas del alumno y si aprobó. El estado de la tirada gratis se deriva de esas filas y de la clave `shop-free` del día. Para preparar un intento, el Worker pide a los Durable Objects de hasta 40 canvases concedidos y fuera de la papelera sus shapes `question` mediante `listQuestions()`, quita las repetidas por enunciado y elige tres al azar. El alumno recibe enunciados y opciones sin la clave; tras calificar, la respuesta muestra la opción correcta, que ya forma parte del documento compartido. Un intento sin terminar se conserva al recargar. La calificación solo se acepta una vez por intento.
+
+`GET /api/portal/shop` no consulta Durable Objects. Las escrituras exigen una sesión de alumno con la bienvenida terminada; el profesor solo puede leer el catálogo del día. El punto de novedades de la barra lateral se calcula en el navegador: `localStorage` guarda por cuenta el último día en que el alumno abrió la tienda. No hay estado del servidor para ese aviso.
 
 ## Cuentas y secretos
 
