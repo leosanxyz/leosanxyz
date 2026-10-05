@@ -77,6 +77,12 @@ El contrato de premios y cobros está en [Arquitectura](../../ARCHITECTURE.md#ga
 BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/gachapon-smoke.mjs
 ```
 
+## Demo de Esquiva
+
+La figura `esquiva` muestra la clase de calidad: un piloto automático juega el nivel «Caos» de Esquiva y seis versiones pulen un momento del juego cada una. Al elegir una versión, el cambio se ve en ese instante y se sincroniza con todos los que ven el canvas, igual que mantener presionado el reloj para ver el punto de partida. Solo el maestro ve los controles. El sonido es local: suena únicamente en el dispositivo donde se activa la bocina. La simulación se detiene cuando la figura sale de la vista.
+
+No tiene botón en la cabecera. Se coloca desde la consola del editor con `editor.createShape({ type: 'esquiva', x, y })` y se reutiliza copiando y pegando la figura o duplicando el canvas.
+
 ## Copiar canvases
 
 En el menú de tres puntos de cada canvas, **Duplicar canvas** crea **Copia de …** en la misma carpeta. Copia todas las páginas, objetos, grupos, conexiones, recortes del borrador y miniatura. El nuevo canvas tiene su propia URL y documento; los cambios posteriores en uno no afectan al otro. Los archivos de imágenes y videos se reutilizan, sin añadir entradas repetidas a Recursos.

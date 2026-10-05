@@ -3,9 +3,10 @@ import type { RoomSnapshot } from '@tldraw/sync-core'
 import { questionShapeProps, questionShapeMigrations } from '../shared/questionShape'
 import { gachaponShapeProps, gachaponShapeMigrations } from '../shared/gachaponShape'
 import { resourceShapeProps } from '../shared/resourceShape'
+import { esquivaShapeProps } from '../shared/esquivaShape'
 
 export const canvasSchema = createTLSchema({
-	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations } },
+	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps } },
 })
 
 /** Imports contain document records, never another user's camera or session state. */

@@ -15,6 +15,12 @@ describe('canvas imports', () => {
 	it('rejects malformed records, duplicate ids, missing pages and session data', () => {
 		for (const value of [null, {}, { ...snapshot, documents: [] }, { ...snapshot, documents: [...snapshot.documents, ...snapshot.documents] }, { ...snapshot, documents: [{ state: { ...page, name: 4 } }] }, { ...snapshot, documents: [{ state: { id: 'camera:private', typeName: 'camera', x: 0, y: 0, z: 1, meta: {} } }] }]) expect(() => validateBoardSnapshot(value)).toThrow()
 	})
+	it('accepts the Esquiva demo and rejects versions that do not exist', () => {
+		const demo = canvasSchema.types.shape.create({ id: 'shape:esquiva' as never, type: 'esquiva', parentId: page.id, index: 'a1' as never, x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, meta: {}, props: { w: 1060, h: 600, paso: 0, antes: false } })
+		const copia = (paso: number) => validateBoardSnapshot({ ...snapshot, documents: [...snapshot.documents, { state: { ...demo, props: { w: 1060, h: 600, paso, antes: false } }, lastChangedClock: 1 }] })
+		expect(copia(5).documents).toHaveLength(2)
+		for (const paso of [-1, 6, 2.5]) expect(() => copia(paso)).toThrow()
+	})
 })
 
 it('migrates existing questions to 100 points without changing their answers', async () => {

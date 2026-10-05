@@ -1,0 +1,22 @@
+.esquiva { pointer-events: all; overflow: hidden; }
+.esquiva__contenido { box-sizing: border-box; transform-origin: 0 0; display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 20px;
+	border: 1px solid #c9c5bc; border-radius: 16px; background: #fffdfa; color: #24231f; font-family: var(--tl-font-sans, sans-serif); }
+.esquiva__lado { display: flex; flex-direction: column; min-height: 0; }
+.esquiva__lado h2 { margin: 2px 0 14px; font-size: 22px; line-height: 1.25; }
+.esquiva__versiones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.esquiva__versiones button { width: 100%; display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border: 1px solid transparent; border-radius: 10px;
+	background: transparent; color: #6b6861; font: inherit; font-size: 13px; line-height: 1.35; text-align: left; touch-action: manipulation; }
+.esquiva__versiones b { color: #24231f; font-size: 15px; }
+.esquiva__versiones button[aria-pressed="true"] { background: #e8f5f6; border-color: #c7e4e8; color: #3d5a5f; }
+.esquiva__versiones[data-interactiva="true"] button:enabled { cursor: pointer; }
+.esquiva__versiones button:disabled { opacity: 1; }
+.esquiva__versiones button:focus-visible, .esquiva__icono:focus-visible { outline: 3px solid #078aa3; outline-offset: 2px; }
+.esquiva__acciones { margin-top: auto; display: flex; gap: 8px; }
+.esquiva__icono { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid #d4d0c8; border-radius: 50%; background: #f5f3ee; color: #6b6861; cursor: pointer; touch-action: none; }
+.esquiva__icono[aria-pressed="true"] { border-color: #078aa3; background: #e8f5f6; color: #08778c; }
+.esquiva__lienzo { width: 100%; aspect-ratio: 4 / 3; align-self: center; border-radius: 12px; display: block; }
+@media (hover: hover) and (pointer: fine) {
+	.esquiva__versiones[data-interactiva="true"] button:enabled:hover { background: #f5f3ee; }
+	.esquiva__versiones[data-interactiva="true"] button[aria-pressed="true"]:hover { background: #e3f2f5; }
+	.esquiva__icono:hover { color: #24231f; }
+}

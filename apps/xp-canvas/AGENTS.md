@@ -15,6 +15,7 @@ Rutas relativas a `apps/xp-canvas/`.
 | Recursos y emojis | `client/resources/`, `client/emojis/` |
 | Preguntas interactivas | `client/questions/`, `worker/questions.ts` |
 | Gachapon | `client/gachapon/` |
+| Demo de Esquiva | `client/esquiva/` |
 | Imágenes y sonidos | `design/` |
 | Tipos y validadores compartidos | `shared/` |
 | API, rutas y permisos | `worker/worker.ts`; un módulo por tema en `worker/` |
