@@ -11,7 +11,7 @@ import { TLRecord } from '@tldraw/tlschema'
 import { DurableObject } from 'cloudflare:workers'
 import { AutoRouter, error, IRequest } from 'itty-router'
 import { type CanvasEnv, editorAuthRequired, INTERNAL_ROLE_HEADER } from './access'
-import { canvasSchema as schema } from './boardSnapshot'
+import { canvasSchema as schema, emptyMailboxes } from './boardSnapshot'
 import { canReadBoard, portalEnabled, PORTAL_IDENTITY_HEADER, sessionByHash } from './portalAuth'
 import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
@@ -21,6 +21,7 @@ import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
 import type { RewardSkin } from '../shared/pass'
 import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
 import type { InteractionState, QuestionCommand, QuestionFeedback } from '../shared/questionShape'
+import { LETTERS_PER_ROUND, LETTERS_PER_STUDENT, type MailboxCommand, type MailboxReply } from '../shared/mailboxShape'
 
 interface SocketAttachment {
 	sessionId: string
@@ -157,6 +158,8 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		const room = this.getOrCreateRoom(), user = session.user
 		if (!command) { this.broadcastQuestionPermissions(); return { status: 200, body: this.questionPermissions(user) } }
 		if (command.action === 'gachapon') return this.spinGachapon(roomId, user, command)
+		if (command.action === 'letter') return this.postLetter(user, command)
+		if (command.action === 'mailbox-draw') return this.drawLetter(user, command)
 		if (command.action === 'draw') {
 			if (user.role !== 'teacher') return denied(403, 'Solo el maestro puede sortear alumnos.')
 			const peers = this.questionPeers().filter((peer) => peer.user.role === 'student')
@@ -253,6 +256,51 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		} finally { this.gachaBusy.delete(shape.id) }
 	}
 
+	private mailboxLetters() {
+		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS mailbox_letters (id TEXT PRIMARY KEY, shape_id TEXT NOT NULL, round INTEGER NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL, drawn_at INTEGER)')
+		this.ctx.storage.sql.exec('CREATE INDEX IF NOT EXISTS mailbox_letters_round ON mailbox_letters (shape_id, round)')
+	}
+
+	// Las cartas viven aquí y no en el documento: así nadie las lee antes de que el maestro las saque.
+	// Una carta sin nombre guarda al autor solo para contar su límite por ronda.
+	private postLetter(user: PortalUser, command: Extract<MailboxCommand, { action: 'letter' }>) {
+		this.mailboxLetters()
+		const id = crypto.randomUUID(), now = Date.now()
+		const problem = this.getOrCreateRoom().storage.transaction((store) => {
+			const shape = store.get(command.shapeId)
+			if (!shape || shape.typeName !== 'shape' || shape.type !== 'mailbox') return 'Este buzón ya no existe.'
+			if (!shape.props.open) return 'El buzón está cerrado.'
+			if (shape.props.round !== command.round) return 'Empezó otra ronda. Tu carta sigue aquí: vuelve a enviarla.'
+			if (shape.props.count >= LETTERS_PER_ROUND) return 'El buzón está lleno.'
+			const mine = this.ctx.storage.sql.exec<{ total: number; last: number | null }>('SELECT COUNT(*) AS total, MAX(created_at) AS last FROM mailbox_letters WHERE shape_id = ? AND round = ? AND user_id = ?', shape.id, shape.props.round, user.id).one()
+			if (mine.total >= LETTERS_PER_STUDENT) return `Ya mandaste ${LETTERS_PER_STUDENT} cartas en esta ronda.`
+			if (mine.last && now - mine.last < 3000) return 'Espera un momento antes de mandar otra.'
+			this.ctx.storage.sql.exec('INSERT INTO mailbox_letters (id, shape_id, round, user_id, name, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', id, shape.id, shape.props.round, user.id, command.anonymous ? '' : user.name, command.text, now)
+			store.set(shape.id, { ...shape, props: { ...shape.props, count: shape.props.count + 1 } })
+			return null
+		}).result
+		if (problem) return { status: 409, body: { error: problem } }
+		return { status: 200, body: { type: 'mailbox-letter', id } satisfies MailboxReply }
+	}
+
+	private drawLetter(user: PortalUser, command: Extract<MailboxCommand, { action: 'mailbox-draw' }>) {
+		if (user.role !== 'teacher') return { status: 403, body: { error: 'Solo el maestro puede sacar cartas.' } }
+		this.mailboxLetters()
+		let reply = null as MailboxReply | null
+		const problem = this.getOrCreateRoom().storage.transaction((store) => {
+			const shape = store.get(command.shapeId)
+			if (!shape || shape.typeName !== 'shape' || shape.type !== 'mailbox') return 'Este buzón ya no existe.'
+			const letter = this.ctx.storage.sql.exec<{ id: string; name: string; text: string }>('SELECT id, name, text FROM mailbox_letters WHERE shape_id = ? AND round = ? AND drawn_at IS NULL ORDER BY random() LIMIT 1', shape.id, shape.props.round).toArray()[0]
+			if (!letter) return 'No quedan cartas sin leer en esta ronda.'
+			this.ctx.storage.sql.exec('UPDATE mailbox_letters SET drawn_at = ? WHERE id = ?', Date.now(), letter.id)
+			store.set(shape.id, { ...shape, props: { ...shape.props, letter: letter.text, letterId: letter.id, drawn: Math.min(shape.props.count, shape.props.drawn + 1) } })
+			reply = { type: 'mailbox-draw', id: letter.id, text: letter.text, name: letter.name }
+			return null
+		}).result
+		if (problem || !reply) return { status: 409, body: { error: problem ?? 'No pude sacar la carta.' } }
+		return { status: 200, body: reply }
+	}
+
 	private ensurePointOutbox() {
 		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS point_outbox (event_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
 		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS point_receipts (source_key TEXT PRIMARY KEY)')
@@ -330,7 +378,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		// A copy may initialize a fresh room, never replace an existing document.
 		const tables = this.ctx.storage.sql.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'documents'").toArray()
 		if (this.room || tables.length) throw new Error('El canvas de destino ya existe.')
-		this.getOrCreateRoom().loadSnapshot(snapshot)
+		this.getOrCreateRoom().loadSnapshot(emptyMailboxes(snapshot))
 	}
 
 	// Entry point for all requests to the Durable Object

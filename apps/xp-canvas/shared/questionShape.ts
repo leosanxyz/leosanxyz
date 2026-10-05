@@ -1,6 +1,7 @@
 import { T } from '@tldraw/validate'
 import { createShapePropsMigrationIds, createShapePropsMigrationSequence } from '@tldraw/tlschema'
 import type { TLShape } from '@tldraw/tlschema'
+import { parseMailboxCommand, type MailboxCommand } from './mailboxShape'
 
 const text = (max: number) => T.string.refine((value) => {
 	if (!value.trim() || value.length > max) throw new Error('Texto de pregunta inválido.')
@@ -46,6 +47,7 @@ export type QuestionCommand =
 	| { action: 'gachapon'; shapeId: string; revision: string; cost: number }
 	| { action: 'permission'; userId: string; allowed: boolean }
 	| { action: 'answer'; shapeId: string; revision: string; answer: number }
+	| MailboxCommand
 
 export function parseQuestionCommand(value: unknown): QuestionCommand {
 	if (!value || typeof value !== 'object') throw new Error('Solicitud inválida.')
@@ -58,5 +60,7 @@ export function parseQuestionCommand(value: unknown): QuestionCommand {
 	if (data.action === 'answer' && typeof data.shapeId === 'string' && data.shapeId.startsWith('shape:') && data.shapeId.length <= 100 && typeof data.revision === 'string' && data.revision.length <= 100) {
 		return { action: 'answer', shapeId: data.shapeId, revision: data.revision, answer: answerIndex.validate(data.answer) }
 	}
+	const mailbox = parseMailboxCommand(data)
+	if (mailbox) return mailbox
 	throw new Error('Solicitud inválida.')
 }

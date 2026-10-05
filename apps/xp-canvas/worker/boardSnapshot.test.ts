@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PageRecordType, type TLPage, type TLRecord } from '@tldraw/tlschema'
-import { canvasSchema, validateBoardSnapshot } from './boardSnapshot'
+import { canvasSchema, emptyMailboxes, validateBoardSnapshot } from './boardSnapshot'
+import { parseQuestionCommand } from '../shared/questionShape'
 
 const page = PageRecordType.create({ id: PageRecordType.createId('transfer-test'), name: 'Clase', index: 'a1' as TLPage['index'] })
 const snapshot = { schema: canvasSchema.serialize(), documents: [{ state: page, lastChangedClock: 90 }], clock: 90 }
@@ -20,6 +21,25 @@ describe('canvas imports', () => {
 		const copia = (paso: number) => validateBoardSnapshot({ ...snapshot, documents: [...snapshot.documents, { state: { ...demo, props: { w: 1060, h: 600, paso, antes: false } }, lastChangedClock: 1 }] })
 		expect(copia(5).documents).toHaveLength(2)
 		for (const paso of [-1, 6, 2.5]) expect(() => copia(paso)).toThrow()
+	})
+	it('copies a mailbox closed and empty, and rejects impossible counts', () => {
+		const props = { w: 440, h: 560, prompt: '¿Qué notaste?', open: true, round: 3, count: 12, drawn: 4, letter: 'La sombra del pez', letterId: 'carta-1' }
+		const mailbox = canvasSchema.types.shape.create({ id: 'shape:buzon' as never, type: 'mailbox', parentId: page.id, index: 'a1' as never, x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, meta: {}, props })
+		const copy = emptyMailboxes(validateBoardSnapshot({ ...snapshot, documents: [...snapshot.documents, { state: mailbox, lastChangedClock: 1 }] }))
+		const copied = copy.documents.find((record) => record.state.id === mailbox.id)?.state as TLRecord | undefined
+		expect(copied?.typeName === 'shape' && copied.type === 'mailbox' && copied.props).toMatchObject({ prompt: '¿Qué notaste?', open: false, round: 1, count: 0, drawn: 0, letter: '', letterId: '' })
+		for (const wrong of [{ count: -1 }, { round: 0 }, { prompt: '  ' }, { letter: 'x'.repeat(561) }]) {
+			expect(() => validateBoardSnapshot({ ...snapshot, documents: [...snapshot.documents, { state: { ...mailbox, props: { ...props, ...wrong } }, lastChangedClock: 1 }] })).toThrow()
+		}
+	})
+	it('accepts letters of up to 280 characters, counting an emoji as one', () => {
+		const letter = (text: unknown) => parseQuestionCommand({ action: 'letter', shapeId: 'shape:buzon', round: 1, text })
+		expect(letter('  Hola\r\n\n\n\nmundo  ')).toEqual({ action: 'letter', shapeId: 'shape:buzon', round: 1, text: 'Hola\n\nmundo', anonymous: false })
+		expect(letter('🐟'.repeat(280))).toMatchObject({ text: '🐟'.repeat(280) })
+		expect(parseQuestionCommand({ action: 'letter', shapeId: 'shape:buzon', round: 1, text: 'sin firma', anonymous: true })).toMatchObject({ anonymous: true })
+		for (const text of ['', '   ', 'x'.repeat(281), 42]) expect(() => letter(text)).toThrow()
+		expect(() => parseQuestionCommand({ action: 'letter', shapeId: 'buzon', round: 1, text: 'hola' })).toThrow()
+		expect(parseQuestionCommand({ action: 'mailbox-draw', shapeId: 'shape:buzon' })).toEqual({ action: 'mailbox-draw', shapeId: 'shape:buzon' })
 	})
 })
 

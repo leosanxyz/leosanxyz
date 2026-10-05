@@ -5,6 +5,7 @@ import { CanvasVideoShapeUtil } from './CanvasVideoShapeUtil'
 import { CanvasImageShapeUtil, CanvasTextShapeUtil } from '../emojis/EmojiShapeUtils'
 import { MASKED_SHAPE_UTILS } from '../eraser/MaskedShapeUtils'
 import { EsquivaShapeUtil } from '../esquiva/EsquivaShapeUtil'
+import { MailboxShapeUtil } from '../mailbox/MailboxShapeUtil'
 import { resourceShapeProps, type ResourceShape } from '../../shared/resourceShape'
 import { formatBytes } from '../../shared/resources'
 import './resources.css'
@@ -47,5 +48,5 @@ export class ResourceShapeUtil extends BaseBoxShapeUtil<ResourceShape> {
 export const CANVAS_SHAPE_UTILS = [
 	...defaultShapeUtils.filter((util) => !['video', 'image', 'text', 'draw', 'highlight', 'geo', 'line'].includes(util.type)),
 	...MASKED_SHAPE_UTILS,
-	ResourceShapeUtil, QuestionShapeUtil, GachaponShapeUtil, EsquivaShapeUtil, CanvasImageShapeUtil, CanvasTextShapeUtil, CanvasVideoShapeUtil.configure({ autoplay: false }),
+	ResourceShapeUtil, QuestionShapeUtil, GachaponShapeUtil, EsquivaShapeUtil, MailboxShapeUtil, CanvasImageShapeUtil, CanvasTextShapeUtil, CanvasVideoShapeUtil.configure({ autoplay: false }),
 ]

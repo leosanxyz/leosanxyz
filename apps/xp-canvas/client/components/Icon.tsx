@@ -30,6 +30,8 @@ const paths = {
 	file: 'M14 3H5v18h14V8Zm0 0v5h5M8 12h8M8 16h5',
 	image: 'M3 3h18v18H3ZM3 17l6-6 4 4 3-3 5 5M15 7h.01',
 	audio: 'M9 18V5l11-2v13M9 8l11-2M9 18c0 3-6 3-6 0s6-3 6 0ZM20 16c0 3-6 3-6 0s6-3 6 0Z',
+	mail: 'M3 6h18v12H3ZM3 7l9 6 9-6',
+	pin: 'M9 4h6l-1 6 3 3H7l3-3ZM12 13v7',
 } as const
 
 export function Icon({ name, size = 22, style }: { name: keyof typeof paths; size?: number; style?: CSSProperties }) {

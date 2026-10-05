@@ -4,9 +4,10 @@ import { questionShapeProps, questionShapeMigrations } from '../shared/questionS
 import { gachaponShapeProps, gachaponShapeMigrations } from '../shared/gachaponShape'
 import { resourceShapeProps } from '../shared/resourceShape'
 import { esquivaShapeProps } from '../shared/esquivaShape'
+import { mailboxShapeProps } from '../shared/mailboxShape'
 
 export const canvasSchema = createTLSchema({
-	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps } },
+	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps }, mailbox: { props: mailboxShapeProps } },
 })
 
 /** Imports contain document records, never another user's camera or session state. */
@@ -34,4 +35,13 @@ export function validateBoardSnapshot(value: unknown): RoomSnapshot {
 		clock: 0, documentClock: 0, tombstones: {}, schema: canvasSchema.serialize(),
 		documents: Object.values(migrated.value).map((state) => ({ state, lastChangedClock: 0 })),
 	}
+}
+
+/** Una copia empieza con los buzones cerrados y vacíos: las cartas se quedan en el canvas original. */
+export function emptyMailboxes(snapshot: RoomSnapshot): RoomSnapshot {
+	return { ...snapshot, documents: snapshot.documents.map((document) => {
+		const record = document.state as TLRecord
+		if (record.typeName !== 'shape' || record.type !== 'mailbox') return document
+		return { ...document, state: { ...record, props: { ...record.props, open: false, round: 1, count: 0, drawn: 0, letter: '', letterId: '' } } }
+	}) }
 }

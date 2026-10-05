@@ -77,6 +77,14 @@ El contrato de premios y cobros está en [Arquitectura](../../ARCHITECTURE.md#ga
 BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/gachapon-smoke.mjs
 ```
 
+## Buzón
+
+En el portal, pulsa **Buzón** en la cabecera y escribe la pregunta. El buzón empieza cerrado. Con **Abrir buzón**, cada alumno conectado ve **Escribir una carta**; no necesita el permiso de interacción. Elige si firma con su nombre o la manda sin nombre. La hoja se dobla en tres, recibe un sello y vuela hasta la ranura. Todos ven entrar la carta, subir la bandera y cambiar el número de cartas sin leer.
+
+Las cartas se guardan en el Durable Object del canvas, no en el documento: nadie puede leerlas antes de que el maestro saque una. **Sacar carta** elige una al azar entre las no leídas de la ronda: se abre la puerta y la carta se despliega para todos sin nombre. Solo el maestro ve quién la firmó; de una carta sin nombre nadie lo sabe. El alfiler la pega en el canvas como nota y la cruz la guarda. **Nueva ronda** vacía el contador y deja fuera las cartas anteriores. Cada alumno puede mandar hasta 5 cartas de 280 caracteres por ronda, con 3 segundos entre una y otra.
+
+El buzón se dibuja en 3D con three.js, con la paleta del gachapon, y three.js se descarga solo en canvases que muestran un buzón. Sin WebGL aparece el buzón plano en SVG. El maestro oye cada carta que llega y cada carta que saca; el alumno oye solo la suya. Los sonidos se sintetizan en el navegador. Con movimiento reducido no hay doblez, vuelo ni rebote. Al copiar o importar un canvas, sus buzones empiezan cerrados y vacíos. Queda pendiente probar el teclado y el audio en un iPad físico.
+
 ## Demo de Esquiva
 
 La figura `esquiva` muestra la clase de calidad: un piloto automático juega el nivel «Caos» de Esquiva y seis versiones pulen un momento del juego cada una. Al elegir una versión, el cambio se ve en ese instante y se sincroniza con todos los que ven el canvas, igual que mantener presionado el reloj para ver el punto de partida. Solo el maestro ve los controles. El sonido es local: suena únicamente en el dispositivo donde se activa la bocina. La simulación se detiene cuando la figura sale de la vista.
