@@ -9,6 +9,7 @@
 		"build:portal": "tsc && vite build --config vite.portal.config.ts",
 		"smoke:portal": "node scripts/portal-smoke.mjs",
 		"smoke:onboarding-api": "node scripts/onboarding-api-smoke.mjs",
+		"smoke:shop": "node scripts/shop-smoke.mjs",
 		"build": "tsc && vite build",
 		"smoke": "node scripts/smoke.mjs",
 		"smoke:resources": "node scripts/resources-smoke.mjs",

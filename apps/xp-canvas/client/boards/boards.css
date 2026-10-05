@@ -70,3 +70,8 @@
 	.board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }.board-card-caption strong { font-size: 13px; }
 }
 @media (hover: hover) and (pointer: fine) { .board-card:hover { border-color: #a8c4cb; }.board-nav-item:hover, .board-account-trigger:hover { background: #dce6e8; } }
+.board-nav-shop { margin-top: 8px; }
+.board-nav-shop > svg { color: #e0603f; }
+.board-nav-dot { flex-shrink: 0; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: #f0583a; box-shadow: 0 0 0 2px #eaf0f1; }
+.board-sidebar-trigger { position: relative; }
+.board-sidebar-trigger .board-nav-dot { position: absolute; top: 9px; right: 8px; box-shadow: 0 0 0 2px #fff; }

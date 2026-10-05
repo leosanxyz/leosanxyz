@@ -32,6 +32,7 @@ const paths = {
 	audio: 'M9 18V5l11-2v13M9 8l11-2M9 18c0 3-6 3-6 0s6-3 6 0ZM20 16c0 3-6 3-6 0s6-3 6 0Z',
 	mail: 'M3 6h18v12H3ZM3 7l9 6 9-6',
 	pin: 'M9 4h6l-1 6 3 3H7l3-3ZM12 13v7',
+	shop: 'M3 9l1.5-5h15L21 9M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M5 11.5V20h14v-8.5M10 20v-5h4v5',
 } as const
 
 export function Icon({ name, size = 22, style }: { name: keyof typeof paths; size?: number; style?: CSSProperties }) {

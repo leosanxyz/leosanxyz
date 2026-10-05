@@ -100,6 +100,10 @@ export function playCoin() {
 	tone(audio, at + 0.16, 1319, 0.4, 0.16)
 }
 
+/** The pass celebration, for a free spin earned in the shop review. Load it first so it is not late. */
+export function loadCelebrate() { if (prepareGachaponAudio()) void load(celebrateUrl) }
+export function playCelebrate() { playFile(celebrateUrl, 0, 0.6) }
+
 /** Lever ratchet, capsules knocking, capsule pop and card shimmer, aligned with the shared start. */
 export function scheduleSpinSounds(resultId: string, startedAt: number) {
 	if (scheduled.has(resultId)) return
