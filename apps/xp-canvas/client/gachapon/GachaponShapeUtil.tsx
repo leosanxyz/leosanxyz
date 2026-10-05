@@ -46,6 +46,7 @@ function Machine({ shape }: { shape: GachaponShape }) {
 	const { userId, isTeacher, canUse, pending, results, spin, edit } = useGachapon()
 	const editor = useEditor()
 	const cursor = useValue('gachapon cursor', () => editor.getCurrentToolId() === 'select', [editor])
+	const zoom = useValue('gachapon zoom', () => editor.getZoomLevel(), [editor])
 	const [prizesOpen, setPrizesOpen] = useState(false)
 	const [coinAt, setCoinAt] = useState<number | null>(null)
 	const canvas = useRef<HTMLCanvasElement>(null)
@@ -58,7 +59,7 @@ function Machine({ shape }: { shape: GachaponShape }) {
 	const needsCoin = paid && coinAt === null
 	const cost = shape.props.cost.toLocaleString('es-MX')
 	const status3d = useMachine3D(canvas, {
-		spinStartedAt: spinResult?.startedAt ?? null, coinAt, cost: shape.props.cost, width: shape.props.w, height: shape.props.h,
+		spinStartedAt: spinResult?.startedAt ?? null, coinAt, cost: shape.props.cost, width: shape.props.w, height: shape.props.h, zoom,
 		prizeColor: skins.find((skin) => skin.id === spinResult?.skin)?.color ?? CAPSULE_COLORS[0],
 	})
 	useEffect(() => { prepareGachaponAudio() }, [])

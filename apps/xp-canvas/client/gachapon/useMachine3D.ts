@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { useEditor, useValue } from 'tldraw'
 import type { MachineAnchors, MachineScene } from './machineScene'
 
 const IDLE_FRAME_MS = 1000 / 30
@@ -13,6 +12,8 @@ export type Machine3DInput = {
 	prizeColor: string
 	width: number
 	height: number
+	/** Canvas zoom, so the drawing stays sharp when the board is enlarged. */
+	zoom?: number
 }
 export type Machine3DStatus = 'loading' | 'ready' | 'failed'
 
@@ -22,9 +23,7 @@ export type Machine3DStatus = 'loading' | 'ready' | 'failed'
  * `failed` means WebGL or the module is unavailable, so the CSS machine should be shown instead.
  */
 export function useMachine3D(canvasRef: RefObject<HTMLCanvasElement | null>, input: Machine3DInput): Machine3DStatus {
-	const editor = useEditor()
-	const zoom = useValue('gachapon zoom', () => editor.getZoomLevel(), [editor])
-	const pixelRatio = Math.min(3, Math.max(1, window.devicePixelRatio * zoom))
+	const pixelRatio = Math.min(3, Math.max(1, window.devicePixelRatio * (input.zoom ?? 1)))
 	const [status, setStatus] = useState<Machine3DStatus>('loading')
 	const scene = useRef<MachineScene | null>(null)
 	const redraw = useRef(() => {})
