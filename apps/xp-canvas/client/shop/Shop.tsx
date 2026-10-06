@@ -54,7 +54,7 @@ export default function Shop() {
 	const [detail, setDetail] = useState<RewardSkin | null>(null)
 	// Closed cards still flying back to their slots; their slots stay empty until they land.
 	const [flying, setFlying] = useState<RewardSkin[]>([])
-	// Returns still in their first 400 ms; the row does not scroll under them, so the morph's target holds still.
+	// The row does not scroll under a returning card (the morph takes ~570 ms), so its target holds still.
 	const [locks, setLocks] = useState(0)
 	const [now, setNow] = useState(Date.now)
 	const [fresh, setFresh] = useState<RewardSkin[]>([])
@@ -191,7 +191,7 @@ export default function Shop() {
 		setDetail(null)
 		if (reduced) return
 		setLocks((current) => current + 1)
-		later(() => setLocks((current) => current - 1), 400)
+		later(() => setLocks((current) => current - 1), 650)
 	}
 	function cardHome(skin: RewardSkin) {
 		setFlying((current) => current.filter((item) => item !== skin))
