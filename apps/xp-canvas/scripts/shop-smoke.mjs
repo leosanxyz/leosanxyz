@@ -114,7 +114,6 @@ try {
 	// The points are just the coin and the number, no pill around them.
 	assert.deepEqual(await student.locator('.shop-points').evaluate((pill) => { const style = getComputedStyle(pill); return { border: style.borderStyle, background: style.backgroundColor } }),
 		{ border: 'none', background: 'rgba(0, 0, 0, 0)' }, 'no capsule around the points')
-	await student.locator('.board-header').screenshot({ path: '/tmp/xp-shop-round9/header-points.png' })
 	assert.equal(await dot.count(), 0, 'opening the shop clears the dot')
 	assert.equal(await student.getByRole('button', { name: /^Tienda/ }).getAttribute('aria-current'), 'page')
 	await student.screenshot({ path: '/tmp/shop-desktop.png', fullPage: true })
@@ -231,7 +230,6 @@ try {
 	await student.waitForTimeout(200)
 	const fading = Number(await student.locator('.question-celebration').evaluate((rain) => getComputedStyle(rain).opacity))
 	assert(fading > 0 && fading < 1, `the rain is mid-fade at 2.8 s (opacity ${fading})`)
-	await hero.screenshot({ path: '/tmp/xp-shop-round9/celebration-fading.png' })
 	await student.waitForTimeout(3200 - (Date.now() - rainStarted))
 	assert.equal(await student.locator('.question-celebration').count(), 0, 'the rain is gone after its fade')
 	await quiz.getByText('Pregunta 2 de 3').waitFor()
@@ -258,7 +256,6 @@ try {
 	await student.locator('.gachapon-reveal').waitFor()
 	// No words under the machine while the prize is on its way.
 	assert.equal(await student.getByTestId('shop-machine-status').getAttribute('class'), 'xp-sr-only', 'the machine status is hidden during a reveal')
-	await student.locator('.shop-machine-frame').screenshot({ path: '/tmp/xp-shop-round9/machine-reveal.png' })
 	assert.match(await student.locator('.gachapon-reveal__prize').innerText(), new RegExp(`${name} ganó`))
 	await student.screenshot({ path: '/tmp/shop-reveal.png' })
 	await student.locator('.gachapon-reveal').waitFor({ state: 'detached', timeout: 15_000 })
