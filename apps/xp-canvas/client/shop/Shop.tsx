@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, usePresence } from 'motion/react'
 import { GACHAPON_DURATION } from '../../shared/gachaponShape'
 import { defaultHologram, defaultPass, type PassDraft, type RewardSkin } from '../../shared/pass'
 import {
 	SHOP_GIFT_STREAK_DAYS, SHOP_GIFT_STREAK_POINTS, SHOP_REVEAL_POINTS,
-	type ShopGift, type ShopGiftClaim, type ShopGrade, type ShopPurchase, type ShopReveal, type ShopReview, type ShopSpin, type ShopState,
+	type ShopAnswer, type ShopGift, type ShopGiftClaim, type ShopPurchase, type ShopReveal, type ShopReview, type ShopSpin, type ShopState,
 } from '../../shared/shop'
 import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
@@ -14,6 +14,8 @@ import { Icon } from '../components/Icon'
 import { GachaponReveal } from '../gachapon/GachaponReveal'
 import { loadCelebrate, loadPop, playCelebrate, playCoin, playPop } from '../gachapon/gachaponSounds'
 import { navigate } from '../navigation'
+import { Celebration } from '../questions/QuestionCelebrations'
+import { loadQuestionSounds, playCorrect, playIncorrect } from '../questions/useQuestionSounds'
 import { portalRequest } from '../portal/api'
 import { skins } from '../portal/pass/catalog'
 import { PassCard } from '../portal/pass/PassCard'
@@ -50,15 +52,17 @@ export default function Shop() {
 	const [pending, setPending] = useState(false), [reveal, setReveal] = useState<ShopSpin | null>(null)
 	const [starting, setStarting] = useState(false)
 	const [detail, setDetail] = useState<RewardSkin | null>(null)
+	// Closed cards still flying back to their slots; their slots stay empty until they land.
+	const [flying, setFlying] = useState<RewardSkin[]>([])
 	const [now, setNow] = useState(Date.now)
-	const [turning, setTurning] = useState<RewardSkin | null>(null), [fresh, setFresh] = useState<RewardSkin[]>([])
+	const [fresh, setFresh] = useState<RewardSkin[]>([])
 	const [claiming, setClaiming] = useState(false)
 	// Points that coins have carried into the counter before the server's total replaces them.
 	const [landed, setLanded] = useState(0)
 	const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
 	const pill = useRef<HTMLParagraphElement>(null), coins = useRef<HTMLDivElement>(null)
 	const reduced = usePassReducedMotion()
-	useEffect(() => { loadPop(); loadCelebrate() }, [])
+	useEffect(() => { loadPop(); loadCelebrate(); loadQuestionSounds() }, [])
 
 	const load = useCallback(async () => {
 		try {
@@ -130,11 +134,10 @@ export default function Shop() {
 	}
 	/** Optimistic: the card turns at once and only turns back if the server says no. */
 	async function turnCard(skin: RewardSkin, card: HTMLElement) {
-		if (turning || !state || state.revealed.includes(skin)) return
-		setTurning(skin); setNotice('')
+		if (!state || state.revealed.includes(skin)) return
+		setNotice('')
 		setState((current) => current && { ...current, revealed: [...current.revealed, skin] })
 		if (!reduced) setFresh((current) => [...current, skin])
-		later(() => setTurning(null), reduced ? 0 : FLIP_MS)
 		const request = portalRequest<ShopReveal>('shop/reveal', 'POST', { skin })
 		const flight = reduced ? (playPop(), Promise.resolve(0)) : wait(FLIP_MS / 2).then(() => {
 			playPop()
@@ -180,13 +183,30 @@ export default function Shop() {
 		try { await review(); return true } catch (cause) { fail(cause, 'No pude preparar el repaso.'); return false }
 		finally { setStarting(false) }
 	}
+	/** Closing frees the row at once: another card can open while this one flies home. */
 	function closeDetail(skin: RewardSkin) {
+		setFlying((current) => [...current, skin])
 		setDetail(null)
-		// The card is back in its slot on the next frame; focus returns to it, as it would after a dialog.
-		requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`.shop-card[data-skin="${skin}"]`)?.focus({ preventScroll: true }))
 	}
-	const grade = (active: ShopReview, answers: number[]) => portalRequest<ShopGrade>(`shop/review/${active.id}`, 'POST', { answers })
-	const graded = (result: ShopGrade) => setState((current) => current && { ...current, freeSpin: result.freeSpin, review: { attemptsLeft: result.attemptsLeft, active: null } })
+	function cardHome(skin: RewardSkin) {
+		setFlying((current) => current.filter((item) => item !== skin))
+		// The card is back in its slot on the next frame; focus returns to it, as it would after a dialog, unless the student moved on.
+		requestAnimationFrame(() => {
+			if (document.activeElement === document.body) document.querySelector<HTMLButtonElement>(`.shop-card[data-skin="${skin}"]`)?.focus({ preventScroll: true })
+		})
+	}
+	async function answer(active: ShopReview, index: number, choice: number) {
+		const result = await portalRequest<ShopAnswer>(`shop/review/${active.id}/answer`, 'POST', { index, answer: choice })
+		// "Continuar repaso" and a reload resume after this question.
+		const marked = { answer: result.correct ? result.right : choice, correct: result.correct, right: result.right }
+		setState((current) => {
+			const open = current?.review.active
+			if (!current || open?.id !== active.id) return current
+			return { ...current, review: { ...current.review, active: { ...open, results: open.results.map((item, i) => i === index ? marked : item) } } }
+		})
+		return result
+	}
+	const graded = (result: ShopAnswer) => setState((current) => current && { ...current, freeSpin: result.freeSpin, review: { attemptsLeft: result.attemptsLeft, active: null } })
 
 	const student = state && !state.teacher
 	const header = student ? <PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} /> : null
@@ -198,7 +218,7 @@ export default function Shop() {
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
 				<section className="shop-hero">
 					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
-					<Ticket state={state} starting={starting} onReview={startReview} onGrade={grade} onGraded={graded} onRetry={review} />
+					<Ticket state={state} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} />
 				</section>
 				<section className="shop-cards" aria-labelledby="shop-cards-title">
 					<div className="shop-cards__heading">
@@ -207,8 +227,8 @@ export default function Shop() {
 					</div>
 					<ul className="shop-row" key={state.day}>
 						{state.pool.map((skin, i) => <li key={skin} data-slot={skin} style={{ '--i': i } as CSSProperties}>
-							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} locked={!!turning && turning !== skin}
-								open={detail === skin} onReveal={(card, element) => void turnCard(card, element)} onOpen={setDetail} />
+							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} open={detail === skin || flying.includes(skin)}
+								onReveal={(card, element) => void turnCard(card, element)} onOpen={setDetail} />
 						</li>)}
 						<li style={{ '--i': state.pool.length } as CSSProperties}>
 							<GiftTicket gift={state.gift} teacher={state.teacher} claiming={claiming} coins={coins} onClaim={() => void claimGift()} />
@@ -218,32 +238,37 @@ export default function Shop() {
 			</>}
 		</div>
 		{reveal && <GachaponReveal result={reveal} />}
-		<AnimatePresence>{detail && state && <CardDetail key={detail} skin={detail} state={state} onBuy={buy} onClose={() => closeDetail(detail)} />}</AnimatePresence>
+		<AnimatePresence mode="sync">{detail && state && <CardDetail key={detail} skin={detail} state={state} onBuy={buy} onClose={() => closeDetail(detail)} onLanded={() => cardHome(detail)} />}</AnimatePresence>
 	</LibraryShell>
 }
 
-type Graded = { review: ShopReview; choices: number[]; result: ShopGrade }
-
 /** The ticket hosts the review below its perforation, so the free spin is earned where it is shown. */
-function Ticket({ state, starting, onReview, onGrade, onGraded, onRetry }: {
+function Ticket({ state, starting, onReview, onAnswer, onGraded, onRetry }: {
 	state: ShopState; starting: boolean; onReview: () => Promise<boolean>
-	onGrade: (review: ShopReview, answers: number[]) => Promise<ShopGrade>; onGraded: (result: ShopGrade) => void; onRetry: () => Promise<void>
+	onAnswer: (review: ShopReview, index: number, answer: number) => Promise<ShopAnswer>; onGraded: (result: ShopAnswer) => void; onRetry: () => Promise<void>
 }) {
 	const { freeSpin, review } = state
-	const [graded, setGraded] = useState<Graded | null>(null), [open, setOpen] = useState(false)
+	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false)
+	const [celebration, setCelebration] = useState<string | null>(null)
 	const ticket = useRef<HTMLElement>(null)
-	const view = graded ? (graded.result.passed ? 'passed' : 'failed') : !state.teacher && open && review.active ? 'quiz' : 'free'
+	const view = graded ? (graded.passed ? 'passed' : 'failed') : !state.teacher && open && review.active ? 'quiz' : 'free'
 	useEffect(() => {
 		if (view !== 'passed') return
 		const timer = setTimeout(() => setGraded(null), 4000)
 		return () => clearTimeout(timer)
 	}, [view])
+	// One rain at a time; it outlives the question it celebrates.
+	useEffect(() => {
+		if (!celebration) return
+		const timer = setTimeout(() => setCelebration(null), 2500)
+		return () => clearTimeout(timer)
+	}, [celebration])
 	// Opening the quiz brings the whole ticket into view.
 	useEffect(() => {
 		if (view === 'quiz') ticket.current?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
 	}, [view, review.active?.id])
-	function finish(active: ShopReview, choices: number[], result: ShopGrade) {
-		setGraded({ review: active, choices, result })
+	function finish(result: ShopAnswer) {
+		setGraded(result)
 		setOpen(false)
 		onGraded(result)
 		if (result.passed) playCelebrate()
@@ -265,60 +290,72 @@ function Ticket({ state, starting, onReview, onGrade, onGraded, onRetry }: {
 			<p className="shop-ticket__note">y gira gratis · {review.attemptsLeft === 1 ? '1 intento' : `${review.attemptsLeft} intentos`} hoy</p></>
 		: <p className="shop-ticket__note">Sin intentos por hoy</p>
 	return <section className="shop-ticket" ref={ticket} aria-labelledby="shop-ticket-title" onClick={() => { if (view === 'passed') setGraded(null) }}>
-		<p className="shop-eyebrow">Gachapon</p>
-		<h2 id="shop-ticket-title">Una carta al azar</h2>
-		<p className="shop-ticket__lead"><span className="shop-coin" aria-hidden="true" /> {points(state.spinCost)} puntos por tirada. {state.teacher ? 'Los alumnos compran aquí con sus puntos.' : 'Nunca sale una que ya tienes.'}</p>
+		<h2 id="shop-ticket-title" className="shop-ticket__title">¡Repasa los conceptos de clase y gana una tirada! :)</h2>
 		<div className="shop-ticket__free" data-state={state.teacher ? 'preview' : freeSpin} data-testid="shop-free-spin">
 			<div className="shop-ticket__step" data-view={view} key={view}>
 				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active} onClose={() => setOpen(false)}
-					onGrade={(answers) => onGrade(review.active!, answers)} onGraded={(result, choices) => finish(review.active!, choices, result)} />
+					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={setCelebration} onDone={finish} />
 					: view === 'passed' ? <Passed />
-					: view === 'failed' && graded ? <Failed graded={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
+					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
 			</div>
 		</div>
+		{celebration && createPortal(<Celebration key={celebration} id={celebration} />, document.body)}
 	</section>
 }
 
 const LETTERS = 'ABCD'
 const attempts = (count: number) => count === 1 ? 'Te queda 1 intento hoy.' : `Te quedan ${count} intentos hoy.`
+/** How long a graded answer stays on screen before the next question. */
+const ADVANCE_MS = 1300
 
-/** One question at a time. The server grades the three together and keeps the key until then. */
-function Quiz({ review, onClose, onGrade, onGraded }: {
+/** One question at a time, graded as soon as it is answered. The server keeps each key until then. */
+function Quiz({ review, onClose, onAnswer, onCorrect, onDone }: {
 	review: ShopReview; onClose: () => void
-	onGrade: (answers: number[]) => Promise<ShopGrade>; onGraded: (result: ShopGrade, choices: number[]) => void
+	onAnswer: (index: number, answer: number) => Promise<ShopAnswer>; onCorrect: (id: string) => void; onDone: (result: ShopAnswer) => void
 }) {
-	const [index, setIndex] = useState(0), [choices, setChoices] = useState<number[]>([])
-	const [busy, setBusy] = useState(false), [error, setError] = useState('')
-	const heading = useRef<HTMLHeadingElement>(null)
-	// Focus follows the question for keyboard and screen reader users.
-	useEffect(() => { heading.current?.focus({ preventScroll: true }) }, [index])
-	const question = review.questions[index], choice = choices[index]
-	const last = index === review.questions.length - 1
+	const reduced = usePassReducedMotion()
+	const [results, setResults] = useState(review.results)
+	// A resumed attempt starts at the first question without an answer.
+	const [index, setIndex] = useState(() => Math.max(0, review.results.indexOf(null)))
+	const [picked, setPicked] = useState<number | null>(null), [shake, setShake] = useState(false), [error, setError] = useState('')
+	const heading = useRef<HTMLHeadingElement>(null), advance = useRef<ReturnType<typeof setTimeout>>(undefined)
+	const question = review.questions[index], result = results[index]
+	// Focus follows the question and its result for keyboard and screen reader users.
+	useEffect(() => { heading.current?.focus({ preventScroll: true }) }, [index, !!result])
+	useEffect(() => () => clearTimeout(advance.current), [])
 
-	async function next() {
-		if (choice === undefined || busy) return
-		if (!last) { setIndex(index + 1); return }
-		setBusy(true); setError('')
-		try { onGraded(await onGrade(choices), choices) }
-		catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude revisar tus respuestas.'); setBusy(false) }
+	async function choose(answer: number) {
+		if (picked !== null || result) return
+		setPicked(answer); setError('')
+		try {
+			const graded = await onAnswer(index, answer)
+			setResults((current) => current.map((item, i) => i === index ? { answer: graded.correct ? graded.right : answer, correct: graded.correct, right: graded.right } : item))
+			if (graded.correct) { playCorrect(); if (!reduced) onCorrect(`${review.id}-${index}`) }
+			else { playIncorrect(); if (!reduced) setShake(true) }
+			advance.current = setTimeout(() => {
+				if (graded.done) { onDone(graded); return }
+				setIndex(index + 1); setPicked(null); setShake(false)
+			}, ADVANCE_MS)
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude revisar tu respuesta.'); setPicked(null) }
 	}
+	const mark = (i: number) => !result ? undefined : i === result.right ? 'right' : i === result.answer ? 'wrong' : undefined
 
 	return <div className="shop-review" data-testid="shop-review">
-		<div className="shop-review__progress" aria-hidden="true">{review.questions.map((_, i) => <i key={i} data-state={i < index ? 'done' : i === index ? 'current' : 'next'} />)}</div>
-		<p className="shop-review__count">Pregunta {index + 1} de {review.questions.length}</p>
-		<h3 ref={heading} tabIndex={-1} className="shop-review__question">{question.question}</h3>
-		<div className="shop-review__answers" role="group" aria-label="Respuestas">
-			{question.answers.map((answer, i) => <button key={i} className="shop-review__answer" aria-pressed={choice === i} disabled={busy}
-				onClick={() => setChoices((current) => { const next = [...current]; next[index] = i; return next })}>
-				<span aria-hidden="true">{LETTERS[i]}</span>{answer}
-			</button>)}
+		<div className="shop-review__progress" aria-hidden="true">{review.questions.map((_, i) => <i key={i} data-state={results[i] ? 'done' : i === index ? 'current' : 'next'} />)}</div>
+		<div className="shop-review__step" key={index}>
+			<p className="shop-review__count">Pregunta {index + 1} de {review.questions.length}</p>
+			<h3 ref={heading} tabIndex={-1} className="shop-review__question">{question.question}</h3>
+			<div className="shop-review__answers" role="group" aria-label="Respuestas" data-shake={shake || undefined}>
+				{question.answers.map((answer, i) => <button key={i} className="shop-review__answer" aria-pressed={(result?.answer ?? picked) === i} data-result={mark(i)}
+					disabled={picked !== null || !!result} onClick={() => void choose(i)}>
+					<span aria-hidden="true">{LETTERS[i]}</span>{answer}
+				</button>)}
+			</div>
 		</div>
 		{error && <p className="xp-error" role="alert">{error}</p>}
 		<div className="shop-review__footer">
-			<button className="shop-review__close" disabled={busy} onClick={onClose}>Cerrar</button>
-			{index > 0 && <button className="shop-review__back" disabled={busy} onClick={() => setIndex(index - 1)}>Anterior</button>}
-			<button className="shop-button shop-review__next" disabled={choice === undefined || busy} onClick={() => void next()}>{busy ? 'Revisando…' : last ? 'Revisar respuestas' : 'Siguiente'}</button>
+			<button className="shop-review__close" disabled={picked !== null} onClick={onClose}>Cerrar</button>
 		</div>
 	</div>
 }
@@ -339,7 +376,7 @@ function Passed() {
 	</div>
 }
 
-function Failed({ graded: { review, choices, result }, onRetry, onDone }: { graded: Graded; onRetry: () => Promise<void>; onDone: () => void }) {
+function Failed({ result, onRetry, onDone }: { result: ShopAnswer; onRetry: () => Promise<void>; onDone: () => void }) {
 	const heading = useFocused()
 	const [busy, setBusy] = useState(false), [error, setError] = useState('')
 	async function retry() {
@@ -349,12 +386,6 @@ function Failed({ graded: { review, choices, result }, onRetry, onDone }: { grad
 	return <div className="shop-review__result" data-passed="false">
 		<h3 ref={heading} tabIndex={-1}>Casi</h3>
 		<p>{result.attemptsLeft ? `${attempts(result.attemptsLeft)} Cada intento trae preguntas nuevas.` : 'Sin intentos por hoy. Mañana hay otra oportunidad.'}</p>
-		<ol className="shop-review__marks">{review.questions.map((item, i) => <li key={i} data-correct={result.results[i].correct}>
-			<span className="shop-review__mark" aria-label={result.results[i].correct ? 'Correcta' : 'Incorrecta'}>{result.results[i].correct ? '✓' : '✕'}</span>
-			<div><strong>{item.question}</strong>
-				{result.results[i].correct ? <small>{item.answers[choices[i]]}</small>
-					: <small>Elegiste «{item.answers[choices[i]]}». La correcta era <b>«{item.answers[result.results[i].answer]}»</b>.</small>}</div>
-		</li>)}</ol>
 		{error && <p className="xp-error" role="alert">{error}</p>}
 		{result.attemptsLeft > 0 ? <button className="shop-button" disabled={busy} onClick={() => void retry()}>{busy ? 'Preparando…' : 'Intentar de nuevo'}</button>
 			: <button className="shop-review__back" onClick={onDone}>Entendido</button>}
@@ -401,7 +432,6 @@ function GiftTicket({ gift, teacher, claiming, coins, onClaim }: { gift: ShopGif
 }
 
 const CARD_BACK = <div className="shop-card-back"><span className="shop-card-back__emblem">XP</span><span className="shop-card-back__ribbon">Nuevo</span></div>
-const OWNED_BADGE = <span className="shop-card__badge"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
 
 /** The shared-element morph between a card's slot and the detail, as one card moving rather than a copy. */
 const MORPH = { type: 'spring', stiffness: 260, damping: 30 } as const
@@ -411,8 +441,8 @@ const morphId = (skin: RewardSkin) => `shop-card-${skin}`
  * The profile card in its shop dress, with the same tilt, lamp and foil. Face down it is a "Revelar carta" button;
  * face up it opens the card's detail, where it is bought. While the detail is open the card is there, and its slot stays empty.
  */
-function ShopCard({ skin, state, fresh, locked, open, onReveal, onOpen }: {
-	skin: RewardSkin; state: ShopState; fresh: boolean; locked: boolean; open: boolean
+function ShopCard({ skin, state, fresh, open, onReveal, onOpen }: {
+	skin: RewardSkin; state: ShopState; fresh: boolean; open: boolean
 	onReveal: (skin: RewardSkin, card: HTMLElement) => void; onOpen: (skin: RewardSkin) => void
 }) {
 	const art = skins.find((item) => item.id === skin)!
@@ -431,7 +461,6 @@ function ShopCard({ skin, state, fresh, locked, open, onReveal, onOpen }: {
 	}
 	function press() {
 		if (mode === 'view') { onOpen(skin); return }
-		if (locked) return
 		// The overlay is inert while the card turns, so a keyboard reveal gets its focus back afterwards.
 		const focused = document.activeElement === button.current
 		onReveal(skin, stage.current!)
@@ -439,10 +468,7 @@ function ShopCard({ skin, state, fresh, locked, open, onReveal, onOpen }: {
 	}
 	const slot = { 'data-revealed': revealed, 'data-owned': revealed && owned, 'data-mode': mode, style: { '--card-color': art.color } as CSSProperties }
 	if (open) return <div className="shop-card-slot" {...slot} />
-	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${art.name}` : 'Revelar carta'}
-		aria-disabled={(mode === 'reveal' && locked) || undefined} onClick={press}>
-		{revealed && owned && OWNED_BADGE}
-	</button>
+	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${art.name}` : 'Revelar carta'} onClick={press} />
 	return <div className="shop-card-slot" {...slot}>
 		<div className="shop-card-stage" ref={stage}>
 			<motion.div layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH} style={{ borderRadius: 17 }}>
@@ -461,14 +487,17 @@ const fade = (leaving: boolean) => ({ initial: { opacity: 0 }, animate: { opacit
  * A face-up card at full size: the row card itself grows to the centre and goes back on close. The first tap asks, the second buys.
  * It is a hand-made modal because a dialog portal mounts a render late, and the morph needs both ends in the same commit.
  */
-function CardDetail({ skin, state, onBuy, onClose }: {
-	skin: RewardSkin; state: ShopState; onBuy: (skin: RewardSkin) => Promise<boolean>; onClose: () => void
+function CardDetail({ skin, state, onBuy, onClose, onLanded }: {
+	skin: RewardSkin; state: ShopState; onBuy: (skin: RewardSkin) => Promise<boolean>; onClose: () => void; onLanded: () => void
 }) {
+	// Closing removes the detail at once; it stays mounted, inert, only while the card flies home.
+	const [present, safeToRemove] = usePresence()
+	const leaving = !present
 	const art = skins.find((item) => item.id === skin)!
 	const draft = useMemo(() => shopDraft(skin), [skin])
 	const reduced = usePassReducedMotion()
 	const owned = state.owned.includes(skin), missing = state.cardCost - state.points
-	const [confirming, setConfirming] = useState(false), [busy, setBusy] = useState(false), [bought, setBought] = useState(false)
+	const [confirming, setConfirming] = useState(false), [busy, setBusy] = useState(false)
 	const root = useRef<HTMLDivElement>(null), buyButton = useRef<HTMLButtonElement>(null), close = useRef<HTMLButtonElement>(null)
 	const title = useId()
 	// On close the card flies back to its slot here, above the row's clipping, then hands over to the slot card in place.
@@ -483,16 +512,22 @@ function CardDetail({ skin, state, onBuy, onClose }: {
 	useEffect(() => { (enabled ? buyButton : close).current?.focus({ preventScroll: true }) }, [])
 	const price = points(state.cardCost)
 
-	function dismiss() {
-		if (home) return
+	const land = useRef<() => void>(undefined)
+	useLayoutEffect(() => {
+		if (present) return
+		let done = false
+		land.current = () => { if (!done) { done = true; safeToRemove?.(); onLanded() } }
 		const slot = document.querySelector(`[data-slot="${skin}"]`)?.getBoundingClientRect()
-		if (reduced || !slot) { onClose(); return }
+		if (reduced || !slot) { land.current(); return }
 		setHome(slot)
 		// In case the spring never reports its end, for example in a background tab.
-		setTimeout(onClose, 900)
-	}
+		const timer = setTimeout(land.current, 900)
+		return () => clearTimeout(timer)
+	}, [present])
+	const dismiss = () => { if (!leaving) onClose() }
 	/** Esc closes; Tab stays inside, as in a dialog. */
 	const keys = (event: KeyboardEvent) => {
+		if (leaving) return
 		if (event.key === 'Escape') { event.preventDefault(); dismiss(); return }
 		if (event.key !== 'Tab') return
 		const focusable = [...root.current!.querySelectorAll<HTMLButtonElement>('button:enabled')]
@@ -505,30 +540,29 @@ function CardDetail({ skin, state, onBuy, onClose }: {
 		if (mode !== 'confirm') return
 		setBusy(true)
 		const success = await onBuy(skin)
-		setBusy(false); setConfirming(false); setBought(success)
+		setBusy(false); setConfirming(false)
 		// The button turns into a disabled "Ya la tienes", so focus moves to the next useful control.
 		if (success) close.current?.focus()
 	}
 	const label = mode === 'buy' ? <><span className="shop-coin" aria-hidden="true" />Comprar · {price}</> : mode === 'confirm' ? `Confirmar · ${price}` : mode === 'busy' ? 'Comprando…'
 		: mode === 'owned' ? 'Ya la tienes' : mode === 'short' ? `Te faltan ${points(missing)} puntos` : `${price} puntos`
 
-	return createPortal(<div className="shop-detail" ref={root} role="dialog" aria-modal="true" aria-labelledby={title} onKeyDown={keys}>
-		<motion.div className="shop-detail-overlay" {...fade(!!home)} onClick={dismiss} />
+	return createPortal(<div className="shop-detail" ref={root} role="dialog" aria-modal="true" aria-labelledby={title} data-leaving={leaving} inert={leaving} onKeyDown={keys}>
+		<motion.div className="shop-detail-overlay" {...fade(leaving)} onClick={dismiss} />
 		<div className="shop-detail__content" data-testid="shop-card-detail" onClick={(event) => { if (event.target === event.currentTarget) dismiss() }}>
 			<div className="shop-detail__frame">
-				<motion.div className="shop-detail__card" data-bought={bought} layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH}
+				<motion.div className="shop-detail__card" layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH}
 					style={{ borderRadius: 17, '--card-color': art.color, ...(home && { position: 'fixed', left: home.left, top: home.top, width: home.width }) } as CSSProperties}
-					onLayoutAnimationComplete={() => { if (home) onClose() }}>
+					onLayoutAnimationComplete={() => { if (home) land.current?.() }}>
 					<PassCard draft={draft} variant="shop" />
-					{owned && OWNED_BADGE}
 				</motion.div>
 			</div>
-			<motion.div className="shop-detail__text" {...fade(!!home)}>
+			<motion.div className="shop-detail__text" {...fade(leaving)}>
 				<h2 className="shop-detail__name" id={title}>{art.name}</h2>
 				<button ref={buyButton} className="shop-detail__buy" data-mode={mode} disabled={!enabled} onClick={() => void press()}>{label}</button>
 			</motion.div>
 		</div>
-		<motion.button className="xp-icon-button shop-detail__close" aria-label="Cerrar" ref={close} onClick={dismiss} {...fade(!!home)}><Icon name="close" /></motion.button>
+		<motion.button className="xp-icon-button shop-detail__close" aria-label="Cerrar" ref={close} onClick={dismiss} {...fade(leaving)}><Icon name="close" /></motion.button>
 	</div>, document.body)
 }
 

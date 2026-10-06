@@ -62,7 +62,10 @@ export function shopPool(day: string): RewardSkin[] {
 
 /** A review question without its key. The correct index stays on the server until grading. */
 export type ShopQuestion = { question: string; answers: string[] }
-export type ShopReview = { id: string; questions: ShopQuestion[] }
+/** A graded answer: what the student chose and the right option, revealed once answered. */
+export type ShopResult = { answer: number; correct: boolean; right: number }
+/** `results` follows the questions; `null` is still unanswered, so a reload resumes where the student left. */
+export type ShopReview = { id: string; questions: ShopQuestion[]; results: (ShopResult | null)[] }
 export type FreeSpinState = 'locked' | 'available' | 'used'
 /** `streak` counts today once claimed; `amount` is what today's claim pays or paid. */
 export interface ShopGift { claimed: boolean; amount: number; streak: number }
@@ -81,8 +84,8 @@ export interface ShopState {
 	gift: ShopGift
 	teacher: boolean
 }
-/** `answer` is the right option, revealed only after grading. */
-export interface ShopGrade { passed: boolean; results: { correct: boolean; answer: number }[]; freeSpin: FreeSpinState; attemptsLeft: number }
+/** One question graded at once. The third answer finishes the attempt: `done`, and `passed` stops being `null`. */
+export interface ShopAnswer { index: number; correct: boolean; right: number; done: boolean; passed: boolean | null; freeSpin: FreeSpinState; attemptsLeft: number }
 export type ShopSpin = GachaponResult & { points: number }
 export interface ShopPurchase { skin: RewardSkin; points: number }
 export interface ShopReveal { revealed: RewardSkin[]; points: number }

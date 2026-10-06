@@ -7,15 +7,18 @@ import type { BoardLibrary } from '../shared/boards'
 import { isRewardSkin, type RewardSkin } from '../shared/pass'
 import {
 	giftAmount, giftStreak, nextShopRotation, SHOP_CARD_COST, SHOP_GIFT_POINTS, SHOP_REVEAL_POINTS, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool,
-	type FreeSpinState, type ShopGift, type ShopGiftClaim, type ShopGrade, type ShopPurchase, type ShopQuestion, type ShopReveal, type ShopSpin, type ShopState,
+	type FreeSpinState, type ShopGift, type ShopGiftClaim, type ShopAnswer, type ShopPurchase, type ShopQuestion, type ShopReveal, type ShopSpin, type ShopState,
 } from '../shared/shop'
 
 type StoredQuestion = ShopQuestion & { boardId: string; shapeId: string; revision: string; correct: number }
-type ReviewRow = { id: string; questions_json: string; passed: number; finished_at: number | null }
+type ReviewRow = { id: string; questions_json: string; answers_json: string | null; passed: number; finished_at: number | null }
+type Answers = (number | null)[]
 
 const MAX_REVIEW_BOARDS = 40
 const ID = /^[a-f0-9-]{36}$/
 const balance = 'COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0)'
+/** Answers so far, one slot per question. Rows from before per-question grading may hold `NULL`. */
+const storedAnswers = (json: string | null): Answers => json ? JSON.parse(json) : Array(SHOP_REVIEW_QUESTIONS).fill(null)
 const random = (below: number) => Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * below)
 
 async function student(session: AuthSession, env: CanvasEnv, day: string) {
@@ -23,7 +26,7 @@ async function student(session: AuthSession, env: CanvasEnv, day: string) {
 	const [points, owned, reviews, free] = await Promise.all([
 		readPoints(env, userId),
 		db.prepare('SELECT DISTINCT skin FROM gachapon_spins WHERE user_id = ?').bind(userId).all<{ skin: RewardSkin }>(),
-		db.prepare('SELECT id, questions_json, passed, finished_at FROM shop_reviews WHERE user_id = ? AND day = ? ORDER BY created_at').bind(userId, day).all<ReviewRow>(),
+		db.prepare('SELECT id, questions_json, answers_json, passed, finished_at FROM shop_reviews WHERE user_id = ? AND day = ? ORDER BY created_at').bind(userId, day).all<ReviewRow>(),
 		db.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(JSON.stringify(['shop-free', userId, day])).first(),
 	])
 	const freeSpin: FreeSpinState = free ? 'used' : reviews.results.some((row) => row.passed) ? 'available' : 'locked'
@@ -48,9 +51,15 @@ async function gift(env: CanvasEnv, userId: string, day: string): Promise<ShopGi
 
 function reviewState(reviews: ReviewRow[], freeSpin: FreeSpinState) {
 	const active = freeSpin === 'locked' ? reviews.find((row) => row.finished_at === null) : undefined
+	if (!active) return { attemptsLeft: Math.max(0, SHOP_REVIEW_ATTEMPTS - reviews.length), active: null }
+	const questions = JSON.parse(active.questions_json) as StoredQuestion[], answers = storedAnswers(active.answers_json)
 	return {
 		attemptsLeft: Math.max(0, SHOP_REVIEW_ATTEMPTS - reviews.length),
-		active: active ? { id: active.id, questions: (JSON.parse(active.questions_json) as StoredQuestion[]).map(({ question, answers }) => ({ question, answers })) } : null,
+		active: {
+			id: active.id,
+			questions: questions.map(({ question, answers }) => ({ question, answers })),
+			results: questions.map(({ correct }, i) => answers[i] === null ? null : { answer: answers[i], correct: answers[i] === correct, right: correct }),
+		},
 	}
 }
 
@@ -122,25 +131,33 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 			[questions[i], questions[j]] = [questions[j], questions[i]]
 		}
 		const chosen = questions.slice(0, SHOP_REVIEW_QUESTIONS), id = crypto.randomUUID()
-		await db.prepare('INSERT INTO shop_reviews (id, user_id, day, questions_json, created_at) VALUES (?, ?, ?, ?, ?)').bind(id, user.id, day, JSON.stringify(chosen), now).run()
-		return json({ id, questions: chosen.map(({ question, answers }) => ({ question, answers })) }, 201)
+		const answers: Answers = Array(SHOP_REVIEW_QUESTIONS).fill(null)
+		await db.prepare('INSERT INTO shop_reviews (id, user_id, day, questions_json, answers_json, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(id, user.id, day, JSON.stringify(chosen), JSON.stringify(answers), now).run()
+		return json({ id, questions: chosen.map(({ question, answers }) => ({ question, answers })), results: answers }, 201)
 	}
 
-	const grade = /^\/api\/portal\/shop\/review\/([a-f0-9-]{36})$/.exec(path)
-	if (grade && method === 'POST') {
-		const answers = (await body(request)).answers
-		if (!Array.isArray(answers) || answers.length !== SHOP_REVIEW_QUESTIONS || !answers.every((answer) => Number.isInteger(answer) && answer >= 0 && answer <= 3)) throw new PortalError(400, 'Responde las tres preguntas.')
-		const row = await db.prepare('SELECT questions_json FROM shop_reviews WHERE id = ? AND user_id = ? AND day = ? AND finished_at IS NULL').bind(grade[1], user.id, day).first<{ questions_json: string }>()
+	// Each question is graded as soon as it is answered. The third answer finishes the attempt.
+	const answer = /^\/api\/portal\/shop\/review\/([a-f0-9-]{36})\/answer$/.exec(path)
+	if (answer && method === 'POST') {
+		const data = await body(request), index = data.index, choice = data.answer
+		if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= SHOP_REVIEW_QUESTIONS || typeof choice !== 'number' || !Number.isInteger(choice) || choice < 0 || choice > 3) throw new PortalError(400, 'Solicitud inválida.')
+		const row = await db.prepare('SELECT questions_json, answers_json FROM shop_reviews WHERE id = ? AND user_id = ? AND day = ? AND finished_at IS NULL').bind(answer[1], user.id, day).first<{ questions_json: string; answers_json: string | null }>()
 		if (!row) throw new PortalError(409, 'Este repaso ya terminó. Empieza otro.')
-		const questions = JSON.parse(row.questions_json) as StoredQuestion[]
-		const results = questions.map((question, i) => ({ correct: answers[i] === question.correct, answer: question.correct }))
-		const passed = results.every((result) => result.correct)
-		// The guard on finished_at makes a double submit grade once.
-		const saved = await db.prepare('UPDATE shop_reviews SET answers_json = ?, passed = ?, finished_at = ? WHERE id = ? AND user_id = ? AND finished_at IS NULL RETURNING id')
-			.bind(JSON.stringify(answers), Number(passed), now, grade[1], user.id).first()
+		const questions = JSON.parse(row.questions_json) as StoredQuestion[], answers = storedAnswers(row.answers_json), right = questions[index].correct
+		const reply = async (picked: number, done: boolean, passed: boolean | null) => {
+			const { reviews, freeSpin } = await student(session, env, day)
+			return json({ index, correct: picked === right, right, done, passed, freeSpin, attemptsLeft: reviewState(reviews, freeSpin).attemptsLeft } satisfies ShopAnswer)
+		}
+		// A repeated answer returns the first one, unchanged.
+		const first = answers[index]
+		if (first !== null) return reply(first, false, null)
+		answers[index] = choice
+		const done = answers.every((item) => item !== null), passed = done ? questions.every(({ correct }, i) => answers[i] === correct) : null
+		// Writing only over the answers just read keeps two simultaneous answers from overwriting each other.
+		const saved = await db.prepare('UPDATE shop_reviews SET answers_json = ?, passed = ?, finished_at = ? WHERE id = ? AND user_id = ? AND finished_at IS NULL AND answers_json IS ? RETURNING id')
+			.bind(JSON.stringify(answers), Number(!!passed), done ? now : null, answer[1], user.id, row.answers_json).first()
 		if (!saved) throw new PortalError(409, 'Este repaso ya terminó. Empieza otro.')
-		const { reviews, freeSpin } = await student(session, env, day)
-		return json({ passed, results, freeSpin, attemptsLeft: reviewState(reviews, freeSpin).attemptsLeft } satisfies ShopGrade)
+		return reply(choice, done, passed)
 	}
 
 	if (path === '/api/portal/shop/spin' && method === 'POST') {

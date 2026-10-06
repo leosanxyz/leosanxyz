@@ -1,5 +1,6 @@
 import { useMemo, type CSSProperties } from 'react'
 import type { QuestionFeedback } from '../../shared/questionShape'
+import './questions.css'
 
 const EMOJIS = ['🥳', '⭐', '🎉']
 const COLORS = ['#ffcf40', '#ff699d', '#54cde2', '#a58aff', '#74d99a', '#ff935b']
@@ -30,7 +31,8 @@ function makeParticles(id: string) {
 	})
 }
 
-function Celebration({ id }: { id: string }) {
+/** The fullscreen emoji rain for a right answer; the shop review uses it too. */
+export function Celebration({ id }: { id: string }) {
 	const particles = useMemo(() => makeParticles(id), [id])
 	return <div className="question-celebration" data-celebration-id={id} aria-hidden="true">
 		{particles.map((particle, index) => <span key={index} className="question-celebration__particle" style={particle.style}>{particle.emoji}</span>)}

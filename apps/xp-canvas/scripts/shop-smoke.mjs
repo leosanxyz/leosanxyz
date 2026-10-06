@@ -8,6 +8,7 @@ if (!['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) throw new E
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
 const errors = []
 const REWARD_SKINS = ['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo', 'zelda-campfire', 'tracer', 'soraka', 'shadow-warrior', 'luke', 'attack-titan', 'rengoku', 'gyro', 'emilia']
+const TICKET_LINE = '¡Repasa los conceptos de clase y gana una tirada! :)'
 const QUESTIONS = [
 	['¿Cuánto es 2 + 2?', ['3', '4', '5', '6'], 1],
 	['¿Qué color resulta de azul y amarillo?', ['Verde', 'Rojo', 'Morado', 'Gris'], 0],
@@ -94,9 +95,11 @@ try {
 	assert.equal(await student.locator('.shop-row > li').last().getByTestId('shop-gift').count(), 1)
 	assert.equal(await student.getByRole('button', { name: 'Revelar carta' }).count(), 6, 'today\'s cards arrive face down')
 	assert.match(await student.getByTestId('shop-countdown').innerText(), /^cambian en (\d+ h|menos de 1 h)$/)
-	const desk = await student.locator('.shop-row').evaluate((list) => ({ overflow: getComputedStyle(list).overflowX, scrolls: list.scrollWidth > list.clientWidth, width: list.children[0].getBoundingClientRect().width }))
+	const desk = await student.locator('.shop-row').evaluate((list) => ({ overflow: getComputedStyle(list).overflowX, scrolls: list.scrollWidth > list.clientWidth, width: Math.round(list.children[0].getBoundingClientRect().width) }))
 	assert.deepEqual(desk, { overflow: 'auto', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too')
 	assert.equal(await student.locator('.shop-card__price').count(), 0, 'no prices in the row')
+	assert.equal(await student.locator('#shop-ticket-title').innerText(), TICKET_LINE)
+	assert.equal(await student.locator('.shop-ticket').getAttribute('aria-labelledby'), 'shop-ticket-title')
 	assert.equal(await student.getByTestId('shop-points').innerText(), '500')
 	assert.equal(await dot.count(), 0, 'opening the shop clears the dot')
 	assert.equal(await student.getByRole('button', { name: /^Tienda/ }).getAttribute('aria-current'), 'page')
@@ -128,43 +131,83 @@ try {
 	state = await shop()
 	assert.deepEqual([state.points, state.gift], [555, { claimed: true, amount: 25, streak: 1 }])
 
-	// A wrong attempt reveals the right answers, then a fresh attempt earns the free spin.
+	// Each answer is graded at once. A wrong attempt fails, then a fresh attempt earns the free spin.
 	const correctFor = (question) => QUESTIONS.find(([text]) => text === question)
-	async function answerReview(wrongFirst) {
-		const dialog = student.getByTestId('shop-review')
-		await dialog.waitFor()
-		for (let i = 0; i < 3; i++) {
-			const [, answers, correct] = correctFor(await dialog.locator('.shop-review__question').innerText())
-			const pick = wrongFirst && i === 0 ? (correct + 1) % 4 : correct
-			await dialog.getByRole('button', { name: answers[pick], exact: true }).click()
-			await dialog.getByRole('button', { name: i === 2 ? 'Revisar respuestas' : 'Siguiente' }).click()
-		}
+	const quiz = student.getByTestId('shop-review')
+	const answerAt = (reviewId, index, answer) => ana.request.post(`/api/portal/shop/review/${reviewId}/answer`, { data: { index, answer } })
+	/** Answers the question on screen; returns the server's grade once the answer shows its colour. */
+	async function answerOne(wrong) {
+		const [, answers, correct] = correctFor(await quiz.locator('.shop-review__question').innerText())
+		const pick = wrong ? (correct + 1) % 4 : correct
+		const graded = student.waitForResponse((response) => response.url().endsWith('/answer'))
+		await quiz.getByRole('button', { name: answers[pick], exact: true }).click()
+		const result = await (await graded).json()
+		await quiz.locator(`.shop-review__answer[data-result="${wrong ? 'wrong' : 'right'}"]`).waitFor()
+		assert.equal(await quiz.locator('.shop-review__answer[data-result="right"]').textContent(), `${'ABCD'[correct]}${answers[correct]}`, 'the right answer turns green')
+		assert.equal(await quiz.locator('.shop-review__answer:enabled').count(), 0, 'an answered question locks its options')
+		return result
 	}
 	const ticket = student.locator('.shop-ticket'), ticketWidth = (await ticket.boundingBox()).width
+	const hero = student.locator('.shop-hero'), heroHeight = (await hero.boundingBox()).height
 	await student.getByRole('button', { name: 'Repasar 3 preguntas' }).click()
-	await student.getByTestId('shop-review').waitFor()
+	await quiz.waitFor()
 	assert.equal(await student.locator('[role="dialog"]').count(), 0, 'the review lives in the ticket')
 	assert.equal((await ticket.boundingBox()).width, ticketWidth, 'the ticket keeps its width')
-	// Closing keeps the attempt; it never opens on its own, not even after a reload.
-	await student.getByTestId('shop-review').getByRole('button', { name: 'Cerrar' }).click()
-	await student.getByTestId('shop-review').waitFor({ state: 'detached' })
+	assert.equal((await hero.boundingBox()).height, heroHeight, 'the machine sets the panel height')
+	assert.equal(await quiz.getByRole('button', { name: /^(Anterior|Siguiente|Revisar respuestas)$/ }).count(), 0, 'no step buttons')
+	// Wrong: red, the right one green, and the options shake.
+	const firstQuestion = await quiz.locator('.shop-review__question').innerText()
+	const wrong = await answerOne(true)
+	assert.deepEqual([wrong.index, wrong.correct, wrong.done, wrong.passed], [0, false, false, null])
+	assert.equal(await quiz.locator('.shop-review__answers[data-shake]').count(), 1)
+	assert.equal(await student.locator('.question-celebration').count(), 0, 'no rain for a wrong answer')
+	await quiz.getByText('Pregunta 2 de 3').waitFor()
+	assert.equal(await quiz.locator('.shop-review__progress i[data-state="done"]').count(), 1, 'answered questions count as done')
+	const secondQuestion = await quiz.locator('.shop-review__question').innerText()
+	assert.notEqual(secondQuestion, firstQuestion)
+	// Closing keeps the attempt; it never opens on its own, and it resumes at the next question.
+	await quiz.getByRole('button', { name: 'Cerrar' }).click()
+	await quiz.waitFor({ state: 'detached' })
 	await student.reload()
 	await student.getByRole('button', { name: 'Continuar repaso' }).waitFor()
-	assert.equal(await student.getByTestId('shop-review').count(), 0, 'an unfinished attempt waits for the button')
+	assert.equal(await quiz.count(), 0, 'an unfinished attempt waits for the button')
+	const active = (await shop()).review.active
+	assert.deepEqual(active.results.map((result) => result && result.correct), [false, null, null], 'the server keeps each answer')
+	// A repeated answer returns the first grade and changes nothing; bad input is rejected.
+	const again = await (await answerAt(active.id, 0, wrong.right)).json()
+	assert.deepEqual(again, { ...wrong, freeSpin: again.freeSpin, attemptsLeft: again.attemptsLeft }, 'answering twice keeps the first answer')
+	assert.equal(again.done, false)
+	assert.equal((await answerAt(active.id, 3, 0)).status(), 400)
+	assert.equal((await answerAt(active.id, 1, 4)).status(), 400)
 	await student.getByRole('button', { name: 'Continuar repaso' }).click()
-	await answerReview(true)
+	await quiz.getByText('Pregunta 2 de 3').waitFor()
+	assert.equal(await quiz.locator('.shop-review__question').innerText(), secondQuestion, 'the attempt resumes at the right question')
+	assert.equal((await answerOne(false)).done, false)
+	await quiz.getByText('Pregunta 3 de 3').waitFor()
+	const failed = await answerOne(false)
+	assert.deepEqual([failed.done, failed.passed, failed.attemptsLeft], [true, false, 2], 'the third answer finishes the attempt')
 	await student.getByRole('heading', { name: 'Casi' }).waitFor()
+	assert.equal((await hero.boundingBox()).height, heroHeight, 'the failed step keeps the panel height')
 	assert.match(await ticket.innerText(), /Te quedan 2 intentos hoy/)
-	assert.equal(await student.locator('.shop-review__marks li[data-correct="false"]').count(), 1)
+	assert.equal(await student.locator('.shop-review__marks').count(), 0, 'no marks list')
+	assert.equal((await answerAt(active.id, 2, 0)).status(), 409, 'a finished attempt takes no more answers')
 	await student.screenshot({ path: '/tmp/shop-review-failed.png' })
 	await student.getByRole('button', { name: 'Intentar de nuevo' }).click()
-	await answerReview(false)
+	await quiz.waitFor()
+	// Right: green, the class question's rain, then the next question by itself.
+	assert.equal((await answerOne(false)).correct, true)
+	await student.locator('.question-celebration').waitFor()
+	await quiz.getByText('Pregunta 2 de 3').waitFor()
+	await answerOne(false)
+	await quiz.getByText('Pregunta 3 de 3').waitFor()
+	const passed = await answerOne(false)
+	assert.deepEqual([passed.done, passed.passed, passed.freeSpin], [true, true, 'available'])
 	await student.getByRole('heading', { name: 'Tirada gratis lista' }).waitFor()
 	assert.match(await ticket.innerText(), /Jala la palanca de la máquina/)
 	await student.screenshot({ path: '/tmp/shop-review-passed.png' })
 	await ticket.click({ position: { x: 20, y: 20 } })
 	await student.getByRole('heading', { name: 'Tirada gratis lista' }).waitFor({ state: 'detached' })
-	assert.equal(await student.getByTestId('shop-review').count(), 0)
+	assert.equal(await quiz.count(), 0)
 	assert.match(await student.getByTestId('shop-free-spin').innerText(), /Tirada gratis lista/)
 	state = await shop()
 	assert.deepEqual([state.freeSpin, state.review.attemptsLeft], ['available', 1])
@@ -201,24 +244,32 @@ try {
 	const card = student.locator(`.shop-card[data-skin="${skin}"]`)
 	assert.match(await card.getAttribute('aria-label'), /^Ver /)
 	await card.click()
-	const detail = student.getByTestId('shop-card-detail')
+	// A closing detail stays in the page while its card flies home; the open one is the other.
+	const detail = student.locator('.shop-detail:not([data-leaving="true"])').getByTestId('shop-card-detail')
 	await detail.waitFor()
 	assert.equal(await card.count(), 0, 'the card leaves its slot for the detail')
 	assert.equal(await student.locator('.shop-row > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 196, 'the slot keeps its size')
 	await detail.getByRole('button', { name: 'Comprar · 300' }).click()
 	await detail.getByRole('button', { name: 'Confirmar · 300' }).click()
-	await detail.locator('.shop-card__badge').waitFor()
 	assert.equal(await detail.getByRole('button', { name: 'Ya la tienes' }).isDisabled(), true)
+	assert.equal(await student.locator('.shop-card__badge').count(), 0, 'no owned badge')
 	assert.equal(await student.getByTestId('shop-points').innerText(), '105')
+	// Closing never blocks the row: another card opens at once while this one flies home.
+	const next = student.locator('.shop-card[data-owned="false"]').first(), nextName = (await next.getAttribute('aria-label')).replace(/^Ver /, '')
+	const box = await next.boundingBox()
+	assert(box.x >= 0 && box.x + box.width <= 1360, 'the next card is on screen')
 	await student.keyboard.press('Escape')
-	await detail.waitFor({ state: 'detached' })
-	await card.locator('.shop-card__badge').waitFor()
-	assert.equal(await card.getAttribute('data-owned'), 'true')
+	const closedAt = Date.now()
+	await student.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+	assert(Date.now() - closedAt < 50, 'the second card is tapped within 50 ms')
+	assert.equal(await detail.locator('.shop-detail__name').innerText(), nextName, 'the second card opens')
 	// Short of points: the detail's button says how many are missing; a click outside closes it.
-	await student.locator('.shop-card[data-owned="false"]').first().click()
 	assert.equal(await detail.getByRole('button', { name: 'Te faltan 195 puntos' }).isDisabled(), true)
 	await student.mouse.click(10, 400)
-	await detail.waitFor({ state: 'detached' })
+	await student.locator('.shop-detail').first().waitFor({ state: 'detached' })
+	await card.waitFor()
+	assert.equal(await card.getAttribute('data-owned'), 'true')
+	assert.equal(await student.locator('.shop-card__badge').count(), 0, 'owned cards look like the others')
 	assert.equal(await student.getByTestId('shop-machine-status').innerText(), 'Te faltan 45 puntos')
 	assert.equal(await points(), 105)
 	assert.equal((await buy(skin)).status(), 409, 'a card is bought once')
@@ -233,7 +284,7 @@ try {
 	// The teacher previews the shop without buying.
 	await page.goto('/tienda')
 	await page.getByTestId('portal-shop').waitFor()
-	await page.getByText('Los alumnos compran aquí con sus puntos.').waitFor()
+	await page.getByText(TICKET_LINE).waitFor()
 	await page.locator('.shop-card').first().click()
 	assert.equal(await page.getByTestId('shop-card-detail').getByRole('button', { name: '300 puntos' }).isDisabled(), true, 'the teacher cannot buy')
 	await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()
@@ -270,5 +321,5 @@ try {
 	assert.equal(await mobile.locator('.shop-row > li').first().evaluate((item) => getComputedStyle(item).animationName), 'none', 'reduced motion keeps the cards still')
 	await mobile.screenshot({ path: '/tmp/shop-phone.png', fullPage: true })
 	assert.deepEqual(errors, [])
-	console.log('Shop smoke passed: daily pool, dot, card reveals, daily gift, review in the ticket with retry and free spin, paid spin, purchase in the detail, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
+	console.log('Shop smoke passed: daily pool, dot, card reveals, daily gift, per-question review in the ticket with resume, retry and free spin, paid spin, purchase in the detail, instant reopen, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
 } finally { await browser.close() }
