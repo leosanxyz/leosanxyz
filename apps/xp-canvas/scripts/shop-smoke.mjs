@@ -96,11 +96,16 @@ try {
 	assert.equal(await student.getByRole('button', { name: 'Revelar carta' }).count(), 6, 'today\'s cards arrive face down')
 	assert.match(await student.getByTestId('shop-countdown').innerText(), /^cambian en (\d+ h|\d+ min|menos de 1 min)$/)
 	await student.waitForTimeout(700)
-	const desk = await student.locator('.shop-row').evaluate((list) => ({ overflow: getComputedStyle(list).overflowX, scrolls: list.scrollWidth > list.clientWidth, width: Math.round(list.children[0].getBoundingClientRect().width) }))
-	assert.deepEqual(desk, { overflow: 'auto', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too')
+	const desk = await student.locator('.shop-row').evaluate((list) => ({ overflow: getComputedStyle(list).overflowX, overflowY: getComputedStyle(list).overflowY, scrolls: list.scrollWidth > list.clientWidth, width: Math.round(list.children[0].getBoundingClientRect().width) }))
+	assert.deepEqual(desk, { overflow: 'auto', overflowY: 'hidden', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too, never up or down')
+	/** The row never scrolls vertically: nothing reaches past it and it stays at the top. */
+	const rowStill = async (moment) => assert.deepEqual(await student.locator('.shop-row').evaluate((list) => ({ top: list.scrollTop, overflow: list.scrollHeight - list.clientHeight })), { top: 0, overflow: 0 }, `the row does not scroll vertically ${moment}`)
 	await student.locator('.shop-card-slot').first().hover()
 	await student.waitForTimeout(300)
 	assert.notEqual(await student.locator('.shop-card-stage').first().evaluate((stage) => getComputedStyle(stage).transform), 'none', 'a hovered card lifts')
+	await student.mouse.wheel(0, 200)
+	await student.waitForTimeout(200)
+	await rowStill('after a hover and a vertical wheel')
 	await student.mouse.move(5, 5)
 	assert.equal(await student.locator('.shop-card__price').count(), 0, 'no prices in the row')
 	assert.equal(await student.locator('#shop-ticket-title').innerText(), TICKET_LINE)
@@ -118,6 +123,8 @@ try {
 	assert.match(await first.getAttribute('aria-label'), /^Ver /)
 	await student.waitForFunction(() => document.activeElement?.classList.contains('shop-card'), null, { timeout: 5000 })
 	assert.equal(await student.evaluate(() => document.activeElement.dataset.skin), firstSkin, 'focus returns to the turned card')
+	await student.locator('.shop-burst').waitFor({ state: 'detached' })
+	await rowStill('after a reveal')
 	assert.equal((await reveal(firstSkin)).status(), 200)
 	state = await shop()
 	assert.deepEqual([state.points, state.revealed], [505, [firstSkin]], 'a second reveal pays nothing')
@@ -128,6 +135,11 @@ try {
 	await student.reload()
 	await student.getByTestId('portal-shop').waitFor()
 	assert.equal(await student.getByRole('button', { name: 'Revelar carta' }).count(), 0)
+	// Hovering a face-up card only lifts it; nothing glows under it.
+	await student.locator('.shop-card-slot').first().hover()
+	await student.waitForTimeout(300)
+	assert.equal(await student.locator('.shop-card-stage').first().evaluate((stage) => getComputedStyle(stage, '::before').content), 'none', 'no glow under a face-up card')
+	await student.mouse.move(5, 5)
 	await student.getByRole('button', { name: 'Reclamar' }).click()
 	await student.getByTestId('shop-points').filter({ hasText: '555' }).waitFor()
 	assert.match(await student.getByTestId('shop-gift').innerText(), /Mañana/)
@@ -154,6 +166,7 @@ try {
 	}
 	const ticket = student.locator('.shop-ticket'), ticketWidth = (await ticket.boundingBox()).width
 	const hero = student.locator('.shop-hero'), heroHeight = (await hero.boundingBox()).height
+	assert.equal(await student.getByTestId('shop-free-spin').innerText(), 'Repasar 3 preguntas', 'the review button stands alone')
 	await student.getByRole('button', { name: 'Repasar 3 preguntas' }).click()
 	await quiz.waitFor()
 	assert.equal(await student.locator('[role="dialog"]').count(), 0, 'the review lives in the ticket')
@@ -202,6 +215,11 @@ try {
 	// Right: green, the class question's rain, then the next question by itself.
 	assert.equal((await answerOne(false)).correct, true)
 	await student.locator('.question-celebration').waitFor()
+	// The rain falls inside the gachapon panel, not over the page.
+	assert.deepEqual(await student.locator('.question-celebration').evaluate((rain) => {
+		const panel = rain.parentElement, box = rain.getBoundingClientRect(), frame = panel.getBoundingClientRect()
+		return { panel: panel.className, position: getComputedStyle(rain).position, fits: Math.abs(box.top - frame.top) < 1 && Math.abs(box.bottom - frame.bottom) < 1 }
+	}), { panel: 'shop-hero', position: 'absolute', fits: true })
 	await quiz.getByText('Pregunta 2 de 3').waitFor()
 	await answerOne(false)
 	await quiz.getByText('Pregunta 3 de 3').waitFor()
@@ -255,6 +273,7 @@ try {
 	// A closing detail stays in the page while its card flies home; the open one is the other.
 	const detail = student.locator('.shop-detail:not([data-leaving="true"])').getByTestId('shop-card-detail')
 	await detail.waitFor()
+	await rowStill('with a detail open')
 	assert.equal(await card.count(), 0, 'the card leaves its slot for the detail')
 	assert.equal(await student.locator('.shop-row > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 196, 'the slot keeps its size')
 	await detail.getByRole('button', { name: 'Comprar · 300' }).click()
@@ -274,6 +293,7 @@ try {
 	await student.mouse.click(10, 400)
 	await student.locator('.shop-detail').first().waitFor({ state: 'detached' })
 	await card.waitFor()
+	await rowStill('after a detail closes')
 	assert.equal(await card.getAttribute('data-owned'), 'true')
 	assert.equal(await student.locator('.shop-card__badge').count(), 0, 'owned cards look like the others')
 	assert.equal(await student.getByTestId('shop-machine-status').innerText(), 'Te faltan 45 puntos')
@@ -297,6 +317,7 @@ try {
 		return card && Math.max(...['left', 'top', 'width', 'height'].map((side) => Math.abs(card[side] - home[side])))
 	})
 	assert(landing !== undefined && landing <= 1, `the card lands in its slot after the row scrolls (off by ${landing} px)`)
+	await rowStill('after a card lands from a scrolled row')
 	assert.equal((await buy(skin)).status(), 409, 'a card is bought once')
 	assert.equal((await spin(false)).status(), 409, 'a spin needs 150 points')
 	assert.equal(await points(), 105, 'rejected requests never charge')
@@ -346,5 +367,5 @@ try {
 	assert.equal(await mobile.locator('.shop-row > li').first().evaluate((item) => getComputedStyle(item).animationName), 'none', 'reduced motion keeps the cards still')
 	await mobile.screenshot({ path: '/tmp/shop-phone.png', fullPage: true })
 	assert.deepEqual(errors, [])
-	console.log('Shop smoke passed: daily pool, dot, card reveals, daily gift, per-question review in the ticket with resume, retry and free spin, paid spin, purchase in the detail, instant reopen, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
+	console.log('Shop smoke passed: daily pool, dot, card reveals, daily gift, per-question review in the ticket with resume, retry, a rain inside the panel and free spin, paid spin, purchase in the detail, instant reopen, a row that never scrolls vertically, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
 } finally { await browser.close() }

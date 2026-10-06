@@ -6,8 +6,9 @@ const EMOJIS = ['🥳', '⭐', '🎉']
 const COLORS = ['#ffcf40', '#ff699d', '#54cde2', '#a58aff', '#74d99a', '#ff935b']
 
 // Fixed trajectories keep animation off React's render loop. Each column gets
-// successive resting heights so the paper and emojis collect above the floor.
-function makeParticles(id: string) {
+// successive resting heights so the paper and emojis collect above the floor:
+// the viewport's, or the container's when `height` is given.
+function makeParticles(id: string, height?: number) {
 	let seed = [...id].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 1)
 	const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 }
 	const columns = Array<number>(24).fill(0)
@@ -22,7 +23,7 @@ function makeParticles(id: string) {
 			width: size, height: emoji ? size : size * .5, fontSize: size,
 			backgroundColor: emoji ? undefined : COLORS[index % COLORS.length],
 			borderRadius: emoji ? undefined : index % 3 === 0 ? '50%' : '2px',
-			'--fall-y': `calc(100dvh + 120px - ${size + pile}px)`,
+			'--fall-y': height === undefined ? `calc(100dvh + 120px - ${size + pile}px)` : `${height + 120 - (size + pile)}px`,
 			'--drift': `${(random() - .5) * 50}px`,
 			'--spin': `${(random() - .5) * (emoji ? 80 : 640)}deg`,
 			animationDuration: `${950 + random() * 550}ms`,
@@ -31,9 +32,9 @@ function makeParticles(id: string) {
 	})
 }
 
-/** The fullscreen emoji rain for a right answer; the shop review uses it too. */
-export function Celebration({ id }: { id: string }) {
-	const particles = useMemo(() => makeParticles(id), [id])
+/** The fullscreen emoji rain for a right answer; the shop review rains inside a panel of `height` px. */
+export function Celebration({ id, height }: { id: string; height?: number }) {
+	const particles = useMemo(() => makeParticles(id, height), [id, height])
 	return <div className="question-celebration" data-celebration-id={id} aria-hidden="true">
 		{particles.map((particle, index) => <span key={index} className="question-celebration__particle" style={particle.style}>{particle.emoji}</span>)}
 		<span className="question-celebration__reduced">🥳 ⭐ 🎉</span>

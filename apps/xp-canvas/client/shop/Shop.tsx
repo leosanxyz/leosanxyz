@@ -62,7 +62,7 @@ export default function Shop() {
 	// Points that coins have carried into the counter before the server's total replaces them.
 	const [landed, setLanded] = useState(0)
 	const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
-	const pill = useRef<HTMLParagraphElement>(null), coins = useRef<HTMLDivElement>(null)
+	const pill = useRef<HTMLParagraphElement>(null), coins = useRef<HTMLDivElement>(null), hero = useRef<HTMLElement>(null)
 	const reduced = usePassReducedMotion()
 	useEffect(() => { loadPop(); loadCelebrate(); loadQuestionSounds() }, [])
 
@@ -221,19 +221,20 @@ export default function Shop() {
 			{!state && !loadError && <ShopSkeleton />}
 			{state && <>
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
-				<section className="shop-hero">
+				<section className="shop-hero" ref={hero}>
 					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
-					<Ticket state={state} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} />
+					<Ticket state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} />
 				</section>
 				<section className="shop-cards" aria-labelledby="shop-cards-title">
 					<div className="shop-cards__heading">
 						<h2 id="shop-cards-title">Cartas de hoy</h2>
 						<p className="shop-countdown" data-testid="shop-countdown">cambian en {countdown(state.rotatesAt - now)}</p>
 					</div>
-					<motion.ul className="shop-row" key={state.day} layoutScroll data-locked={locks > 0 || undefined}>
+					{/* Programmatic scrolls can still move an `overflow-y: hidden` box; the row only ever scrolls sideways. */}
+					<motion.ul className="shop-row" key={state.day} layoutScroll data-locked={locks > 0 || undefined} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
 						{state.pool.map((skin, i) => <li key={skin} data-slot={skin} style={{ '--i': i } as CSSProperties}>
 							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} open={detail === skin || flying.includes(skin)}
-								onReveal={(card, element) => void turnCard(card, element)} onOpen={setDetail} />
+								onReveal={(card, element) => void turnCard(card, element)} onOpen={setDetail} onFlashed={() => setFresh((current) => current.filter((item) => item !== skin))} />
 						</li>)}
 						<li className="shop-gift-slot" style={{ '--i': state.pool.length } as CSSProperties}>
 							<GiftTicket gift={state.gift} teacher={state.teacher} claiming={claiming} coins={coins} onClaim={() => void claimGift()} />
@@ -248,13 +249,14 @@ export default function Shop() {
 }
 
 /** The ticket hosts the review below its perforation, so the free spin is earned where it is shown. */
-function Ticket({ state, starting, onReview, onAnswer, onGraded, onRetry }: {
-	state: ShopState; starting: boolean; onReview: () => Promise<boolean>
+function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry }: {
+	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>
 	onAnswer: (review: ShopReview, index: number, answer: number) => Promise<ShopAnswer>; onGraded: (result: ShopAnswer) => void; onRetry: () => Promise<void>
 }) {
 	const { freeSpin, review } = state
 	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false)
-	const [celebration, setCelebration] = useState<string | null>(null)
+	// The rain falls inside the gachapon panel, measured as it starts.
+	const [celebration, setCelebration] = useState<{ id: string; height: number } | null>(null)
 	const ticket = useRef<HTMLElement>(null)
 	const view = graded ? (graded.passed ? 'passed' : 'failed') : !state.teacher && open && review.active ? 'quiz' : 'free'
 	useEffect(() => {
@@ -290,22 +292,20 @@ function Ticket({ state, starting, onReview, onAnswer, onGraded, onRetry }: {
 		: freeSpin === 'available' ? <span className="shop-free-token"><i aria-hidden="true" />Tirada gratis lista</span>
 		: freeSpin === 'used' ? <button className="shop-button" disabled>¡Vuelve mañana!</button>
 		: review.active ? <button className="shop-button" onClick={() => setOpen(true)}>Continuar repaso</button>
-		: review.attemptsLeft ? <>
-			<button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
-			<p className="shop-ticket__note">y gira gratis · {review.attemptsLeft === 1 ? '1 intento' : `${review.attemptsLeft} intentos`} hoy</p></>
+		: review.attemptsLeft ? <button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
 		: <button className="shop-button" disabled>¡Vuelve mañana!</button>
 	return <section className="shop-ticket" ref={ticket} aria-labelledby="shop-ticket-title" onClick={() => { if (view === 'passed') setGraded(null) }}>
 		<h2 id="shop-ticket-title" className="shop-ticket__title">¡Repasa los conceptos de clase y gana una tirada! :)</h2>
 		<div className="shop-ticket__free" data-state={state.teacher ? 'preview' : freeSpin} data-testid="shop-free-spin">
 			<div className="shop-ticket__step" data-view={view} key={view}>
 				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active} onClose={() => setOpen(false)}
-					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={setCelebration} onDone={finish} />
+					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} />
 					: view === 'passed' ? <Passed />
 					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
 			</div>
 		</div>
-		{celebration && createPortal(<Celebration key={celebration} id={celebration} />, document.body)}
+		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} />, hero.current)}
 	</section>
 }
 
@@ -446,9 +446,9 @@ const morphId = (skin: RewardSkin) => `shop-card-${skin}`
  * The profile card in its shop dress, with the same tilt, lamp and foil. Face down it is a "Revelar carta" button;
  * face up it opens the card's detail, where it is bought. While the detail is open the card is there, and its slot stays empty.
  */
-function ShopCard({ skin, state, fresh, open, onReveal, onOpen }: {
+function ShopCard({ skin, state, fresh, open, onReveal, onOpen, onFlashed }: {
 	skin: RewardSkin; state: ShopState; fresh: boolean; open: boolean
-	onReveal: (skin: RewardSkin, card: HTMLElement) => void; onOpen: (skin: RewardSkin) => void
+	onReveal: (skin: RewardSkin, card: HTMLElement) => void; onOpen: (skin: RewardSkin) => void; onFlashed: () => void
 }) {
 	const art = skins.find((item) => item.id === skin)!
 	const draft = useMemo(() => shopDraft(skin), [skin])
@@ -479,7 +479,8 @@ function ShopCard({ skin, state, fresh, open, onReveal, onOpen }: {
 			<motion.div layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH} style={{ borderRadius: 17 }}>
 				<PassCard draft={draft} variant="shop" back={!revealed} backFace={CARD_BACK} actions={actions} />
 			</motion.div>
-			{fresh && <span className="shop-burst" aria-hidden="true"><b /></span>}
+			{/* The flash reaches past the card, so it leaves once it fades; left behind, it let the row scroll vertically. */}
+			{fresh && <span className="shop-burst" aria-hidden="true" onAnimationEnd={onFlashed}><b /></span>}
 		</div>
 	</div>
 }

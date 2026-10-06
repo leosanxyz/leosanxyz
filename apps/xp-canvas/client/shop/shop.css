@@ -21,7 +21,9 @@
 [data-testid='portal-shop'] .board-header { position: sticky; top: 0; z-index: 5; padding: 8px 0; background: #fff; box-shadow: 0 -32px 0 8px #fff, 0 0 0 8px #fff; }
 @keyframes shop-pop { from { transform: scale(1.25); color: #e9694f; } }
 
-.shop-hero { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 48px; align-items: center; margin-bottom: 18px; padding: 28px; border-radius: 28px; background: var(--shop-bg); }
+.shop-hero { position: relative; overflow: hidden; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 48px; align-items: center; margin-bottom: 18px; padding: 28px; border-radius: 28px; background: var(--shop-bg); }
+/* A right answer in the review rains inside the panel and piles up on its bottom edge. */
+.shop-hero .question-celebration { position: absolute; }
 .shop-machine-frame { position: relative; width: 300px; height: 440px; scroll-margin: 24px; }
 /* Room for the label under the machine, only while there is one. */
 .shop-machine-frame:has(.gachapon__status, .gachapon__base p:not(.xp-sr-only)) { margin-bottom: 36px; }
@@ -57,19 +59,18 @@
 .shop-cards { position: relative; scroll-margin-top: 76px; }
 .shop-cards__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 20px; }
 .shop-countdown { margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-/* One row that scrolls sideways at every width: six cards, then the gift. The padding leaves room for the shadows and the hover lift; the margins take it back. */
-.shop-row { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; margin: -20px -20px -40px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* One row that scrolls sideways at every width, never up or down: six cards, then the gift. The padding leaves room for the shadows and the hover lift; the margins take it back. */
+.shop-row { display: flex; gap: 16px; overflow: auto hidden; overscroll-behavior: contain; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; margin: -20px -20px -40px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .shop-row::-webkit-scrollbar { display: none; }
 .shop-row[data-locked] { overflow-x: hidden; }
 /* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
 .shop-row > li { flex: 0 0 196px; aspect-ratio: .686; scroll-snap-align: start; animation: shop-card-in 520ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
 @keyframes shop-card-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
 
-/* The profile card does the tilt, light and flip; the shop adds a button over it and a glow under it. */
+/* The profile card does the tilt, light and flip; the shop adds a button over it, and a breathing glow under a face-down card. */
 .shop-card-stage { position: relative; isolation: isolate; transition: transform 320ms cubic-bezier(.2, .9, .3, 1.2); }
-.shop-card-stage::before { content: ''; position: absolute; inset: 8% 6% -2%; z-index: -1; border-radius: 20px; opacity: 0;
-	box-shadow: 0 22px 50px -6px color-mix(in srgb, var(--card-color) 80%, transparent); transition: opacity 260ms ease; }
-.shop-card-slot[data-revealed='false'] .shop-card-stage::before { inset: 2%; box-shadow: 0 0 36px 4px #ff9a5c80; animation: shop-breathe 2400ms ease-in-out infinite alternate; }
+.shop-card-slot[data-revealed='false'] .shop-card-stage::before { content: ''; position: absolute; inset: 2%; z-index: -1; border-radius: 20px; opacity: 0;
+	box-shadow: 0 0 36px 4px #ff9a5c80; animation: shop-breathe 2400ms ease-in-out infinite alternate; }
 @keyframes shop-breathe { from { opacity: .25; } to { opacity: .9; } }
 .shop .shop-card { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 17px; background: none; color: inherit;
 	pointer-events: auto; -webkit-tap-highlight-color: transparent; }
@@ -180,7 +181,6 @@
 @keyframes shop-token { from { opacity: 0; transform: scale(.3) rotate(-30deg); } }
 @keyframes shop-rays { to { transform: rotate(360deg); } }
 @media (hover: hover) and (pointer: fine) {
-	.shop-card-slot:hover .shop-card-stage::before { opacity: 1; }
 	/* The slot under the pointer lifts; the tilt lives on the card inside, and an open card stays put for the morph. */
 	.shop-card-stage { transition: transform 220ms cubic-bezier(.2, .9, .3, 1); }
 	.shop-gift { transition: transform 220ms cubic-bezier(.2, .9, .3, 1), filter 420ms ease; }
