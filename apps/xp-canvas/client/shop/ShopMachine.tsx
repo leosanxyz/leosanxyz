@@ -19,15 +19,15 @@ export function ShopMachine({ state, pending, reveal, onSpin }: { state: ShopSta
 	const cost = state.spinCost.toLocaleString('es-MX')
 	const status3d = useMachine3D(canvas, {
 		spinStartedAt: reveal?.startedAt ?? null, coinAt, cost: free ? 0 : state.spinCost, width: 300, height: 440,
-		prizeColor: skins.find((skin) => skin.id === reveal?.skin)?.color ?? '#ffb347',
+		prizeColor: skins.find((skin) => skin.id === reveal?.skin)?.color ?? '#ffb347', sway: false,
 	})
 	useEffect(() => { prepareGachaponAudio() }, [])
 	// The coin is spent when the spin starts and returned if the student can no longer spin.
 	useEffect(() => { if (coinAt !== null && !ready && !pending) setCoinAt(null) }, [coinAt, ready, pending])
 	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todas las cartas de hoy'
 		: free ? 'Tirada gratis lista' : missing > 0 ? `Te faltan ${missing.toLocaleString('es-MX')} puntos` : needsCoin ? `Inserta una moneda de ${cost} puntos` : 'Jala la palanca'
-	// The glowing coin and lever already say what to do; words show only when something is different.
-	const quiet = (ready && !free) || pending || spinning
+	// The glowing coin and lever, or the ticket for a free spin, already say what to do; words show only when something is different.
+	const quiet = ready || pending || spinning
 
 	if (status3d === 'failed') {
 		// CSS machine without WebGL: one knob spins, free or paid.

@@ -23,7 +23,8 @@ const HATCH = { x: 0.55, y: -1.45 }
 
 export type Point = { x: number; y: number }
 export type MachineAnchors = { lever: Point; coin: Point; slot: Point }
-export type MachineState = { spinAge: number | null; coinAge: number | null; prizeColor: string }
+/** `sway: false` keeps the machine still while idle; spins and coins still animate. */
+export type MachineState = { spinAge: number | null; coinAge: number | null; prizeColor: string; sway: boolean }
 export type MachineScene = {
 	render(time: number, state: MachineState, reducedMotion: boolean): MachineAnchors
 	setCost(cost: number): void
@@ -145,7 +146,9 @@ export function createMachineScene(canvas: HTMLCanvasElement, width: number, hei
 		render(time, state, reducedMotion) {
 			const { spinAge } = state
 			const pose = machinePose(time, spinAge, state.coinAge, reducedMotion)
-			machine.rotation.y = pose.sway
+			const idle = spinAge === null || spinAge < 0
+			machine.rotation.y = state.sway ? pose.sway : 0
+			if (!state.sway && idle) pose.light = 1
 			machine.position.x = pose.shakeX
 			lever.rotation.x = pose.lever
 			flap.rotation.x = -1.2 * pose.hatch
@@ -155,7 +158,7 @@ export function createMachineScene(canvas: HTMLCanvasElement, width: number, hei
 			coin.position.y = COIN.y + 0.45 - 0.34 * (pose.coin ?? 0)
 			const mix = spinAge === null ? 0 : Math.sin(Math.PI * Math.min(1, Math.max(0, spinAge) / TUMBLE_SECONDS))
 			capsules.forEach((capsule, i) => {
-				const breathe = reducedMotion ? 0 : Math.sin(time * 1.6 + i) * 0.01
+				const breathe = reducedMotion || !state.sway ? 0 : Math.sin(time * 1.6 + i) * 0.01
 				capsule.mesh.position.y = capsule.y + breathe + capsuleHop(i, spinAge ?? 0, pose.tumble)
 				capsule.mesh.rotation.z = capsule.rotation + capsule.spin * mix
 			})

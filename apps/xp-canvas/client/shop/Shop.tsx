@@ -257,13 +257,11 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, 
 	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false)
 	// The rain falls inside the gachapon panel, measured as it starts.
 	const [celebration, setCelebration] = useState<{ id: string; height: number; leaving?: boolean } | null>(null)
-	const ticket = useRef<HTMLElement>(null)
-	const view = graded ? (graded.passed ? 'passed' : 'failed') : !state.teacher && open && review.active ? 'quiz' : 'free'
-	useEffect(() => {
-		if (view !== 'passed') return
-		const timer = setTimeout(() => setGraded(null), 4000)
-		return () => clearTimeout(timer)
-	}, [view])
+	const ticket = useRef<HTMLElement>(null), title = useRef<HTMLHeadingElement>(null)
+	const view = graded ? 'failed' : !state.teacher && open && review.active ? 'quiz' : 'free'
+	// Once the free spin is earned, spent or out of reach for today, the title says so and stands alone.
+	const outcome = state.teacher || view !== 'free' ? null : freeSpin === 'available' ? 'available'
+		: freeSpin === 'used' || (!review.active && !review.attemptsLeft) ? 'later' : null
 	// One rain at a time; it outlives the question it celebrates and fades out before it leaves.
 	useEffect(() => {
 		if (!celebration) return
@@ -276,10 +274,12 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, 
 		if (view === 'quiz') ticket.current?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
 	}, [view, review.active?.id])
 	function finish(result: ShopAnswer) {
-		setGraded(result)
 		setOpen(false)
 		onGraded(result)
-		if (result.passed) playCelebrate()
+		if (!result.passed) { setGraded(result); return }
+		playCelebrate()
+		// The quiz held focus; the new title takes it, so keyboard and screen reader users hear it.
+		requestAnimationFrame(() => title.current?.focus({ preventScroll: true }))
 	}
 	async function retry() {
 		await onRetry()
@@ -290,23 +290,22 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, 
 	}
 
 	const free = state.teacher ? <p className="shop-ticket__note">Los alumnos ganan una tirada gratis al repasar 3 preguntas.</p>
-		: freeSpin === 'available' ? <span className="shop-free-token"><i aria-hidden="true" />Tirada gratis lista</span>
-		: freeSpin === 'used' ? <button className="shop-button" disabled>¡Vuelve mañana!</button>
 		: review.active ? <button className="shop-button" onClick={() => setOpen(true)}>Continuar repaso</button>
-		: review.attemptsLeft ? <button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
-		: <button className="shop-button" disabled>¡Vuelve mañana!</button>
-	return <section className="shop-ticket" ref={ticket} aria-labelledby="shop-ticket-title" onClick={() => { if (view === 'passed') setGraded(null) }}>
-		<h2 id="shop-ticket-title" className="shop-ticket__title">¡Repasa los conceptos de clase y gana una tirada! :)</h2>
-		<div className="shop-ticket__free" data-state={state.teacher ? 'preview' : freeSpin} data-testid="shop-free-spin">
+		: <button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
+	const debug = import.meta.env.DEV && !state.teacher && view !== 'quiz'
+		&& <button type="button" className="shop-debug" onClick={() => void onDebugReset()}>Debug: reiniciar preguntas</button>
+	const heading = outcome === 'available' ? 'Felicidades! Reclama tu tirada gratis! :)' : outcome === 'later' ? 'Vuelve mañana por otra tirada!' : '¡Repasa los conceptos de clase y gana una tirada! :)'
+	return <section className="shop-ticket" ref={ticket} aria-labelledby="shop-ticket-title" data-outcome={outcome ?? undefined}>
+		<h2 id="shop-ticket-title" className="shop-ticket__title" ref={title} tabIndex={-1} key={heading}>{heading}</h2>
+		{outcome ? debug : <div className="shop-ticket__free" data-state={state.teacher ? 'preview' : freeSpin} data-testid="shop-free-spin">
 			<div className="shop-ticket__step" data-view={view} key={view}>
 				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active} onClose={() => setOpen(false)}
 					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} />
-					: view === 'passed' ? <Passed />
 					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
-				{import.meta.env.DEV && !state.teacher && view !== 'quiz' && <button type="button" className="shop-debug" onClick={(event) => { event.stopPropagation(); void onDebugReset() }}>Debug: reiniciar preguntas</button>}
+				{debug}
 			</div>
-		</div>
+		</div>}
 		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} leaving={celebration.leaving} />, hero.current)}
 	</section>
 }
@@ -372,15 +371,6 @@ function useFocused() {
 	const heading = useRef<HTMLHeadingElement>(null)
 	useEffect(() => { heading.current?.focus({ preventScroll: true }) }, [])
 	return heading
-}
-
-function Passed() {
-	const heading = useFocused()
-	return <div className="shop-review__result" data-passed="true">
-		<div className="shop-review__token" aria-hidden="true"><span>XP</span></div>
-		<h3 ref={heading} tabIndex={-1}>Tirada gratis lista</h3>
-		<p>Jala la palanca de la máquina</p>
-	</div>
 }
 
 function Failed({ result, onRetry, onDone }: { result: ShopAnswer; onRetry: () => Promise<void>; onDone: () => void }) {

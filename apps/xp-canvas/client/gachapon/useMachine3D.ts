@@ -14,6 +14,8 @@ export type Machine3DInput = {
 	height: number
 	/** Canvas zoom, so the drawing stays sharp when the board is enlarged. */
 	zoom?: number
+	/** Idle sway; without it the machine stands still and only redraws when something changes. Defaults to true. */
+	sway?: boolean
 }
 export type Machine3DStatus = 'loading' | 'ready' | 'failed'
 
@@ -48,18 +50,19 @@ export function useMachine3D(canvasRef: RefObject<HTMLCanvasElement | null>, inp
 		const draw = (now: number) => {
 			if (!scene.current) return
 			lastDraw = now
-			const { spinStartedAt, coinAt, prizeColor } = latest.current
+			const { spinStartedAt, coinAt, prizeColor, sway = true } = latest.current
 			place(scene.current.render(now / 1000, {
 				spinAge: spinStartedAt === null ? null : (Date.now() - spinStartedAt) / 1000,
 				coinAge: coinAt === null ? null : (Date.now() - coinAt) / 1000,
-				prizeColor,
+				prizeColor, sway,
 			}, reduced.matches))
 		}
 		const busy = () => latest.current.spinStartedAt !== null || latest.current.coinAt !== null
 		const loop = (now: number) => {
-			// Idle sway does not need every display frame; a spin or a coin does.
-			if (busy() || now - lastDraw >= IDLE_FRAME_MS) draw(now)
-			frame = requestAnimationFrame(loop)
+			// Idle sway does not need every display frame; a spin or a coin does. A still machine draws once.
+			const still = !busy() && latest.current.sway === false
+			if (still || busy() || now - lastDraw >= IDLE_FRAME_MS) draw(now)
+			if (!still) frame = requestAnimationFrame(loop)
 		}
 		const start = () => {
 			cancelAnimationFrame(frame)
@@ -117,7 +120,7 @@ export function useMachine3D(canvasRef: RefObject<HTMLCanvasElement | null>, inp
 		redraw.current()
 	}, [input.cost, status])
 
-	// Under reduced motion there is no loop, so state changes need their own frame.
+	// Under reduced motion, or once a still machine has drawn, there is no loop, so state changes need their own frame.
 	useEffect(() => { redraw.current() }, [input.spinStartedAt, input.coinAt, input.prizeColor])
 
 	return status

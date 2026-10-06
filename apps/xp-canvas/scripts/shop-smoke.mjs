@@ -9,6 +9,8 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 const errors = []
 const REWARD_SKINS = ['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo', 'zelda-campfire', 'tracer', 'soraka', 'shadow-warrior', 'luke', 'attack-titan', 'rengoku', 'gyro', 'emilia']
 const TICKET_LINE = '¡Repasa los conceptos de clase y gana una tirada! :)'
+const FREE_LINE = 'Felicidades! Reclama tu tirada gratis! :)'
+const LATER_LINE = 'Vuelve mañana por otra tirada!'
 const QUESTIONS = [
 	['¿Cuánto es 2 + 2?', ['3', '4', '5', '6'], 1],
 	['¿Qué color resulta de azul y amarillo?', ['Verde', 'Rojo', 'Morado', 'Gris'], 0],
@@ -100,16 +102,37 @@ try {
 	assert.deepEqual(desk, { overflow: 'auto', overflowY: 'hidden', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too, never up or down')
 	/** The row never scrolls vertically: nothing reaches past it and it stays at the top. */
 	const rowStill = async (moment) => assert.deepEqual(await student.locator('.shop-row').evaluate((list) => ({ top: list.scrollTop, overflow: list.scrollHeight - list.clientHeight })), { top: 0, overflow: 0 }, `the row does not scroll vertically ${moment}`)
+	/** "Tirada gratis lista" survives only as screen reader text under the machine. */
+	const noFreeLabel = async (moment) => assert.equal(await student.getByText('Tirada gratis lista').and(student.locator(':not(.xp-sr-only)')).count(), 0, `no visible "Tirada gratis lista" ${moment}`)
 	await student.locator('.shop-card-slot').first().hover()
 	await student.waitForTimeout(300)
 	assert.notEqual(await student.locator('.shop-card-stage').first().evaluate((stage) => getComputedStyle(stage).transform), 'none', 'a hovered card lifts')
 	await student.mouse.wheel(0, 200)
 	await student.waitForTimeout(200)
 	await rowStill('after a hover and a vertical wheel')
+	// A vertical wheel over the row scrolls the page; the row keeps its place on both axes.
+	const scrolls = () => student.locator('.shop-row').evaluate((list) => {
+		let page = list.parentElement
+		while (page && !(/auto|scroll/.test(getComputedStyle(page).overflowY) && page.scrollHeight > page.clientHeight)) page = page.parentElement
+		return { page: (page ?? document.scrollingElement).scrollTop, top: list.scrollTop, left: list.scrollLeft }
+	})
+	const toTop = () => student.locator('.shop-row').evaluate((list) => { window.scrollTo(0, 0); for (let page = list.parentElement; page; page = page.parentElement) page.scrollTop = 0 })
+	await toTop()
+	await student.locator('.shop-card-slot').first().hover()
+	const before = await scrolls()
+	await student.mouse.wheel(0, 300)
+	await student.waitForTimeout(400)
+	const after = await scrolls()
+	assert(after.page > before.page, `the page scrolls under the row (${before.page} → ${after.page})`)
+	assert.deepEqual([after.top, after.left], [0, before.left], 'the row does not move while the page scrolls')
+	await toTop()
 	await student.mouse.move(5, 5)
 	assert.equal(await student.locator('.shop-card__price').count(), 0, 'no prices in the row')
 	assert.equal(await student.locator('#shop-ticket-title').innerText(), TICKET_LINE)
 	assert.equal(await student.locator('.shop-ticket').getAttribute('aria-labelledby'), 'shop-ticket-title')
+	// The machine's floor shadow is a pseudo-element under the canvas.
+	assert.deepEqual(await student.locator('.shop-machine-frame').evaluate((frame) => { const shadow = getComputedStyle(frame, '::after'); return { content: shadow.content, zIndex: shadow.zIndex, isolation: getComputedStyle(frame).isolation } }),
+		{ content: '""', zIndex: '-1', isolation: 'isolate' }, 'the machine casts a floor shadow')
 	assert.equal(await student.getByTestId('shop-points').innerText(), '500')
 	// The points are just the coin and the number, no pill around them.
 	assert.deepEqual(await student.locator('.shop-points').evaluate((pill) => { const style = getComputedStyle(pill); return { border: style.borderStyle, background: style.backgroundColor } }),
@@ -169,7 +192,8 @@ try {
 	}
 	const ticket = student.locator('.shop-ticket'), ticketWidth = (await ticket.boundingBox()).width
 	const hero = student.locator('.shop-hero'), heroHeight = (await hero.boundingBox()).height
-	assert.equal(await student.getByTestId('shop-free-spin').innerText(), 'Repasar 3 preguntas', 'the review button stands alone')
+	// The dev server also shows the QA reset button.
+	assert.equal((await student.getByTestId('shop-free-spin').innerText()).replace(/\nDebug: reiniciar preguntas$/, ''), 'Repasar 3 preguntas', 'the review button stands alone')
 	await student.getByRole('button', { name: 'Repasar 3 preguntas' }).click()
 	await quiz.waitFor()
 	assert.equal(await student.locator('[role="dialog"]').count(), 0, 'the review lives in the ticket')
@@ -237,13 +261,14 @@ try {
 	await quiz.getByText('Pregunta 3 de 3').waitFor()
 	const passed = await answerOne(false)
 	assert.deepEqual([passed.done, passed.passed, passed.freeSpin], [true, true, 'available'])
-	await student.getByRole('heading', { name: 'Tirada gratis lista' }).waitFor()
-	assert.match(await ticket.innerText(), /Jala la palanca de la máquina/)
-	await student.screenshot({ path: '/tmp/shop-review-passed.png' })
-	await ticket.click({ position: { x: 20, y: 20 } })
-	await student.getByRole('heading', { name: 'Tirada gratis lista' }).waitFor({ state: 'detached' })
+	// Straight to the title alone, which takes focus from the quiz.
+	await student.locator('#shop-ticket-title').filter({ hasText: FREE_LINE }).waitFor()
+	assert.equal(await student.locator('#shop-ticket-title').innerText(), FREE_LINE)
 	assert.equal(await quiz.count(), 0)
-	assert.match(await student.getByTestId('shop-free-spin').innerText(), /Tirada gratis lista/)
+	assert.equal(await student.locator('.shop-ticket__free').count(), 0, 'nothing below the title once the spin is earned')
+	assert.equal(await student.evaluate(() => document.activeElement?.id), 'shop-ticket-title')
+	await noFreeLabel('after passing')
+	await student.screenshot({ path: '/tmp/shop-review-passed.png' })
 	state = await shop()
 	assert.deepEqual([state.freeSpin, state.review.attemptsLeft], ['available', 1])
 	assert.equal((await ana.request.post('/api/portal/shop/review')).status(), 409, 'no review after earning the spin')
@@ -252,6 +277,8 @@ try {
 	const machineReady = () => student.waitForFunction(() => document.querySelector('.shop-machine')?.getAttribute('data-three') !== 'loading')
 	await machineReady()
 	assert.match(await student.locator('.shop-machine [role="status"]').innerText(), /Tirada gratis/)
+	assert.equal(await student.getByTestId('shop-machine-status').getAttribute('class'), 'xp-sr-only', 'the ticket says the spin is free; the machine stays quiet')
+	await noFreeLabel('with the machine ready')
 	await student.getByRole('button', { name: /^Girar gachapon/ }).click()
 	await student.locator('.gachapon-reveal').waitFor()
 	// No words under the machine while the prize is on its way.
@@ -259,10 +286,9 @@ try {
 	assert.match(await student.locator('.gachapon-reveal__prize').innerText(), new RegExp(`${name} ganó`))
 	await student.screenshot({ path: '/tmp/shop-reveal.png' })
 	await student.locator('.gachapon-reveal').waitFor({ state: 'detached', timeout: 15_000 })
-	const tomorrow = student.getByTestId('shop-free-spin').getByRole('button', { name: '¡Vuelve mañana!' })
-	await tomorrow.waitFor()
-	assert.equal(await tomorrow.isDisabled(), true, 'a used free spin shows the same button, disabled')
-	assert.equal(await student.getByTestId('shop-free-spin').innerText(), '¡Vuelve mañana!', 'no caption next to it')
+	await student.locator('#shop-ticket-title').filter({ hasText: LATER_LINE }).waitFor()
+	assert.equal(await student.locator('.shop-ticket__free').count(), 0, 'a used free spin leaves the title alone')
+	assert.equal(await student.getByRole('button', { name: /Vuelve mañana/ }).count(), 0, 'no button for tomorrow')
 	assert.equal(await student.getByTestId('shop-points').innerText(), '555', 'the free spin costs nothing')
 	assert.equal(await student.locator('.shop-card[data-owned="true"]').count(), 1)
 	assert.equal((await spin(true)).status(), 409, 'one free spin per day')
