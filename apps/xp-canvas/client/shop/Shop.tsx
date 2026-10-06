@@ -18,15 +18,14 @@ import { usePassReducedMotion } from '../portal/pass/usePassReducedMotion'
 import { usePortal } from '../portal/PortalProvider'
 import { ReviewSheet } from './ReviewSheet'
 import { ShopMachine } from './ShopMachine'
-import { fly } from './flight'
+import { COINS_FLY_AT, flyCoins } from './coins'
 import { useShopNotice } from './shopNotice'
 import './shop.css'
 
 const unlocked = (userId: string) => window.dispatchEvent(new CustomEvent('xp-skin-unlocked', { detail: { userId } }))
 const points = (value: number) => value.toLocaleString('es-MX')
-const days = (count: number) => count === 1 ? '1 día' : `${count} días`
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-/** The pass flip in `PassCard`; the burst and the sound land on its midpoint. */
+/** The pass flip in `PassCard`; the flash, the sound and the coins start on its midpoint. */
 const FLIP_MS = 480
 
 /** The profile's grid foil in full spectrum: on these illustrations it reads better than one hue per card. */
@@ -51,6 +50,8 @@ export default function Shop() {
 	const [now, setNow] = useState(Date.now)
 	const [turning, setTurning] = useState<RewardSkin | null>(null), [fresh, setFresh] = useState<RewardSkin[]>([])
 	const [claiming, setClaiming] = useState(false)
+	// Points that coins have carried into the counter before the server's total replaces them.
+	const [landed, setLanded] = useState(0)
 	const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
 	const machine = useRef<HTMLDivElement>(null), pill = useRef<HTMLParagraphElement>(null), coins = useRef<HTMLDivElement>(null)
 	const reduced = usePassReducedMotion()
@@ -111,6 +112,19 @@ export default function Shop() {
 			return true
 		} catch (cause) { fail(cause, 'No pude comprar la carta.'); return false }
 	}
+	/** Flies `count` coins into the counter and adds `amount` as they land, exact on the last one. Resolves with what it added. */
+	async function payOut(origin: DOMRect, amount: number, count: number, spread: number) {
+		const target = pill.current?.getBoundingClientRect()
+		if (!target) return 0
+		let paid = 0
+		await flyCoins(origin, target, count, spread, (i) => {
+			const step = Math.round(amount * (i + 1) / count) - paid
+			paid += step
+			setLanded((current) => current + step)
+			if (i === 0 || i === Math.floor(count / 2) || i === count - 1) playCoin()
+		})
+		return paid
+	}
 	/** Optimistic: the card turns at once and only turns back if the server says no. */
 	async function turnCard(skin: RewardSkin, card: HTMLElement) {
 		if (turning || !state || state.revealed.includes(skin)) return
@@ -119,19 +133,19 @@ export default function Shop() {
 		if (!reduced) setFresh((current) => [...current, skin])
 		later(() => setTurning(null), reduced ? 0 : FLIP_MS)
 		const request = portalRequest<ShopReveal>('shop/reveal', 'POST', { skin })
-		const landed = reduced ? (playPop(), Promise.resolve()) : wait(FLIP_MS / 2).then(() => {
+		const flight = reduced ? (playPop(), Promise.resolve(0)) : wait(FLIP_MS / 2).then(() => {
 			playPop()
-			const label = document.createElement('span'), target = pill.current?.getBoundingClientRect()
-			label.className = 'shop-flight__points'
-			label.textContent = `+${SHOP_REVEAL_POINTS}`
-			return target && fly(label, card.getBoundingClientRect(), target, { duration: 700, bend: { x: 0, y: -110 } })
+			return payOut(card.getBoundingClientRect(), SHOP_REVEAL_POINTS, 5, 120)
 		})
 		try {
-			const [result] = await Promise.all([request, landed])
+			const [result, paid] = await Promise.all([request, flight])
 			setState((current) => current && { ...current, points: result.points, revealed: [...new Set([...current.revealed, ...result.revealed])] })
+			setLanded((current) => current - paid)
 		} catch (cause) {
 			setState((current) => current && { ...current, revealed: current.revealed.filter((item) => item !== skin) })
 			fail(cause, 'No pude revelar la carta.')
+			const paid = await flight
+			setLanded((current) => current - paid)
 		}
 	}
 	async function claimGift() {
@@ -139,20 +153,18 @@ export default function Shop() {
 		setClaiming(true); setNotice('')
 		try {
 			const result = await portalRequest<ShopGiftClaim>('shop/gift', 'POST')
-			playCoin()
 			if (result.gift.amount === SHOP_GIFT_STREAK_POINTS) playCelebrate()
-			setState((current) => current && { ...current, gift: result.gift })
-			const from = coins.current?.getBoundingClientRect(), to = pill.current?.getBoundingClientRect()
-			if (!reduced && from && to) {
-				// The coins fan out of the stack, then curve into the counter one after another.
-				const flights = Array.from({ length: 12 }, (_, i) => {
-					const coin = document.createElement('span'), angle = -Math.PI / 2 + (i - 5.5) * 0.26, reach = i % 2 ? 150 : 100
-					coin.className = 'shop-coin shop-flight__coin'
-					return fly(coin, from, to, { duration: 680, delay: i * 38, bend: { x: Math.cos(angle) * reach, y: Math.sin(angle) * reach }, scale: 0.7 })
-				})
-				await flights[0]
+			const from = coins.current?.getBoundingClientRect()
+			if (reduced || !from) {
+				playCoin()
+				setState((current) => current && { ...current, gift: result.gift, points: result.points })
+				return
 			}
-			setState((current) => current && { ...current, points: result.points })
+			// The ticket turns grey as the first coin leaves for the counter.
+			later(() => setState((current) => current && { ...current, gift: result.gift }), COINS_FLY_AT)
+			const paid = await payOut(from, result.gift.amount, 12, 200)
+			setState((current) => current && { ...current, gift: result.gift, points: result.points })
+			setLanded((current) => current - paid)
 		} catch (cause) { fail(cause, 'No pude abrir el regalo.') }
 		finally { setClaiming(false) }
 	}
@@ -184,8 +196,7 @@ export default function Shop() {
 	}
 
 	const student = state && !state.teacher
-	const header = student ? <PointsPill value={state.points} pill={pill} /> : null
-	const hidden = state ? state.pool.filter((skin) => !state.revealed.includes(skin)).length : 0
+	const header = student ? <PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} /> : null
 	return <LibraryShell title="Tienda" view="shop" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} actions={header} testId="portal-shop">
 		<div className="shop" aria-busy={!state}>
 			{loadError && !state && <p className="xp-error shop-alert" role="alert">{loadError} <button className="portal-link" onClick={() => void load()}>Reintentar</button></p>}
@@ -200,17 +211,16 @@ export default function Shop() {
 					<div className="shop-cards__heading">
 						<h2 id="shop-cards-title">Cartas de hoy</h2>
 						<p className="shop-countdown" data-testid="shop-countdown">cambian en {countdown(state.rotatesAt - now)}</p>
-						{hidden > 0 && !state.teacher && <p className="shop-cards__hint">Toca una carta para revelarla · +{SHOP_REVEAL_POINTS} puntos</p>}
 					</div>
-					<div className="shop-shelf">
-						<GiftTicket gift={state.gift} teacher={state.teacher} claiming={claiming} coins={coins} onClaim={() => void claimGift()} />
-						<ul className="shop-grid" key={state.day}>
-							{state.pool.map((skin, i) => <li key={skin} style={{ '--i': i } as CSSProperties}>
-								<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} locked={!!turning && turning !== skin}
-									onReveal={(card, element) => void turnCard(card, element)} onBuy={buy} onShort={(missing) => setNotice(`Te faltan ${points(missing)} puntos`)} />
-							</li>)}
-						</ul>
-					</div>
+					<ul className="shop-row" key={state.day}>
+						{state.pool.map((skin, i) => <li key={skin} style={{ '--i': i } as CSSProperties}>
+							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} locked={!!turning && turning !== skin}
+								onReveal={(card, element) => void turnCard(card, element)} onBuy={buy} onShort={(missing) => setNotice(`Te faltan ${points(missing)} puntos`)} />
+						</li>)}
+						<li style={{ '--i': state.pool.length } as CSSProperties}>
+							<GiftTicket gift={state.gift} teacher={state.teacher} claiming={claiming} coins={coins} onClaim={() => void claimGift()} />
+						</li>
+					</ul>
 				</section>
 			</>}
 		</div>
@@ -237,16 +247,15 @@ function Ticket({ state, starting, onReview }: { state: ShopState; starting: boo
 	</section>
 }
 
-/** Counts up to a new total and lets the gain rise above the coin; spending shows at once. */
-function PointsPill({ value, pill }: { value: number; pill: RefObject<HTMLParagraphElement | null> }) {
+/** Counts up to a new total; spending, and coins landing one by one, show at once. */
+function PointsPill({ value, counting, pill }: { value: number; counting: boolean; pill: RefObject<HTMLParagraphElement | null> }) {
 	const reduced = usePassReducedMotion()
-	const [shown, setShown] = useState(value), [gain, setGain] = useState<{ amount: number; at: number } | null>(null)
+	const [shown, setShown] = useState(value)
 	const target = useRef(value)
 	useEffect(() => {
 		const from = target.current
 		target.current = value
-		if (value <= from || reduced) { setShown(value); return }
-		setGain({ amount: value - from, at: Date.now() })
+		if (value <= from || reduced || counting) { setShown(value); return }
 		const start = performance.now()
 		let frame = 0
 		const step = (time: number) => {
@@ -256,10 +265,9 @@ function PointsPill({ value, pill }: { value: number; pill: RefObject<HTMLParagr
 		}
 		frame = requestAnimationFrame(step)
 		return () => { cancelAnimationFrame(frame); setShown(value) }
-	}, [value, reduced])
+	}, [value, reduced, counting])
 	return <p className="shop-points" ref={pill} aria-live="polite">
 		<span className="shop-coin" aria-hidden="true" /><strong key={value} data-testid="shop-points">{points(shown)}</strong><span className="xp-sr-only"> puntos</span>
-		{gain && !reduced && <span className="shop-points__gain" key={gain.at} aria-hidden="true">+{points(gain.amount)}</span>}
 	</p>
 }
 
@@ -267,31 +275,20 @@ function PointsPill({ value, pill }: { value: number; pill: RefObject<HTMLParagr
 function GiftTicket({ gift, teacher, claiming, coins, onClaim }: { gift: ShopGift; teacher: boolean; claiming: boolean; coins: RefObject<HTMLDivElement | null>; onClaim: () => void }) {
 	const past = gift.claimed ? gift.streak - 1 : gift.streak
 	const today = Math.min(Math.max(past, 0), SHOP_GIFT_STREAK_DAYS - 1)
-	const streak = teacher ? 'Un regalo al día' : gift.claimed || past ? `Racha · ${days(gift.claimed ? gift.streak : past)}` : 'Empieza tu racha'
 	const cell = (i: number) => teacher ? 'next' : i < today || (i === today && gift.claimed) ? 'done' : i === today ? 'today' : 'next'
-	return <div className="shop-gift-slot">
-		<section className="shop-gift" data-claimed={gift.claimed} data-testid="shop-gift" aria-labelledby="shop-gift-title">
-			<p className="shop-gift__eyebrow" id="shop-gift-title">Regalo diario</p>
-			<div className="shop-gift__coins" ref={coins} aria-hidden="true"><i /><i /><i /><i /></div>
-			<p className="shop-gift__amount">+{points(gift.amount)}<span className="xp-sr-only"> puntos</span></p>
-			<div className="shop-gift__streak">
-				<ol aria-hidden="true">{Array.from({ length: SHOP_GIFT_STREAK_DAYS }, (_, i) => <li key={i} data-state={cell(i)} />)}</ol>
-				<p>{streak}</p>
-			</div>
-			{gift.claimed ? <p className="shop-gift__done">{teacher ? 'Vista previa' : 'Reclamado · mañana hay otro'}</p>
-				: <button className="shop-gift__claim" disabled={claiming} onClick={onClaim}>Reclamar</button>}
-		</section>
-		<p className="shop-card__name">{SHOP_GIFT_STREAK_DAYS} días seguidos: +{SHOP_GIFT_STREAK_POINTS} diarios</p>
-	</div>
+	return <section className="shop-gift" data-claimed={gift.claimed} data-testid="shop-gift" aria-labelledby="shop-gift-title">
+		<p className="shop-gift__eyebrow" id="shop-gift-title">Regalo</p>
+		<div className="shop-gift__coins" ref={coins} aria-hidden="true"><i /><i /><i /><i /></div>
+		<p className="shop-gift__amount">+{points(gift.amount)}<span className="xp-sr-only"> puntos</span></p>
+		<ol className="shop-gift__streak" aria-hidden="true">{Array.from({ length: SHOP_GIFT_STREAK_DAYS }, (_, i) => <li key={i} data-state={cell(i)} />)}</ol>
+		{gift.claimed ? <p className="shop-gift__done">{teacher ? 'Vista previa' : 'Mañana'}</p>
+			: <button className="shop-gift__claim" disabled={claiming} onClick={onClaim}>Reclamar</button>}
+	</section>
 }
 
 type CardMode = 'reveal' | 'buy' | 'confirm' | 'busy' | 'short' | 'owned' | 'preview'
 
 const CARD_BACK = <div className="shop-card-back"><span className="shop-card-back__emblem">XP</span><span className="shop-card-back__ribbon">Nuevo</span></div>
-const BURST = Array.from({ length: 12 }, (_, i) => {
-	const angle = (i / 12) * Math.PI * 2 + (i % 2) * 0.2, reach = i % 3 ? 120 : 90
-	return { '--dx': `${Math.cos(angle) * reach}px`, '--dy': `${Math.sin(angle) * reach}px`, '--spin': `${(i % 2 ? 1 : -1) * (180 + i * 30)}deg` } as CSSProperties
-})
 
 /**
  * The profile card in its shop dress, with the same tilt, lamp and foil. Face down it is a "Revelar carta" button;
@@ -349,15 +346,14 @@ function ShopCard({ skin, state, fresh, locked, onReveal, onBuy, onShort }: {
 	return <div className="shop-card-slot" data-revealed={revealed} data-owned={revealed && owned} data-mode={mode} style={{ '--card-color': art.color } as CSSProperties}>
 		<div className="shop-card-stage" ref={stage}>
 			<PassCard draft={draft} variant="shop" back={!revealed} backFace={CARD_BACK} actions={actions} />
-			{fresh && <span className="shop-burst" aria-hidden="true"><b />{BURST.map((style, i) => <i key={i} style={style} />)}</span>}
+			{fresh && <span className="shop-burst" aria-hidden="true"><b /></span>}
 		</div>
-		<p className="shop-card__name">{revealed ? art.name : 'Carta nueva'}</p>
 	</div>
 }
 
 function ShopSkeleton() {
 	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda">
 		<div className="shop-hero"><div className="shop-skeleton__block shop-skeleton__machine" /><div className="shop-skeleton__block shop-skeleton__ticket" /></div>
-		<ul className="shop-grid shop-skeleton__grid">{Array.from({ length: 6 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__card" /></li>)}</ul>
+		<ul className="shop-row">{Array.from({ length: 7 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__card" /></li>)}</ul>
 	</div>
 }
