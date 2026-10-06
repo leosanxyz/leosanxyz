@@ -96,6 +96,15 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 	if (!session.passCompleted) throw new PortalError(403, 'Termina tu bienvenida antes de entrar a la tienda.')
 	const db = portalDb(env), user = session.user
 
+	// Local QA only: wipes today's review attempts and free spin so the quiz can be tested again. Not built for production.
+	if (import.meta.env.DEV && path === '/api/portal/shop/debug/reset-review' && method === 'POST') {
+		await db.batch([
+			db.prepare('DELETE FROM shop_reviews WHERE user_id = ? AND day = ?').bind(user.id, day),
+			db.prepare('DELETE FROM gachapon_spins WHERE source_key = ?').bind(JSON.stringify(['shop-free', user.id, day])),
+		])
+		return json({ ok: true })
+	}
+
 	if (path === '/api/portal/shop' && method === 'GET') {
 		const [{ points, owned, reviews, freeSpin }, turned, daily] = await Promise.all([student(session, env, day), revealed(env, user.id, day), gift(env, user.id, day)])
 		return json({ ...shared, points, owned, freeSpin, review: reviewState(reviews, freeSpin), revealed: turned, gift: daily, teacher: false } satisfies ShopState)

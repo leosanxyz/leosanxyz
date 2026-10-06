@@ -223,7 +223,7 @@ export default function Shop() {
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
 				<section className="shop-hero" ref={hero}>
 					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
-					<Ticket state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} />
+					<Ticket state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} onDebugReset={async () => { await portalRequest('shop/debug/reset-review', 'POST', {}); await load() }} />
 				</section>
 				<section className="shop-cards" aria-labelledby="shop-cards-title">
 					<div className="shop-cards__heading">
@@ -249,8 +249,8 @@ export default function Shop() {
 }
 
 /** The ticket hosts the review below its perforation, so the free spin is earned where it is shown. */
-function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry }: {
-	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>
+function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, onDebugReset }: {
+	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>; onDebugReset: () => Promise<void>
 	onAnswer: (review: ShopReview, index: number, answer: number) => Promise<ShopAnswer>; onGraded: (result: ShopAnswer) => void; onRetry: () => Promise<void>
 }) {
 	const { freeSpin, review } = state
@@ -304,6 +304,7 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry }
 					: view === 'passed' ? <Passed />
 					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
+				{import.meta.env.DEV && !state.teacher && view !== 'quiz' && <button type="button" className="shop-debug" onClick={(event) => { event.stopPropagation(); void onDebugReset() }}>Debug: reiniciar preguntas</button>}
 			</div>
 		</div>
 		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} leaving={celebration.leaving} />, hero.current)}

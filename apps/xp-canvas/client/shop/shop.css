@@ -212,3 +212,6 @@
 	.shop-review__answer:active { transform: none; }
 	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: none; }
 }
+
+/* Local QA only: the Vite dev build renders this button; production never does. */
+.shop-debug { margin-top: 14px; padding: 6px 10px; border: 1px dashed #a3786a; border-radius: 8px; background: transparent; color: #a3786a; font-size: 12px; }
