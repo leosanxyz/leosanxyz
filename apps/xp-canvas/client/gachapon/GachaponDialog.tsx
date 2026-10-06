@@ -6,6 +6,7 @@ import type { BoardGrant, Roster } from '../../shared/portal'
 import { skins } from '../portal/pass/catalog'
 import { portalRequest } from '../portal/api'
 import { Modal } from '../components/Modal'
+import { uuid } from '../uuid'
 
 export function GachaponDialog({ editor, roomId, shape, onClose }: { editor: Editor; roomId: string; shape: GachaponShape | null; onClose: () => void }) {
 	const [cost, setCost] = useState(String(shape?.props.cost ?? 0))
@@ -40,6 +41,6 @@ export function GachaponDialog({ editor, roomId, shape, onClose }: { editor: Edi
 		<fieldset><legend>Alumnos habilitados</legend>{roster ? <><label>Grupo<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="">Todos los grupos de este canvas</option>{roster.groups.filter((g) => students.some((s) => s.groupId === g.id)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label><div className="gachapon-students">{students.filter((s) => !group || s.groupId === group).map((student) => <label key={student.id}><input type="checkbox" checked={allowed.includes(student.id)} onChange={() => setAllowed(toggle(allowed, student.id))} />{student.name}{shape?.props.usedUserIds.includes(student.id) && <small>Ya participó</small>}</label>)}</div>{!students.length && <p>Comparte este canvas con un grupo o alumno para poder seleccionarlo.</p>}</> : <p role="status">{error || 'Cargando alumnos…'}</p>}</fieldset>
 		<label>Costo por tirada<input type="number" min={0} max={1000000} step={1} required value={cost} onChange={(event) => setCost(event.target.value)} /><small>0 puntos = gratis</small></label>
 		<p>Una tirada por alumno. Necesitan permiso de interacción y el cursor activo. Todas las tarjetas elegidas tienen la misma probabilidad; pueden repetirse.</p>
-		<div className="xp-dialog-actions">{shape && <button type="button" onClick={() => { editor.markHistoryStoppingPoint('reset gachapon'); editor.updateShape<GachaponShape>({ id: shape.id, type: 'gachapon', props: { revision: crypto.randomUUID(), usedUserIds: [] } }); onClose() }}>Reiniciar tiradas</button>}<button type="button" onClick={onClose}>Cancelar</button><button className="xp-primary" disabled={!pool.length || !roster || !validCost}>{shape ? 'Guardar' : 'Añadir al canvas'}</button></div>
+		<div className="xp-dialog-actions">{shape && <button type="button" onClick={() => { editor.markHistoryStoppingPoint('reset gachapon'); editor.updateShape<GachaponShape>({ id: shape.id, type: 'gachapon', props: { revision: uuid(), usedUserIds: [] } }); onClose() }}>Reiniciar tiradas</button>}<button type="button" onClick={onClose}>Cancelar</button><button className="xp-primary" disabled={!pool.length || !roster || !validCost}>{shape ? 'Guardar' : 'Añadir al canvas'}</button></div>
 	</form></Modal>
 }

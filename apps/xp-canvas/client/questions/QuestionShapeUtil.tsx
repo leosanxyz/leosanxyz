@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { BaseBoxShapeUtil, HTMLContainer, useEditor, useValue } from 'tldraw'
 import { questionShapeProps, questionShapeMigrations, type QuestionShape } from '../../shared/questionShape'
 import { Icon } from '../components/Icon'
+import { uuid } from '../uuid'
 import { useQuestion } from './QuestionContext'
 import './questions.css'
 
@@ -10,7 +11,7 @@ export class QuestionShapeUtil extends BaseBoxShapeUtil<QuestionShape> {
 	static override props = questionShapeProps
 	static override migrations = questionShapeMigrations
 	override getDefaultProps(): QuestionShape['props'] {
-		return { points: 100, w: 480, h: 400, question: 'Escribe tu pregunta', answers: ['Respuesta A', 'Respuesta B', 'Respuesta C', 'Respuesta D'], correct: 0, answered: [], revision: crypto.randomUUID() }
+		return { points: 100, w: 480, h: 400, question: 'Escribe tu pregunta', answers: ['Respuesta A', 'Respuesta B', 'Respuesta C', 'Respuesta D'], correct: 0, answered: [], revision: uuid() }
 	}
 	override canEdit() { return false }
 	override canResize() { return false }

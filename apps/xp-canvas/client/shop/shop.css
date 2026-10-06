@@ -1,9 +1,9 @@
 /* A small warm shopfront inside the cool portal, in the gachapon palette. The cards stand on the page itself. */
 .shop { --shop-bg: #fff5ec; --shop-ink: #3d1a10; --shop-text: #7a4b3c; --shop-muted: #a3786a; --shop-line: #f2dfcd; --shop-action: #c64a30;
 	position: relative; max-width: 1180px; color: var(--shop-ink); }
-.shop *, .shop-review * { box-sizing: border-box; }
-.shop button, .shop-review button { font: inherit; cursor: pointer; touch-action: manipulation; }
-.shop button:focus-visible, .shop-review button:focus-visible { outline: 2px solid #079ab5; outline-offset: 2px; }
+.shop *, .shop-detail * { box-sizing: border-box; }
+.shop button, .shop-detail button { font: inherit; cursor: pointer; touch-action: manipulation; }
+.shop button:focus-visible, .shop-detail button:focus-visible { outline: 2px solid #079ab5; outline-offset: 2px; }
 .shop h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; color: var(--shop-ink); }
 .shop-alert { margin: 0 0 18px; }
 .shop-toast { position: fixed; z-index: 20; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); margin: 0; padding: 12px 20px; border-radius: 999px;
@@ -32,16 +32,22 @@
 .shop-machine .gachapon__status, .shop-machine .gachapon__base p:not(.xp-sr-only) { position: absolute; top: auto; bottom: -30px; left: 50%; right: auto; width: max-content; max-width: 320px; margin: 0; padding: 7px 14px;
 	border-radius: 999px; background: #fffdf9; color: #8a3a2c; font-size: 13px; font-weight: 700; text-align: center; transform: translateX(-50%); box-shadow: 0 0 0 1px var(--shop-line), 0 6px 16px -10px #b0603a66; }
 
-.shop-ticket { --ticket-pad: 28px; position: relative; max-width: 520px; padding: var(--ticket-pad); border-radius: 24px; background: #fffdf9;
+/* The margin keeps the ticket clear of the sticky header when the review scrolls it into view. */
+.shop-ticket { --ticket-pad: 28px; position: relative; max-width: 520px; scroll-margin: 96px 0 24px; padding: var(--ticket-pad); border-radius: 24px; background: #fffdf9;
 	box-shadow: 0 0 0 1px var(--shop-line), 0 22px 44px -26px #b0603a59; }
 .shop-eyebrow { margin: 0 0 6px; color: #d0603f; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .shop-ticket h2 { font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; letter-spacing: -.03em; }
 .shop-ticket__lead { margin: 10px 0 24px; color: var(--shop-text); font-size: 15px; line-height: 1.5; }
 /* The perforation: a dashed line with two half circles cut into the edges. */
-.shop-ticket__free { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-height: 68px; padding-top: 24px; border-top: 2px dashed #f0d2b8; }
+.shop-ticket__free { position: relative; display: flex; align-items: center; min-height: 68px; padding-top: 24px; border-top: 2px dashed #f0d2b8; }
 .shop-ticket__free::before, .shop-ticket__free::after { content: ''; position: absolute; top: -14px; width: 26px; height: 26px; border-radius: 50%; background: var(--shop-bg); }
 .shop-ticket__free::before { left: calc(-1 * var(--ticket-pad) - 14px); box-shadow: inset -2px 0 0 var(--shop-line); }
 .shop-ticket__free::after { right: calc(-1 * var(--ticket-pad) - 14px); box-shadow: inset 2px 0 0 var(--shop-line); }
+/* Below the perforation: the free spin, or the review while it is open. Each step fades in over the last. */
+.shop-ticket__step { width: 100%; animation: shop-fade 180ms ease both; }
+.shop-ticket__step[data-view='free'] { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+@keyframes shop-fade { from { opacity: 0; } }
+.shop-ticket h3 { margin: 0; outline: none; color: var(--shop-ink); }
 .shop-ticket__note { margin: 0; color: var(--shop-muted); font-size: 14px; }
 .shop-free-token { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 18px 8px 10px; border-radius: 999px;
 	background: linear-gradient(150deg, #fff6d8, #ffe49a); box-shadow: inset 0 0 0 1.5px #f5c451; color: #5a2a0c; font-size: 16px; font-weight: 800; }
@@ -51,12 +57,14 @@
 .shop-button:enabled:active { transform: translateY(1px) scale(.98); }
 .shop-button:disabled { opacity: .6; cursor: default; }
 
-.shop-cards { position: relative; scroll-margin-top: 76px; container: shop-cards / inline-size; }
+.shop-cards { position: relative; scroll-margin-top: 76px; }
 .shop-cards__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 20px; }
 .shop-countdown { margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-/* One row: six cards, then the gift. */
-.shop-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
-.shop-row > li { min-width: 0; animation: shop-card-in 520ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+/* One row that scrolls sideways at every width: six cards, then the gift. */
+.shop-row { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0; padding: 6px 0 16px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.shop-row::-webkit-scrollbar { display: none; }
+/* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
+.shop-row > li { flex: 0 0 196px; aspect-ratio: .686; scroll-snap-align: start; animation: shop-card-in 520ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
 @keyframes shop-card-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
 
 /* The profile card does the tilt, light and flip; the shop adds a button over it and a glow under it. */
@@ -65,24 +73,13 @@
 	box-shadow: 0 22px 50px -6px color-mix(in srgb, var(--card-color) 80%, transparent); transition: opacity 260ms ease; }
 .shop-card-slot[data-revealed='false'] .shop-card-stage::before { inset: 2%; box-shadow: 0 0 36px 4px #ff9a5c80; animation: shop-breathe 2400ms ease-in-out infinite alternate; }
 @keyframes shop-breathe { from { opacity: .25; } to { opacity: .9; } }
-.shop-card-slot:is([data-mode='confirm'], [data-mode='busy']) .shop-card-stage { transform: translateY(-6px) scale(1.03); }
-.shop-card-slot:is([data-mode='confirm'], [data-mode='busy']) .shop-card-stage::before { opacity: 1; }
-.shop-card-slot:has([data-bought='true']) .shop-card-stage { animation: shop-bought 520ms cubic-bezier(.2, .9, .3, 1.3); }
-@keyframes shop-bought { 40% { transform: scale(1.06); } }
 .shop-card-slot[data-owned='true'] .pass-visuals { filter: saturate(.55) brightness(.72); }
 .shop .shop-card { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 17px; background: none; color: inherit;
 	pointer-events: auto; -webkit-tap-highlight-color: transparent; }
 .shop .shop-card[aria-disabled='true'] { cursor: default; }
-.shop-card__price { position: absolute; left: 50%; bottom: 8px; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
-	background: #fffdf9f2; color: #3d1a10; font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; box-shadow: 0 6px 16px -8px #20252a80;
-	transform: translateX(-50%); transition: opacity 200ms ease, transform 260ms cubic-bezier(.2, .9, .3, 1.2), background-color 160ms ease, color 160ms ease; }
-.shop-card:is([data-mode='confirm'], [data-mode='busy']) .shop-card__price { background: var(--shop-action); color: #fff; }
-.shop-card[data-mode='busy'] .shop-card__price { opacity: .75; }
-.shop-card[data-mode='short'] .shop-card__price { color: #a3786a; }
-.shop-card[data-mode='short'] .shop-card__price .shop-coin { opacity: .5; filter: grayscale(.6); }
 .shop-card__badge { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
 	background: #2f9e6a; color: #fff; box-shadow: 0 0 0 2px #fff, 0 4px 10px -4px #1d5c3e99; }
-.shop-card[data-bought='true'] .shop-card__badge { animation: shop-badge 420ms 120ms cubic-bezier(.2, .9, .3, 1.5) both; }
+.shop-detail__card[data-bought='true'] .shop-card__badge { animation: shop-badge 420ms 120ms cubic-bezier(.2, .9, .3, 1.5) both; }
 @keyframes shop-badge { from { opacity: 0; transform: scale(.2); } }
 
 /* Face down: the gachapon ink with an XP monogram and a "Nuevo" ribbon. */
@@ -102,6 +99,22 @@
 .shop-burst b { position: absolute; inset: -25%; border-radius: 50%; opacity: 0; mix-blend-mode: screen;
 	background: radial-gradient(closest-side, #fff 0, color-mix(in srgb, var(--card-color) 85%, transparent) 38%, transparent); animation: shop-flash 620ms 200ms ease-out both; }
 @keyframes shop-flash { from { opacity: 0; transform: scale(.4); } 25% { opacity: 1; } to { opacity: 0; transform: scale(1.15); } }
+
+/* The detail: the card at full size over a dark veil, with its name and one button. */
+.shop-detail { position: fixed; inset: 0; z-index: 10000; display: flex; padding: 72px 16px 24px; overflow: auto; }
+.shop-detail-overlay { position: fixed; inset: 0; background: #1b1322e0; }
+.shop-detail__content { --pass-card-w: min(360px, 78vw); position: relative; display: flex; flex-direction: column; align-items: center; margin: auto; }
+.shop-detail__text { display: flex; flex-direction: column; align-items: center; }
+/* The frame holds the card's place while it flies back to its slot. */
+.shop-detail__frame { width: var(--pass-card-w); aspect-ratio: .686; }
+.shop-detail__card { position: relative; width: 100%; }
+.shop-detail__name { margin: 18px 0 0; color: #fff3e2; font-size: 18px; font-weight: 650; line-height: 1.3; text-align: center; }
+.shop-detail__buy { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; margin-top: 14px; padding: 0 24px; border: 1px solid transparent; border-radius: 14px;
+	background: #c64a30; color: #fff; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color 160ms ease; }
+.shop-detail__buy:is([data-mode='confirm'], [data-mode='busy']) { background: #b34129; }
+.shop-detail__buy:is([data-mode='owned'], [data-mode='short'], [data-mode='preview']) { border-color: #fff3e240; background: #fffdf90f; color: #fff3e2; }
+.shop-detail__buy:disabled { cursor: default; }
+.shop-detail .shop-detail__close { position: fixed; top: 16px; right: 16px; color: #fff; }
 
 /* Coins fly to the counter above the page; `coins.ts` moves them. */
 .shop-flight__coin { position: fixed; z-index: 30; left: 0; top: 0; width: 18px; height: 18px; pointer-events: none; opacity: 0; box-shadow: inset 0 0 0 1.5px #d38d1c, 0 2px 6px #0004; }
@@ -139,64 +152,51 @@
 .shop-skeleton__card { aspect-ratio: .686; }
 @keyframes shop-shimmer { to { background-position: -150% 0; } }
 
-/* Review sheet */
-.xp-dialog.shop-review { --shop-ink: #3d1a10; width: min(540px, calc(100vw - 24px)); padding: 22px 24px 24px; background: #fffaf4; color: var(--shop-ink); }
-.shop-review .xp-dialog-heading { margin-bottom: 12px; }
-.shop-review h3 { margin: 0; outline: none; }
-.shop-review__progress { display: flex; gap: 6px; margin-bottom: 16px; }
+/* Review, inside the ticket */
+.shop-review__progress { display: flex; gap: 6px; margin-bottom: 10px; }
 .shop-review__progress i { flex: 1; height: 6px; border-radius: 999px; background: #f1e1d3; transition: background-color 220ms ease; }
 .shop-review__progress i[data-state='done'] { background: #e9694f; }
 .shop-review__progress i[data-state='current'] { background: #ffc54a; }
 .shop-review__count { margin: 0 0 6px; color: #a0705c; font-size: 13px; font-weight: 650; }
-.shop-review__question { font-size: 21px; line-height: 1.3; letter-spacing: -.015em; overflow-wrap: anywhere; }
-.shop-review__answers { display: grid; gap: 10px; margin: 20px 0; }
-.shop-review__answer { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 14px; border: 1.5px solid #f0dccb; border-radius: 14px; background: #fff;
+.shop-ticket .shop-review__question { margin-bottom: 16px; font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.shop-review__answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.shop-review__answer { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 10px 14px; border: 1.5px solid #f0dccb; border-radius: 14px; background: #fff;
 	color: var(--shop-ink); font-size: 16px; text-align: left; overflow-wrap: anywhere; transition: border-color 160ms ease, background-color 160ms ease, transform 120ms ease; }
 .shop-review__answer > span { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; background: #fff1e2; color: #c64a30; font-size: 13px; font-weight: 800; transition: inherit; }
 .shop-review__answer[aria-pressed='true'] { border-color: #e9694f; background: #fff3ea; }
 .shop-review__answer[aria-pressed='true'] > span { background: #e9694f; color: #fff; }
 .shop-review__answer:active { transform: scale(.985); }
-.shop-review__footer { display: flex; justify-content: flex-end; gap: 10px; }
-.shop-review .xp-primary.shop-review__action { min-height: 48px; padding: 12px 22px; border-radius: 12px; background: #c64a30; font-weight: 650; }
-.shop-review .xp-primary:disabled { opacity: .5; cursor: default; }
-.shop-review__back { min-height: 48px; padding: 12px 16px; border: 0; border-radius: 12px; background: transparent; color: #8a4a35; }
-.shop-review__result { display: grid; justify-items: center; gap: 10px; padding: 8px 0 4px; text-align: center; }
-.shop-review__result h3 { font-size: 24px; letter-spacing: -.02em; }
-.shop-review__result > p { margin: 0 0 8px; color: #7a4b3c; line-height: 1.5; }
-.shop-review__token { position: relative; display: grid; place-items: center; width: 104px; height: 104px; margin: 6px 0 8px; border-radius: 50%;
+.shop-review__footer { display: flex; align-items: center; gap: 10px; }
+.shop-review__next { margin-left: auto; }
+.shop .shop-review__close { padding: 6px 0; border: 0; background: none; color: #8a4a35; font-size: 13px; }
+.shop .shop-review__back { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 12px; background: transparent; color: #8a4a35; font-weight: 650; }
+.shop-review__result { display: grid; justify-items: center; gap: 10px; isolation: isolate; text-align: center; }
+.shop-ticket .shop-review__result h3 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.shop-review__result > p { margin: 0; color: #7a4b3c; font-size: 14px; line-height: 1.5; }
+.shop-review__token { position: relative; display: grid; place-items: center; width: 72px; height: 72px; margin: 6px 0; border-radius: 50%;
 	background: radial-gradient(circle at 35% 30%, #fff6d2 0 14%, #ffc54a 16% 62%, #e9a32b 64%); box-shadow: inset 0 0 0 3px #d38d1c, 0 10px 30px #ffc54a80; animation: shop-token 640ms cubic-bezier(.2, .9, .3, 1.25) both; }
-.shop-review__token::before { content: ''; position: absolute; inset: -40px; z-index: -1; border-radius: 50%; background: repeating-conic-gradient(#ffd56a66 0 8deg, transparent 8deg 22deg); -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); animation: shop-rays 9s linear infinite; }
-.shop-review__token span { font: 900 34px/1 system-ui, sans-serif; color: #8a3a2c; }
+.shop-review__token::before { content: ''; position: absolute; inset: -28px; z-index: -1; border-radius: 50%; background: repeating-conic-gradient(#ffd56a66 0 8deg, transparent 8deg 22deg); -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); animation: shop-rays 9s linear infinite; }
+.shop-review__token span { font: 900 24px/1 system-ui, sans-serif; color: #8a3a2c; }
 @keyframes shop-token { from { opacity: 0; transform: scale(.3) rotate(-30deg); } }
 @keyframes shop-rays { to { transform: rotate(360deg); } }
-.shop-review__marks { display: grid; gap: 10px; width: 100%; margin: 0 0 10px; padding: 0; list-style: none; text-align: left; }
+.shop-review__marks { display: grid; gap: 10px; width: 100%; margin: 0; padding: 0; list-style: none; text-align: left; }
 .shop-review__marks li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid #f0dccb; border-radius: 14px; background: #fff; }
 .shop-review__marks strong { display: block; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
-.shop-review__marks small { display: block; margin-top: 4px; color: #7a4b3c; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.shop-review__marks small { display: block; margin-top: 4px; color: #7a4b3c; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .shop-review__marks b { color: #2f7d58; }
 .shop-review__mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-weight: 900; }
 .shop-review__marks li[data-correct='true'] .shop-review__mark { background: #e3f4ea; color: #2f7d58; }
 .shop-review__marks li[data-correct='false'] .shop-review__mark { background: #fde7e1; color: #c64a30; }
 
 @media (hover: hover) and (pointer: fine) {
-	/* The price waits for the pointer; on touch it is always there. */
-	.shop-card:is([data-mode='buy'], [data-mode='short']) .shop-card__price { opacity: 0; transform: translate(-50%, 6px); }
-	.shop-card:is([data-mode='buy'], [data-mode='short']):is(:hover, :focus-visible) .shop-card__price { opacity: 1; transform: translateX(-50%); }
-	.shop-card-slot:is([data-mode='buy'], [data-mode='reveal']):hover .shop-card-stage::before { opacity: 1; }
-	.shop-card-slot[data-mode='short']:hover .shop-card-stage::before { opacity: .45; }
-	.shop-card[data-mode='confirm']:hover .shop-card__price { background: #b34129; }
+	.shop-card-slot[data-mode='reveal']:hover .shop-card-stage::before, .shop-card-slot[data-mode='view'][data-owned='false']:hover .shop-card-stage::before { opacity: 1; }
 	.shop .shop-gift__claim:enabled:hover { background: #b34129; }
-	.shop-button:enabled:hover, .shop-review .xp-primary:enabled:hover { background: #b34129; }
+	.shop-button:enabled:hover, .shop-detail__buy[data-mode='buy']:hover { background: #b34129; }
 	.shop-review__answer:hover { border-color: #f2b79d; }
 	.shop-review__back:hover { background: #f8eadf; }
 }
 /* Touch: a press, no tilt. */
 @media (hover: none) { .shop-card-slot:has(.shop-card:not([aria-disabled='true']):active) .shop-card-stage { transform: scale(.98); transition-duration: 120ms; } }
-/* Narrower, or where seven cells could not hold a price or the gift's button: the same row, scrolled sideways. */
-@container shop-cards (max-width: 860px) {
-	.shop-row { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 0 12px; scrollbar-width: none; }
-	.shop-row > li { flex: 0 0 150px; scroll-snap-align: start; }
-}
 @media (max-width: 900px) {
 	.shop-hero { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 12px; padding: 0 24px 24px; }
 	.shop-ticket { width: 100%; max-width: 560px; }
@@ -204,14 +204,15 @@
 @media (max-width: 650px) {
 	.shop-hero { margin: 0 -6px 18px; padding: 0 14px 14px; border-radius: 24px; }
 	.shop-ticket { --ticket-pad: 20px; }
+	.shop-review__answers { grid-template-columns: minmax(0, 1fr); }
 	.shop-points { gap: 6px; padding: 6px 14px 6px 12px; }
 	.shop-points strong { font-size: 16px; }
 }
 @media (max-width: 340px) { .shop-machine-frame { width: 255px; height: 374px; }.shop-machine { transform: scale(.85); transform-origin: top left; } }
 @media (prefers-reduced-motion: reduce) {
 	.shop-points strong, .shop-row > li, .shop-card-stage, .shop-card-stage::before, .shop-card__badge, .shop-burst, .shop-toast, .shop-skeleton__block,
-	.shop-review__token, .shop-review__token::before { animation: none !important; }
+	.shop-ticket__step, .shop-review__token, .shop-review__token::before { animation: none !important; }
 	.shop-burst { display: none; }
-	.shop-card-stage, .shop-gift, .shop-card__price, .shop-review__answer, .shop-review__progress i { transition: none !important; }
+	.shop-card-stage, .shop-gift, .shop-detail__buy, .shop-review__answer, .shop-review__progress i { transition: none !important; }
 	.shop-review__answer:active { transform: none; }
 }
