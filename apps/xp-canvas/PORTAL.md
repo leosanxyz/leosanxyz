@@ -43,7 +43,7 @@ BASE_URL=http://127.0.0.1:5177 npm run smoke:shop --workspace=apps/xp-canvas
 npm run build:portal --workspace=apps/xp-canvas
 ```
 
-Los smokes crean cuentas y documentos ficticios. Comprueban el acceso inicial, bienvenida, perfil, descarga, guardado, grupos, biblioteca y archivos privados, lectura en tiempo real, identidad, revocación, límites de intentos y origen de escrituras. El de la tienda gana puntos con preguntas y comprueba las cartas del día, el punto de novedades, el repaso, las tiradas, la compra y el saldo exacto. No los ejecutes contra datos de clases. La revisión de interacción del pase está en [Verificación](ONBOARDING.md#verificación).
+Los smokes crean cuentas y documentos ficticios. Comprueban el acceso inicial, bienvenida, perfil, descarga, guardado, grupos, biblioteca y archivos privados, lectura en tiempo real, identidad, revocación, límites de intentos y origen de escrituras. El de la tienda gana puntos con preguntas y comprueba las cartas del día, el punto de novedades, girar cartas, el regalo diario, el repaso, las tiradas, la compra y el saldo exacto. No los ejecutes contra datos de clases. La revisión de interacción del pase está en [Verificación](ONBOARDING.md#verificación).
 
 ## Publicación y comprobaciones
 

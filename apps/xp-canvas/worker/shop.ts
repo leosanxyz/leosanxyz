@@ -1,13 +1,13 @@
 import type { CanvasEnv } from './access'
 import { catalog } from './boards'
-import { readPoints } from './points'
+import { readPoints, savePointAward } from './points'
 import { allowedBoardIds, portalDb, type AuthSession } from './portalAuth'
 import { body, json, PortalError } from './portalHttp'
 import type { BoardLibrary } from '../shared/boards'
 import { isRewardSkin, type RewardSkin } from '../shared/pass'
 import {
-	nextShopRotation, SHOP_CARD_COST, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool,
-	type FreeSpinState, type ShopGrade, type ShopPurchase, type ShopQuestion, type ShopSpin, type ShopState,
+	giftAmount, giftStreak, nextShopRotation, SHOP_CARD_COST, SHOP_GIFT_POINTS, SHOP_REVEAL_POINTS, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool,
+	type FreeSpinState, type ShopGift, type ShopGiftClaim, type ShopGrade, type ShopPurchase, type ShopQuestion, type ShopReveal, type ShopSpin, type ShopState,
 } from '../shared/shop'
 
 type StoredQuestion = ShopQuestion & { boardId: string; shapeId: string; revision: string; correct: number }
@@ -28,6 +28,22 @@ async function student(session: AuthSession, env: CanvasEnv, day: string) {
 	])
 	const freeSpin: FreeSpinState = free ? 'used' : reviews.results.some((row) => row.passed) ? 'available' : 'locked'
 	return { points, owned: owned.results.map((row) => row.skin), reviews: reviews.results, freeSpin }
+}
+
+/** Today's turned cards, from their point awards `["shop-reveal", user, day, skin]`. */
+async function revealed(env: CanvasEnv, userId: string, day: string) {
+	const rows = await portalDb(env).prepare("SELECT json_extract(source_key, '$[3]') AS skin FROM point_awards WHERE user_id = ? AND activity_kind = 'shop-reveal' AND json_extract(source_key, '$[2]') = ?")
+		.bind(userId, day).all<{ skin: RewardSkin }>()
+	return rows.results.map((row) => row.skin)
+}
+
+/** The streak comes from the latest gift awards `["shop-gift", user, day]`, so it needs no table of its own. */
+async function gift(env: CanvasEnv, userId: string, day: string): Promise<ShopGift> {
+	const rows = await portalDb(env).prepare("SELECT json_extract(source_key, '$[2]') AS day, amount FROM point_awards WHERE user_id = ? AND activity_kind = 'shop-gift' ORDER BY created_at DESC LIMIT 40")
+		.bind(userId).all<{ day: string; amount: number }>()
+	const today = rows.results.find((row) => row.day === day)
+	const streak = giftStreak(rows.results.map((row) => row.day), day)
+	return today ? { claimed: true, amount: today.amount, streak } : { claimed: false, amount: giftAmount(streak + 1), streak }
 }
 
 function reviewState(reviews: ReviewRow[], freeSpin: FreeSpinState) {
@@ -62,15 +78,35 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 	const now = Date.now(), day = shopDay(now), pool = shopPool(day)
 	const shared = { day, pool, rotatesAt: nextShopRotation(now), spinCost: SHOP_SPIN_COST, cardCost: SHOP_CARD_COST }
 	if (session.user.role === 'teacher') {
-		if (path === '/api/portal/shop' && method === 'GET') return json({ ...shared, points: 0, owned: [], freeSpin: 'locked', review: { attemptsLeft: 0, active: null }, teacher: true } satisfies ShopState)
+		if (path === '/api/portal/shop' && method === 'GET') return json({
+			...shared, points: 0, owned: [], freeSpin: 'locked', review: { attemptsLeft: 0, active: null },
+			revealed: pool, gift: { claimed: true, amount: SHOP_GIFT_POINTS, streak: 0 }, teacher: true,
+		} satisfies ShopState)
 		throw new PortalError(403, 'Los alumnos compran aquí con sus puntos.')
 	}
 	if (!session.passCompleted) throw new PortalError(403, 'Termina tu bienvenida antes de entrar a la tienda.')
 	const db = portalDb(env), user = session.user
 
 	if (path === '/api/portal/shop' && method === 'GET') {
-		const { points, owned, reviews, freeSpin } = await student(session, env, day)
-		return json({ ...shared, points, owned, freeSpin, review: reviewState(reviews, freeSpin), teacher: false } satisfies ShopState)
+		const [{ points, owned, reviews, freeSpin }, turned, daily] = await Promise.all([student(session, env, day), revealed(env, user.id, day), gift(env, user.id, day)])
+		return json({ ...shared, points, owned, freeSpin, review: reviewState(reviews, freeSpin), revealed: turned, gift: daily, teacher: false } satisfies ShopState)
+	}
+
+	// Turning a card pays once: the award key repeats for a double tap.
+	if (path === '/api/portal/shop/reveal' && method === 'POST') {
+		const skin = (await body(request)).skin
+		if (!isRewardSkin(skin) || !pool.includes(skin)) throw new PortalError(403, 'Esa carta no está en la tienda de hoy.')
+		await savePointAward(env, { sourceKey: JSON.stringify(['shop-reveal', user.id, day, skin]), eventId: crypto.randomUUID(), userId: user.id, activityKind: 'shop-reveal', amount: SHOP_REVEAL_POINTS, createdAt: now })
+		const [turned, points] = await Promise.all([revealed(env, user.id, day), readPoints(env, user.id)])
+		return json({ revealed: turned, points } satisfies ShopReveal)
+	}
+
+	if (path === '/api/portal/shop/gift' && method === 'POST') {
+		const daily = await gift(env, user.id, day)
+		if (daily.claimed) throw new PortalError(409, 'Ya abriste el regalo de hoy. Mañana hay otro.')
+		const paid = await savePointAward(env, { sourceKey: JSON.stringify(['shop-gift', user.id, day]), eventId: crypto.randomUUID(), userId: user.id, activityKind: 'shop-gift', amount: daily.amount, createdAt: now })
+		if (paid === null) throw new PortalError(409, 'Ya abriste el regalo de hoy. Mañana hay otro.')
+		return json({ gift: { claimed: true, amount: paid, streak: daily.streak + 1 }, points: await readPoints(env, user.id) } satisfies ShopGiftClaim)
 	}
 
 	if (path === '/api/portal/shop/review' && method === 'POST') {

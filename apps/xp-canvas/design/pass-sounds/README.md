@@ -11,4 +11,4 @@ Copias de trabajo de los seis AAC proporcionados por Leo el 16 de septiembre de 
 | `pop.mp3` | Cinemear - Graphix - Opening Gum Box Flap Pop.aac | Soltar un sticker fuera del pase, colocado o recién tomado del inventario |
 | `card.mp3` | CB Sounddesign - Board Games - Picking Up a Card Slowly .aac | Insertar el pase en la ranura |
 
-La asignación usa los nombres descriptivos de los archivos. Se comprobaron decodificación, duración, niveles y disparo en el navegador; falta la valoración de escucha de Leo. Antes de publicar, confirmar que sus licencias permiten incluirlos en la web. Estos archivos no se han desplegado.
+El gachapon y la tienda reutilizan `pop.mp3` y `celebrate.mp3` desde `client/gachapon/gachaponSounds.ts`: el premio de la máquina, girar una carta del día, la tirada gratis ganada y la racha del regalo diario. La asignación usa los nombres descriptivos de los archivos. Se comprobaron decodificación, duración, niveles y disparo en el navegador; falta la valoración de escucha de Leo. Antes de publicar, confirmar que sus licencias permiten incluirlos en la web. Estos archivos no se han desplegado.

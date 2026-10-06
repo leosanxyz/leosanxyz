@@ -36,6 +36,8 @@ export function PassCard({
 	onRemoveSticker,
 	hologramPhase,
 	actions,
+	variant = 'pass',
+	backFace,
 }: {
 	draft: PassDraft
 	edit?: boolean
@@ -52,7 +54,11 @@ export function PassCard({
 	onRemoveSticker?: (id: string, x: number, y: number) => void
 	hologramPhase?: MotionValue<number>
 	actions?: ReactNode
+	/** `shop` keeps the art, foil, tilt and flip without the pass printing; its back is `backFace`. */
+	variant?: 'pass' | 'shop'
+	backFace?: ReactNode
 }) {
+	const pass = variant === 'pass'
 	const reduced = usePassReducedMotion(),
 		skin = skins.find((s) => s.id === draft.skin)!
 	const root = useRef<HTMLDivElement>(null)
@@ -146,6 +152,7 @@ export function PassCard({
 			data-back={back}
 			data-edit={edit}
 			data-reduced={Boolean(reduced)}
+			data-variant={pass ? undefined : variant}
 			onPointerLeave={() => { if (!edit) resetTilt() }}
 			onPointerCancel={resetTilt}
 			onPointerMove={(e) => {
@@ -208,6 +215,7 @@ export function PassCard({
 							)}
 							<div className="pass-shade" />
 						</div>
+						{pass && <>
 						<div className="pass-top">
 							<span>XP / CLASS PASS</span>
 							<span>2026</span>
@@ -247,12 +255,14 @@ export function PassCard({
 								onRemove={onRemoveSticker}
 							/>
 						))}
+						</>}
 					</div>
 					<div
 						className="pass-face pass-card-back"
 						aria-hidden={!back}
 						inert={!back}
 					>
+						{pass ? <>
 						<div className="pass-back-texture" aria-hidden="true" />
 						<div className="pass-top">
 							<span>XP / CLASS PASS</span>
@@ -280,6 +290,7 @@ export function PassCard({
 								{draft.signature ? 'TU FIRMA' : 'FIRMA AQUÍ'}
 							</span>
 						</div>
+						</> : backFace}
 					</div>
 				</motion.div>
 				{actions && <motion.div className="pass-card-actions" data-hidden={hideActions} inert={hideActions} aria-hidden={hideActions}
