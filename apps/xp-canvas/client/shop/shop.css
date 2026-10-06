@@ -52,14 +52,15 @@
 .shop-button { min-height: 44px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--shop-action); color: #fff; font-weight: 650; box-shadow: 0 2px 0 #9e3a24;
 	transition: transform 120ms ease, background-color 160ms ease; }
 .shop-button:enabled:active { transform: translateY(1px) scale(.98); }
-.shop-button:disabled { opacity: .6; cursor: default; }
+.shop-button:disabled { opacity: .55; cursor: default; }
 
 .shop-cards { position: relative; scroll-margin-top: 76px; }
 .shop-cards__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 20px; }
 .shop-countdown { margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-/* One row that scrolls sideways at every width: six cards, then the gift. */
-.shop-row { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0; padding: 6px 0 16px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* One row that scrolls sideways at every width: six cards, then the gift. The padding leaves room for the shadows and the hover lift; the margins take it back. */
+.shop-row { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; margin: -20px -20px -40px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .shop-row::-webkit-scrollbar { display: none; }
+.shop-row[data-locked] { overflow-x: hidden; }
 /* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
 .shop-row > li { flex: 0 0 196px; aspect-ratio: .686; scroll-snap-align: start; animation: shop-card-in 520ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
 @keyframes shop-card-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
@@ -180,6 +181,11 @@
 @keyframes shop-rays { to { transform: rotate(360deg); } }
 @media (hover: hover) and (pointer: fine) {
 	.shop-card-slot:hover .shop-card-stage::before { opacity: 1; }
+	/* The slot under the pointer lifts; the tilt lives on the card inside, and an open card stays put for the morph. */
+	.shop-card-stage { transition: transform 220ms cubic-bezier(.2, .9, .3, 1); }
+	.shop-gift { transition: transform 220ms cubic-bezier(.2, .9, .3, 1), filter 420ms ease; }
+	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: translateY(-8px); }
+	.shop-card-slot[data-open='true'] .shop-card-stage { transform: none; }
 	.shop .shop-gift__claim:enabled:hover { background: #b34129; }
 	.shop-button:enabled:hover, .shop-detail__buy[data-mode='buy']:hover { background: #b34129; }
 	.shop-review__answer:enabled:hover { border-color: #f2b79d; }
@@ -205,4 +211,5 @@
 	.shop-burst { display: none; }
 	.shop-card-stage, .shop-gift, .shop-detail__buy, .shop-review__answer, .shop-review__progress i { transition: none !important; }
 	.shop-review__answer:active { transform: none; }
+	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: none; }
 }

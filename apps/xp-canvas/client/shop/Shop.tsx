@@ -40,7 +40,7 @@ function shopDraft(skin: RewardSkin): PassDraft {
 }
 
 function countdown(ms: number) {
-	return ms >= 3_600_000 ? `${Math.ceil(ms / 3_600_000)} h` : 'menos de 1 h'
+	return ms >= 3_600_000 ? `${Math.ceil(ms / 3_600_000)} h` : ms >= 60_000 ? `${Math.ceil(ms / 60_000)} min` : 'menos de 1 min'
 }
 
 export default function Shop() {
@@ -54,6 +54,8 @@ export default function Shop() {
 	const [detail, setDetail] = useState<RewardSkin | null>(null)
 	// Closed cards still flying back to their slots; their slots stay empty until they land.
 	const [flying, setFlying] = useState<RewardSkin[]>([])
+	// Returns still in their first 400 ms; the row does not scroll under them, so the morph's target holds still.
+	const [locks, setLocks] = useState(0)
 	const [now, setNow] = useState(Date.now)
 	const [fresh, setFresh] = useState<RewardSkin[]>([])
 	const [claiming, setClaiming] = useState(false)
@@ -75,7 +77,7 @@ export default function Shop() {
 		const check = () => { if (!document.hidden) void load() }
 		window.addEventListener('focus', check)
 		document.addEventListener('visibilitychange', check)
-		const tick = window.setInterval(() => setNow(Date.now()), 15_000)
+		const tick = window.setInterval(() => setNow(Date.now()), 20_000)
 		const scheduled = timers.current
 		return () => { window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check); clearInterval(tick); for (const timer of scheduled) clearTimeout(timer) }
 	}, [load])
@@ -187,6 +189,9 @@ export default function Shop() {
 	function closeDetail(skin: RewardSkin) {
 		setFlying((current) => [...current, skin])
 		setDetail(null)
+		if (reduced) return
+		setLocks((current) => current + 1)
+		later(() => setLocks((current) => current - 1), 400)
 	}
 	function cardHome(skin: RewardSkin) {
 		setFlying((current) => current.filter((item) => item !== skin))
@@ -225,15 +230,15 @@ export default function Shop() {
 						<h2 id="shop-cards-title">Cartas de hoy</h2>
 						<p className="shop-countdown" data-testid="shop-countdown">cambian en {countdown(state.rotatesAt - now)}</p>
 					</div>
-					<ul className="shop-row" key={state.day}>
+					<motion.ul className="shop-row" key={state.day} layoutScroll data-locked={locks > 0 || undefined}>
 						{state.pool.map((skin, i) => <li key={skin} data-slot={skin} style={{ '--i': i } as CSSProperties}>
 							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} open={detail === skin || flying.includes(skin)}
 								onReveal={(card, element) => void turnCard(card, element)} onOpen={setDetail} />
 						</li>)}
-						<li style={{ '--i': state.pool.length } as CSSProperties}>
+						<li className="shop-gift-slot" style={{ '--i': state.pool.length } as CSSProperties}>
 							<GiftTicket gift={state.gift} teacher={state.teacher} claiming={claiming} coins={coins} onClaim={() => void claimGift()} />
 						</li>
-					</ul>
+					</motion.ul>
 				</section>
 			</>}
 		</div>
@@ -283,12 +288,12 @@ function Ticket({ state, starting, onReview, onAnswer, onGraded, onRetry }: {
 
 	const free = state.teacher ? <p className="shop-ticket__note">Los alumnos ganan una tirada gratis al repasar 3 preguntas.</p>
 		: freeSpin === 'available' ? <span className="shop-free-token"><i aria-hidden="true" />Tirada gratis lista</span>
-		: freeSpin === 'used' ? <p className="shop-ticket__note">Tirada gratis usada · mañana hay otra</p>
+		: freeSpin === 'used' ? <button className="shop-button" disabled>¡Vuelve mañana!</button>
 		: review.active ? <button className="shop-button" onClick={() => setOpen(true)}>Continuar repaso</button>
 		: review.attemptsLeft ? <>
 			<button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
 			<p className="shop-ticket__note">y gira gratis · {review.attemptsLeft === 1 ? '1 intento' : `${review.attemptsLeft} intentos`} hoy</p></>
-		: <p className="shop-ticket__note">Sin intentos por hoy</p>
+		: <button className="shop-button" disabled>¡Vuelve mañana!</button>
 	return <section className="shop-ticket" ref={ticket} aria-labelledby="shop-ticket-title" onClick={() => { if (view === 'passed') setGraded(null) }}>
 		<h2 id="shop-ticket-title" className="shop-ticket__title">¡Repasa los conceptos de clase y gana una tirada! :)</h2>
 		<div className="shop-ticket__free" data-state={state.teacher ? 'preview' : freeSpin} data-testid="shop-free-spin">
@@ -466,7 +471,7 @@ function ShopCard({ skin, state, fresh, open, onReveal, onOpen }: {
 		onReveal(skin, stage.current!)
 		if (focused) refocus(FLIP_MS, 12)
 	}
-	const slot = { 'data-revealed': revealed, 'data-owned': revealed && owned, 'data-mode': mode, style: { '--card-color': art.color } as CSSProperties }
+	const slot = { 'data-open': open, 'data-revealed': revealed, 'data-owned': revealed && owned, 'data-mode': mode, style: { '--card-color': art.color } as CSSProperties }
 	if (open) return <div className="shop-card-slot" {...slot} />
 	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${art.name}` : 'Revelar carta'} onClick={press} />
 	return <div className="shop-card-slot" {...slot}>
