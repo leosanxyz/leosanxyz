@@ -256,7 +256,7 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry }
 	const { freeSpin, review } = state
 	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false)
 	// The rain falls inside the gachapon panel, measured as it starts.
-	const [celebration, setCelebration] = useState<{ id: string; height: number } | null>(null)
+	const [celebration, setCelebration] = useState<{ id: string; height: number; leaving?: boolean } | null>(null)
 	const ticket = useRef<HTMLElement>(null)
 	const view = graded ? (graded.passed ? 'passed' : 'failed') : !state.teacher && open && review.active ? 'quiz' : 'free'
 	useEffect(() => {
@@ -264,10 +264,11 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry }
 		const timer = setTimeout(() => setGraded(null), 4000)
 		return () => clearTimeout(timer)
 	}, [view])
-	// One rain at a time; it outlives the question it celebrates.
+	// One rain at a time; it outlives the question it celebrates and fades out before it leaves.
 	useEffect(() => {
 		if (!celebration) return
-		const timer = setTimeout(() => setCelebration(null), 2500)
+		const fade = !celebration.leaving && !matchMedia('(prefers-reduced-motion: reduce)').matches
+		const timer = setTimeout(() => setCelebration(fade ? { ...celebration, leaving: true } : null), celebration.leaving ? 500 : 2500)
 		return () => clearTimeout(timer)
 	}, [celebration])
 	// Opening the quiz brings the whole ticket into view.
@@ -305,7 +306,7 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry }
 					: free}
 			</div>
 		</div>
-		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} />, hero.current)}
+		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} leaving={celebration.leaving} />, hero.current)}
 	</section>
 }
 

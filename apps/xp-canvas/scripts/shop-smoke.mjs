@@ -111,6 +111,10 @@ try {
 	assert.equal(await student.locator('#shop-ticket-title').innerText(), TICKET_LINE)
 	assert.equal(await student.locator('.shop-ticket').getAttribute('aria-labelledby'), 'shop-ticket-title')
 	assert.equal(await student.getByTestId('shop-points').innerText(), '500')
+	// The points are just the coin and the number, no pill around them.
+	assert.deepEqual(await student.locator('.shop-points').evaluate((pill) => { const style = getComputedStyle(pill); return { border: style.borderStyle, background: style.backgroundColor } }),
+		{ border: 'none', background: 'rgba(0, 0, 0, 0)' }, 'no capsule around the points')
+	await student.locator('.board-header').screenshot({ path: '/tmp/xp-shop-round9/header-points.png' })
 	assert.equal(await dot.count(), 0, 'opening the shop clears the dot')
 	assert.equal(await student.getByRole('button', { name: /^Tienda/ }).getAttribute('aria-current'), 'page')
 	await student.screenshot({ path: '/tmp/shop-desktop.png', fullPage: true })
@@ -215,11 +219,21 @@ try {
 	// Right: green, the class question's rain, then the next question by itself.
 	assert.equal((await answerOne(false)).correct, true)
 	await student.locator('.question-celebration').waitFor()
+	const rainStarted = Date.now()
 	// The rain falls inside the gachapon panel, not over the page.
 	assert.deepEqual(await student.locator('.question-celebration').evaluate((rain) => {
 		const panel = rain.parentElement, box = rain.getBoundingClientRect(), frame = panel.getBoundingClientRect()
 		return { panel: panel.className, position: getComputedStyle(rain).position, fits: Math.abs(box.top - frame.top) < 1 && Math.abs(box.bottom - frame.bottom) < 1 }
 	}), { panel: 'shop-hero', position: 'absolute', fits: true })
+	// The rain fades out from 2.5 s and leaves by 3 s.
+	await student.waitForTimeout(2600 - (Date.now() - rainStarted))
+	assert.equal(await student.locator('.question-celebration[data-leaving]').count(), 1, 'the rain starts fading at 2.5 s')
+	await student.waitForTimeout(200)
+	const fading = Number(await student.locator('.question-celebration').evaluate((rain) => getComputedStyle(rain).opacity))
+	assert(fading > 0 && fading < 1, `the rain is mid-fade at 2.8 s (opacity ${fading})`)
+	await hero.screenshot({ path: '/tmp/xp-shop-round9/celebration-fading.png' })
+	await student.waitForTimeout(3200 - (Date.now() - rainStarted))
+	assert.equal(await student.locator('.question-celebration').count(), 0, 'the rain is gone after its fade')
 	await quiz.getByText('Pregunta 2 de 3').waitFor()
 	await answerOne(false)
 	await quiz.getByText('Pregunta 3 de 3').waitFor()
@@ -242,6 +256,9 @@ try {
 	assert.match(await student.locator('.shop-machine [role="status"]').innerText(), /Tirada gratis/)
 	await student.getByRole('button', { name: /^Girar gachapon/ }).click()
 	await student.locator('.gachapon-reveal').waitFor()
+	// No words under the machine while the prize is on its way.
+	assert.equal(await student.getByTestId('shop-machine-status').getAttribute('class'), 'xp-sr-only', 'the machine status is hidden during a reveal')
+	await student.locator('.shop-machine-frame').screenshot({ path: '/tmp/xp-shop-round9/machine-reveal.png' })
 	assert.match(await student.locator('.gachapon-reveal__prize').innerText(), new RegExp(`${name} ganó`))
 	await student.screenshot({ path: '/tmp/shop-reveal.png' })
 	await student.locator('.gachapon-reveal').waitFor({ state: 'detached', timeout: 15_000 })

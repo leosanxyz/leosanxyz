@@ -13,17 +13,17 @@
 
 .shop-coin { display: inline-block; flex-shrink: 0; width: 1em; height: 1em; border-radius: 50%; vertical-align: -.12em;
 	background: radial-gradient(circle at 35% 30%, #fff6d2 0 16%, #ffc54a 18% 60%, #e9a32b 62%); box-shadow: inset 0 0 0 1.5px #d38d1c; }
-.shop-points { display: inline-flex; align-items: center; gap: 8px; margin: 0; min-height: 44px; padding: 8px 16px 8px 14px; border: 1px solid #f3d9a6; border-radius: 999px;
-	background: #fff6e2; color: #6b3a12; font-variant-numeric: tabular-nums; }
-.shop-points strong { font-size: 18px; animation: shop-pop 420ms cubic-bezier(.2, .9, .3, 1.2); }
+.shop-points { display: inline-flex; align-items: center; gap: 8px; margin: 0; min-height: 44px; color: #6b3a12; font-variant-numeric: tabular-nums; }
+.shop-points strong { font-size: 18px; font-weight: 700; animation: shop-pop 420ms cubic-bezier(.2, .9, .3, 1.2); }
 [data-testid='portal-shop'] .board-header h1 { flex-basis: 90px; }
 /* The counter stays in view, so points can fly into it from anywhere on the page. */
 [data-testid='portal-shop'] .board-header { position: sticky; top: 0; z-index: 5; padding: 8px 0; background: #fff; box-shadow: 0 -32px 0 8px #fff, 0 0 0 8px #fff; }
 @keyframes shop-pop { from { transform: scale(1.25); color: #e9694f; } }
 
 .shop-hero { position: relative; overflow: hidden; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 48px; align-items: center; margin-bottom: 18px; padding: 28px; border-radius: 28px; background: var(--shop-bg); }
-/* A right answer in the review rains inside the panel and piles up on its bottom edge. */
-.shop-hero .question-celebration { position: absolute; }
+/* A right answer in the review rains inside the panel, piles up on its bottom edge and fades with data-leaving instead of its own fade. */
+.shop-hero .question-celebration { position: absolute; animation: none; transition: opacity 500ms ease-out; }
+.shop-hero .question-celebration[data-leaving] { opacity: 0; }
 .shop-machine-frame { position: relative; width: 300px; height: 440px; scroll-margin: 24px; }
 /* Room for the label under the machine, only while there is one. */
 .shop-machine-frame:has(.gachapon__status, .gachapon__base p:not(.xp-sr-only)) { margin-bottom: 36px; }
@@ -201,7 +201,6 @@
 	.shop-hero { margin: 0 -6px 18px; padding: 0 14px 14px; border-radius: 24px; }
 	.shop-ticket { --ticket-pad: 20px; }
 	.shop-review__answers { grid-template-columns: minmax(0, 1fr); }
-	.shop-points { gap: 6px; padding: 6px 14px 6px 12px; }
 	.shop-points strong { font-size: 16px; }
 }
 @media (max-width: 340px) { .shop-machine-frame { width: 255px; height: 374px; }.shop-machine { transform: scale(.85); transform-origin: top left; } }

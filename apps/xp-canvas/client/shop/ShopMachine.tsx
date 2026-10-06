@@ -27,7 +27,7 @@ export function ShopMachine({ state, pending, reveal, onSpin }: { state: ShopSta
 	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todas las cartas de hoy'
 		: free ? 'Tirada gratis lista' : missing > 0 ? `Te faltan ${missing.toLocaleString('es-MX')} puntos` : needsCoin ? `Inserta una moneda de ${cost} puntos` : 'Jala la palanca'
 	// The glowing coin and lever already say what to do; words show only when something is different.
-	const quiet = (ready && !free) || pending
+	const quiet = (ready && !free) || pending || spinning
 
 	if (status3d === 'failed') {
 		// CSS machine without WebGL: one knob spins, free or paid.

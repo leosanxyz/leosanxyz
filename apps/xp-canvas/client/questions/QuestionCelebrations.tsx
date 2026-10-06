@@ -33,9 +33,9 @@ function makeParticles(id: string, height?: number) {
 }
 
 /** The fullscreen emoji rain for a right answer; the shop review rains inside a panel of `height` px. */
-export function Celebration({ id, height }: { id: string; height?: number }) {
+export function Celebration({ id, height, leaving = false }: { id: string; height?: number; leaving?: boolean }) {
 	const particles = useMemo(() => makeParticles(id, height), [id, height])
-	return <div className="question-celebration" data-celebration-id={id} aria-hidden="true">
+	return <div className="question-celebration" data-celebration-id={id} data-leaving={leaving || undefined} aria-hidden="true">
 		{particles.map((particle, index) => <span key={index} className="question-celebration__particle" style={particle.style}>{particle.emoji}</span>)}
 		<span className="question-celebration__reduced">🥳 ⭐ 🎉</span>
 	</div>
