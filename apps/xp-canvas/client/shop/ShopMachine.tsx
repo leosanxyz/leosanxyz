@@ -25,7 +25,9 @@ export function ShopMachine({ state, pending, reveal, onSpin }: { state: ShopSta
 	// The coin is spent when the spin starts and returned if the student can no longer spin.
 	useEffect(() => { if (coinAt !== null && !ready && !pending) setCoinAt(null) }, [coinAt, ready, pending])
 	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todas las cartas de hoy'
-		: free ? 'Tirada gratis · Jala la palanca' : missing > 0 ? `Te faltan ${missing.toLocaleString('es-MX')} puntos` : needsCoin ? `Inserta una moneda · ${cost} puntos` : 'Jala la palanca'
+		: free ? 'Tirada gratis lista' : missing > 0 ? `Te faltan ${missing.toLocaleString('es-MX')} puntos` : needsCoin ? `Inserta una moneda de ${cost} puntos` : 'Jala la palanca'
+	// The glowing coin and lever already say what to do; words show only when something is different.
+	const quiet = (ready && !free) || pending
 
 	if (status3d === 'failed') {
 		// CSS machine without WebGL: one knob spins, free or paid.
@@ -36,14 +38,14 @@ export function ShopMachine({ state, pending, reveal, onSpin }: { state: ShopSta
 			<div className="gachapon__base">
 				<button className="gachapon__knob" aria-label="Girar gachapon" disabled={!ready} onClick={() => onSpin(free)}><span /></button>
 				<div className="gachapon__slot" aria-hidden="true" />
-				<p role="status">{status}</p>
+				<p role="status" className={quiet ? 'xp-sr-only' : undefined} data-testid="shop-machine-status">{status}</p>
 			</div>
 		</div>
 	}
 
 	return <div className="gachapon shop-machine" data-gachapon-id="shop" data-spinning={spinning} data-three={status3d}>
 		<canvas ref={canvas} className="gachapon__canvas" aria-hidden="true" />
-		<p className="gachapon__status" role="status" data-testid="shop-machine-status">{status}</p>
+		<p className={quiet ? 'xp-sr-only' : 'gachapon__status'} role="status" data-testid="shop-machine-status">{status}</p>
 		{!free && <button className="gachapon__coin" aria-label={needsCoin ? `Insertar moneda de ${cost} puntos` : 'Moneda insertada'} aria-pressed={!needsCoin}
 			title={`Costo: ${cost} puntos`} disabled={!ready || !needsCoin} onClick={() => { setCoinAt(Date.now()); playCoin() }} />}
 		<button className="gachapon__lever" aria-label={free ? 'Girar gachapon gratis' : 'Girar gachapon'} title="Jalar la palanca" disabled={!ready || needsCoin} onClick={() => onSpin(free)} />
