@@ -103,8 +103,9 @@
 .shop-scroller:has(> .shop-row) { margin: -20px -20px -40px; }
 .shop-scroller__fade { position: absolute; top: 0; bottom: 0; width: 72px; pointer-events: none; opacity: 0; transition: opacity 200ms ease; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .shop-scroller:has(> .shop-strip) .shop-scroller__fade { width: 56px; }
-.shop-scroller__fade[data-side='left'] { left: 0; mask-image: linear-gradient(to right, #000 0, #000 28%, transparent 100%); }
-.shop-scroller__fade[data-side='right'] { right: 0; mask-image: linear-gradient(to left, #000 0, #000 28%, transparent 100%); }
+/* The blur fades out on every side, so its box never shows as an edge over the flat background. */
+.shop-scroller__fade[data-side='left'] { left: 0; mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 34%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask-composite: intersect; }
+.shop-scroller__fade[data-side='right'] { right: 0; mask-image: linear-gradient(to left, transparent 0, #000 14%, #000 34%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask-composite: intersect; }
 .shop-scroller:is([data-more='left'], [data-more='both']) .shop-scroller__fade[data-side='left'],
 .shop-scroller:is([data-more='right'], [data-more='both']) .shop-scroller__fade[data-side='right'] { opacity: 1; }
 
