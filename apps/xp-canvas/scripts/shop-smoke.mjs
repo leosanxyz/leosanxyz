@@ -234,22 +234,34 @@ try {
 		const card = item.querySelector('.shop-card-stage > div')?.getBoundingClientRect(), home = item.querySelector('.shop-card-stage')?.getBoundingClientRect()
 		return card && Math.max(...['left', 'top', 'width', 'height'].map((side) => Math.abs(card[side] - home[side])))
 	})
+	/** A landed card's corners: its own and its morph wrapper's, which Motion keeps in step. */
+	const corners = (slot) => slot.evaluate((item) => { const card = item.querySelector('.pass-card'); return [getComputedStyle(card).borderTopLeftRadius, getComputedStyle(card.parentElement).borderTopLeftRadius] })
+	const back = student.getByRole('button', { name: 'Cerrar el repaso' })
 	const panel = student.locator('.shop-panel'), panelWidth = (await panel.boundingBox()).width
 	const hero = student.locator('.shop-hero'), heroHeight = (await hero.boundingBox()).height
 	// The dev server also shows the QA reset button.
 	assert.equal((await student.getByTestId('shop-free-spin').innerText()).replace(/\nDebug: reiniciar preguntas$/, ''), 'Repasar 3 preguntas', 'the review button stands alone')
+	assert.equal(await back.count(), 0, 'no back arrow outside the quiz')
 	await student.getByRole('button', { name: 'Repasar 3 preguntas' }).click()
 	await quiz.waitFor()
+	// While the cards gather, neither the strip nor the panel clips them; only the hero's rounded edge does.
+	const gatherStarted = Date.now()
+	const clips = () => student.evaluate(() => ({ strip: getComputedStyle(document.querySelector('.shop-strip')).overflowX, panel: getComputedStyle(document.querySelector('.shop-panel')).overflowX }))
+	await student.waitForTimeout(Math.max(0, 120 - (Date.now() - gatherStarted)))
+	assert.deepEqual(await clips(), { strip: 'visible', panel: 'visible' }, 'nothing clips the cards while they gather')
 	assert.equal(await student.locator('[role="dialog"]').count(), 0, 'the review lives in the panel')
 	assert.equal((await panel.boundingBox()).width, panelWidth, 'the panel keeps its width')
 	assert.equal((await hero.boundingBox()).height, heroHeight, 'the machine sets the panel height')
-	assert.equal(await quiz.getByRole('button', { name: /^(Anterior|Siguiente|Revisar respuestas|Cerrar)$/ }).count(), 0, 'no step buttons and no close')
+	assert.equal(await quiz.getByRole('button', { name: /^(Anterior|Siguiente|Revisar respuestas)$/ }).count(), 0, 'no step buttons')
+	assert.equal(await student.locator('.shop-panel__head > button.xp-icon-button.shop-panel__back + #shop-panel-title').count(), 1, 'a back arrow sits left of the title')
+	assert.equal(await back.isEnabled(), true)
 	assert.equal(await quiz.getByText(/^Pregunta \d de 3$/).count(), 0, 'the progress segments are the only count')
 	// The machine's cards gather into a tray above the quiz.
 	await student.locator('.shop-strip[data-tray]').waitFor()
 	await student.waitForTimeout(700)
 	assert.deepEqual(await strip.evaluate((list) => ({ tray: list.hasAttribute('data-tray'), slots: list.children.length, cardWidth: getComputedStyle(list).getPropertyValue('--card-w').trim(), width: Math.round(list.children[0].getBoundingClientRect().width) })),
 		{ tray: true, slots: 6, cardWidth: '34px', width: 34 }, 'six 34 px thumbnails in the deck during the quiz')
+	assert.deepEqual(await clips(), { strip: 'visible', panel: 'auto' }, 'the deck stays unclipped once it settles; the panel scrolls again')
 	await rowStill('with the tray')
 	// The deck: centred over the questions, never scrolling, nothing focused and nothing floating at rest.
 	const preview = student.locator('.shop-tray__preview')
@@ -295,16 +307,33 @@ try {
 	await student.waitForTimeout(300)
 	const fromTray = await offHome(strip.locator(':scope > li').first())
 	assert(fromTray !== undefined && fromTray <= 1, `the card lands in its tray slot (off by ${fromTray} px)`)
+	assert.deepEqual(await corners(strip.locator(':scope > li').first()), ['3px', '3px'], 'the landed thumbnail keeps its wrapper\'s corners')
 	// Wrong: red, the right one green, and the options shake.
 	const firstQuestion = await quiz.locator('.shop-review__question').innerText()
 	const wrong = await answerOne(true)
 	assert.deepEqual([wrong.index, wrong.correct, wrong.done, wrong.passed], [0, false, false, null])
 	assert.equal(await quiz.locator('.shop-review__answers[data-shake]').count(), 1)
+	assert.equal(await back.isDisabled(), true, 'the back arrow waits while an answer is graded')
 	assert.equal(await student.locator('.question-celebration').count(), 0, 'no rain for a wrong answer')
 	await onQuestion(2)
 	assert.equal(await quiz.locator('.shop-review__progress i[data-state="done"]').count(), 1, 'answered questions count as done')
 	const secondQuestion = await quiz.locator('.shop-review__question').innerText()
 	assert.notEqual(secondQuestion, firstQuestion)
+	// The back arrow closes the quiz and keeps the attempt; the cards spread back.
+	await back.click()
+	await student.getByRole('button', { name: 'Continuar repaso' }).waitFor()
+	assert.equal(await student.locator('#shop-panel-title').innerText(), TICKET_LINE)
+	assert.equal(await back.count(), 0)
+	await student.waitForTimeout(700)
+	assert.equal(await strip.evaluate((list) => getComputedStyle(list).getPropertyValue('--card-w').trim()), '120px', 'the cards spread back once the quiz closes')
+	// A spread card lands with the corners it left with.
+	await strip.locator('.shop-card').first().click()
+	await shown.waitFor()
+	await student.waitForTimeout(700)
+	await student.keyboard.press('Escape')
+	await student.locator('.shop-detail').waitFor({ state: 'detached' })
+	await student.waitForTimeout(300)
+	assert.deepEqual(await corners(strip.locator(':scope > li').first()), ['10px', '10px'], 'the landed strip card keeps its wrapper\'s corners')
 	// Leaving the page keeps the attempt; it never opens on its own, and it resumes at the next question.
 	await student.reload()
 	await student.getByRole('button', { name: 'Continuar repaso' }).waitFor()
@@ -345,6 +374,7 @@ try {
 	await student.waitForTimeout(700)
 	assert.deepEqual(await strip.evaluate((list) => ({ tray: list.hasAttribute('data-tray'), slots: list.children.length, width: Math.round(list.children[0].getBoundingClientRect().width) })),
 		{ tray: false, slots: 6, width: 120 }, 'the cards spread back after the quiz')
+	assert.deepEqual(await clips(), { strip: 'auto', panel: 'auto' }, 'the spread strip scrolls sideways again once the cards settle')
 	assert.equal(await student.locator('.shop-review__marks').count(), 0, 'no marks list')
 	assert.equal((await answerAt(active.id, 2, 0)).status(), 409, 'a finished attempt takes no more answers')
 	await student.screenshot({ path: '/tmp/shop-review-failed.png' })
@@ -471,6 +501,7 @@ try {
 	await student.waitForTimeout(600)
 	const landing = await offHome(third)
 	assert(landing !== undefined && landing <= 1, `the card lands in its slot after the row scrolls (off by ${landing} px)`)
+	assert.deepEqual(await corners(third), ['17px', '17px'], 'the landed row card keeps its wrapper\'s corners')
 	await rowStill('after a card lands from a scrolled row')
 	assert.equal((await buy(skin)).status(), 409, 'a card is bought once')
 	assert.equal((await spin(false)).status(), 409, 'a spin needs 150 points')

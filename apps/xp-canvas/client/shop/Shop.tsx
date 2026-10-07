@@ -41,6 +41,9 @@ function shopDraft(skin: RewardSkin): PassDraft {
 
 /** The strip's cards gather into the tray and spread back as one motion. */
 const GATHER = { type: 'spring', duration: 0.5, bounce: 0 } as const
+/** Card widths in px. The corners scale with the card, 17 px at the row's 196 px, so a card keeps its look at every size and through every morph. */
+const CARD = { spread: 120, tray: 34, row: 196 }
+const radius = (width: number) => Math.round(width * 17 / 196)
 
 /** `hh:mm` until the next rotation, ticking every second. */
 function Countdown({ at }: { at: number }) {
@@ -235,9 +238,9 @@ export default function Shop() {
 				<section className="shop-hero" ref={hero}>
 					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
 					<Panel state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} onDebugReset={async () => { await portalRequest('shop/debug/reset-review', 'POST', {}); await load() }}
-						strip={(tray) => <Strip className="shop-strip" key={state.day} list={tray.list} tray={tray.on} handlers={tray.handlers} locked={locks > 0}>
+						strip={(tray) => <Strip className="shop-strip" key={state.day} list={tray.list} tray={tray.on} gathering={tray.gathering} cardWidth={tray.on ? CARD.tray : CARD.spread} handlers={tray.handlers} locked={locks > 0}>
 							{state.pool.map((skin) => <motion.li key={skin} data-slot={skin} data-focus={(tray.on && tray.focus === skin) || undefined} layout={!reduced} transition={GATHER}>
-								<ShopCard skin={skin} faceUp state={state} open={detail?.skin === skin || flying.includes(skin)} onOpen={(card) => setDetail({ skin: card, purchasable: false })} />
+								<ShopCard skin={skin} faceUp width={tray.on ? CARD.tray : CARD.spread} state={state} open={detail?.skin === skin || flying.includes(skin)} onOpen={(card) => setDetail({ skin: card, purchasable: false })} />
 							</motion.li>)}
 						</Strip>} />
 				</section>
@@ -246,9 +249,9 @@ export default function Shop() {
 						<h2 id="shop-cards-title">Cartas en venta</h2>
 						<p className="shop-cards__meter"><Icon name="rotate" size={16} /><span className="xp-sr-only">Las cartas cambian en </span><Countdown at={state.rotatesAt} /></p>
 					</div>
-					<Strip className="shop-row" key={state.slot} locked={locks > 0}>
+					<Strip className="shop-row" key={state.slot} cardWidth={CARD.row} locked={locks > 0}>
 						{state.shop.map((skin) => <li key={skin} data-slot={skin}>
-							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} open={detail?.skin === skin || flying.includes(skin)}
+							<ShopCard skin={skin} width={CARD.row} state={state} fresh={fresh.includes(skin)} open={detail?.skin === skin || flying.includes(skin)}
 								onReveal={(card, element) => void turnCard(card, element)} onOpen={(card) => setDetail({ skin: card, purchasable: true })} onFlashed={() => setFresh((current) => current.filter((item) => item !== skin))} />
 						</li>)}
 						<li className="shop-gift-slot">
@@ -270,7 +273,7 @@ function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onR
 	onAnswer: (review: ShopReview, index: number, answer: number) => Promise<ShopAnswer>; onGraded: (result: ShopAnswer) => void; onRetry: () => Promise<void>
 }) {
 	const { freeSpin, review } = state
-	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false)
+	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false), [grading, setGrading] = useState(false)
 	// The rain falls inside the gachapon panel, measured as it starts.
 	const [celebration, setCelebration] = useState<{ id: string; height: number; leaving?: boolean } | null>(null)
 	const panel = useRef<HTMLElement>(null), title = useRef<HTMLHeadingElement>(null)
@@ -312,14 +315,20 @@ function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onR
 	const debug = import.meta.env.DEV && !state.teacher && view !== 'quiz'
 		&& <button type="button" className="shop-debug" onClick={() => void onDebugReset()}>Debug: reiniciar preguntas</button>
 	const heading = outcome === 'available' ? 'Felicidades! Reclama tu tirada gratis! :)' : outcome === 'later' ? 'Vuelve mañana por otra tirada!' : '¡Repasa los conceptos de clase y gana una tirada! :)'
-	return <section className="shop-panel" ref={panel} aria-labelledby="shop-panel-title" data-outcome={outcome ?? undefined}>
+	const headline = <h2 id="shop-panel-title" className="shop-panel__title" ref={title} tabIndex={-1} key={heading}>{heading}</h2>
+	// While the cards gather or spread, the panel does not clip them either; only the hero's rounded edge does.
+	return <section className="shop-panel" ref={panel} aria-labelledby="shop-panel-title" data-outcome={outcome ?? undefined} data-gathering={tray.gathering || undefined}>
 		{strip(tray)}
 		<TrayPreview skin={tray.shown ? tray.focus : null} list={list} panel={panel} />
 		<div className="shop-panel__content" data-view={view} key={view}>
-			<h2 id="shop-panel-title" className="shop-panel__title" ref={title} tabIndex={-1} key={heading}>{heading}</h2>
+			{view === 'quiz' ? <div className="shop-panel__head">
+				{/* Closing keeps the attempt; "Continuar repaso" resumes it. */}
+				<button type="button" className="xp-icon-button shop-panel__back" aria-label="Cerrar el repaso" disabled={grading} onClick={() => setOpen(false)}><Icon name="back" /></button>
+				{headline}
+			</div> : headline}
 			{outcome ? debug : <div className="shop-panel__step" data-view={view} data-testid="shop-free-spin">
 				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active}
-					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} />
+					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} onGrading={setGrading} />
 					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
 				{debug}
@@ -330,13 +339,19 @@ function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onR
 }
 
 type TrayHandlers = Pick<HTMLAttributes<HTMLUListElement>, 'onPointerOver' | 'onPointerLeave' | 'onClickCapture'>
-type Tray = { on: boolean; focus: RewardSkin | null; list: RefObject<HTMLUListElement | null>; handlers: TrayHandlers }
+type Tray = { on: boolean; gathering: boolean; focus: RewardSkin | null; list: RefObject<HTMLUListElement | null>; handlers: TrayHandlers }
 
 /** The quiz's deck: a card is focused only while a mouse is over it, and its preview rises while it is. Touch taps open the detail directly. */
 function useTray(list: RefObject<HTMLUListElement | null>, on: boolean) {
 	const reduced = usePassReducedMotion()
 	const [hovered, setHovered] = useState<RewardSkin | null>(null)
 	useEffect(() => setHovered(null), [on])
+	// The mode settles 600 ms after it changes; deriving it in render marks the very commit that starts the gather.
+	const [settled, setSettled] = useState(on), gathering = on !== settled
+	useEffect(() => {
+		const timer = setTimeout(() => setSettled(on), 600)
+		return () => clearTimeout(timer)
+	}, [on])
 	const handlers: TrayHandlers = on ? {
 		onPointerOver: (event) => {
 			const slot = (event.target as Element).closest<HTMLElement>('[data-slot]')
@@ -347,7 +362,7 @@ function useTray(list: RefObject<HTMLUListElement | null>, on: boolean) {
 		onClickCapture: () => setHovered(null),
 	} : {}
 	const focus = on ? hovered : null
-	return { on, focus, list, handlers, shown: !reduced && !!focus }
+	return { on, gathering, focus, list, handlers, shown: !reduced && !!focus }
 }
 
 const PREVIEW_W = 150
@@ -366,7 +381,7 @@ function TrayPreview({ skin, list, panel }: { skin: RewardSkin | null; list: Ref
 			initial={{ opacity: 0, scale: 0.23, y: -36, left }} animate={{ opacity: 1, scale: 1, y: 0, left }} transition={{ type: 'spring', duration: 0.5, bounce: 0.18 }}
 			exit={{ opacity: 0, scale: 0.23, y: -36, transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] } }}>
 			<AnimatePresence mode="popLayout" initial={false}>
-				<motion.div key={skin} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+				<motion.div key={skin} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} style={{ borderRadius: radius(PREVIEW_W) }}>
 					<div className="shop-float"><PassCard draft={draft} variant="shop" tilt={false} /></div>
 				</motion.div>
 			</AnimatePresence>
@@ -375,21 +390,17 @@ function TrayPreview({ skin, list, panel }: { skin: RewardSkin | null; list: Ref
 }
 
 /** One row of cards that only scrolls sideways. Its edges fade where more cards wait past them. */
-function Strip({ className, list: given, tray = false, handlers, locked, children }: {
-	className: string; list?: RefObject<HTMLUListElement | null>; tray?: boolean; handlers?: TrayHandlers; locked: boolean; children: ReactNode
+function Strip({ className, list: given, tray = false, gathering = false, cardWidth, handlers, locked, children }: {
+	className: string; list?: RefObject<HTMLUListElement | null>; tray?: boolean; gathering?: boolean; cardWidth: number; handlers?: TrayHandlers; locked: boolean; children: ReactNode
 }) {
 	const own = useRef<HTMLUListElement>(null), list = given ?? own
 	const [more, setMore] = useState<'left' | 'right' | 'both'>()
-	// While the cards gather or spread, the stage's hover lift stays off so only the layout animation moves them.
-	// The mode settles 600 ms after it changes; deriving it in render marks the very commit that starts the gather.
-	const [settled, setSettled] = useState(tray), gathering = tray !== settled
-	useEffect(() => {
-		const timer = setTimeout(() => setSettled(tray), 600)
-		return () => clearTimeout(timer)
-	}, [tray])
-	useEffect(() => {
-		// The tray never scrolls, so it has no edges to fade. The fades stay while the cards gather, so no card under them changes opacity at once.
-		if (tray) { if (!gathering) setMore(undefined); return }
+	// While the cards gather or spread, the stage's hover lift stays off so only the layout animation moves them, and the strip does not clip or fade them.
+	// Its edges are measured again once the cards settle, before that frame paints, so the fades return with the clip.
+	useLayoutEffect(() => {
+		if (gathering) return
+		// The tray never scrolls, so it has no edges to fade.
+		if (tray) { setMore(undefined); return }
 		const strip = list.current!
 		const update = () => {
 			const left = strip.scrollLeft > 2, right = strip.scrollWidth - strip.clientWidth - strip.scrollLeft > 2
@@ -405,7 +416,7 @@ function Strip({ className, list: given, tray = false, handlers, locked, childre
 	}, [list, tray, gathering])
 	// Programmatic scrolls can still move an `overflow-y: hidden` box; the strip only ever scrolls sideways.
 	return <motion.ul ref={list} className={className} layoutScroll data-tray={tray || undefined} data-gathering={gathering || undefined} data-more={more} data-locked={locked || undefined} {...handlers}
-		onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
+		style={{ '--card-w': `${cardWidth}px` } as CSSProperties} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
 		{children}
 	</motion.ul>
 }
@@ -416,9 +427,10 @@ const attempts = (count: number) => count === 1 ? 'Te queda 1 intento hoy.' : `T
 const ADVANCE_MS = 1300
 
 /** One question at a time, graded as soon as it is answered. The server keeps each key until then. */
-function Quiz({ review, onAnswer, onCorrect, onDone }: {
+function Quiz({ review, onAnswer, onCorrect, onDone, onGrading }: {
 	review: ShopReview
 	onAnswer: (index: number, answer: number) => Promise<ShopAnswer>; onCorrect: (id: string) => void; onDone: (result: ShopAnswer) => void
+	onGrading: (grading: boolean) => void
 }) {
 	const reduced = usePassReducedMotion()
 	const [results, setResults] = useState(review.results)
@@ -430,6 +442,8 @@ function Quiz({ review, onAnswer, onCorrect, onDone }: {
 	// Focus follows the question and its result for keyboard and screen reader users.
 	useEffect(() => { heading.current?.focus({ preventScroll: true }) }, [index, !!result])
 	useEffect(() => () => clearTimeout(advance.current), [])
+	// The panel's back arrow waits while an answer is graded and shown.
+	useEffect(() => { onGrading(picked !== null); return () => onGrading(false) }, [picked])
 
 	async function choose(answer: number) {
 		if (picked !== null || result) return
@@ -535,8 +549,8 @@ const morphId = (skin: RewardSkin) => `shop-card-${skin}`
  * face up it opens the card's detail, where it is bought. While the detail is open the card is there, and its slot stays empty.
  * The machine's cards in the hero are always face up.
  */
-function ShopCard({ skin, faceUp = false, state, fresh = false, open, onReveal, onOpen, onFlashed }: {
-	skin: RewardSkin; faceUp?: boolean; state: ShopState; fresh?: boolean; open: boolean
+function ShopCard({ skin, faceUp = false, width, state, fresh = false, open, onReveal, onOpen, onFlashed }: {
+	skin: RewardSkin; faceUp?: boolean; width: number; state: ShopState; fresh?: boolean; open: boolean
 	onReveal?: (skin: RewardSkin, card: HTMLElement) => void; onOpen: (skin: RewardSkin) => void; onFlashed?: () => void
 }) {
 	const art = skins.find((item) => item.id === skin)!
@@ -566,7 +580,7 @@ function ShopCard({ skin, faceUp = false, state, fresh = false, open, onReveal, 
 	return <div className="shop-card-slot" {...slot}>
 		<div className="shop-card-stage" ref={stage}>
 			{/* `layoutId` alone animates its layout too. It moves with the slot's spring, so the card never drifts inside a gathering slot; the morph uses the detail's own spring. */}
-			<motion.div layoutId={reduced ? undefined : morphId(skin)} transition={GATHER} style={{ borderRadius: 17 }}>
+			<motion.div layoutId={reduced ? undefined : morphId(skin)} transition={GATHER} style={{ borderRadius: radius(width) }}>
 				<PassCard draft={draft} variant="shop" back={!revealed} backFace={CARD_BACK} actions={actions} />
 			</motion.div>
 			{/* The flash reaches past the card, so it leaves once it fades; left behind, it let the row scroll vertically. */}
@@ -598,6 +612,9 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 	const title = useId()
 	// On close the card flies back to its slot here, above the strip's clipping, then hands over to the slot card in place.
 	const [home, setHome] = useState<DOMRect | null>(null)
+	// The card's corners follow its width: the frame's while open, the slot's as it lands.
+	const frame = useRef<HTMLDivElement>(null), [frameWidth, setFrameWidth] = useState(360)
+	useLayoutEffect(() => setFrameWidth(frame.current!.getBoundingClientRect().width), [])
 	const mode: BuyMode = owned ? 'owned' : state.teacher ? 'preview' : busy ? 'busy' : missing > 0 ? 'short' : confirming ? 'confirm' : 'buy'
 	const enabled = mode === 'buy' || mode === 'confirm'
 	useEffect(() => {
@@ -646,9 +663,9 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 	return createPortal(<div className="shop-detail" ref={root} role="dialog" aria-modal="true" aria-labelledby={title} data-leaving={leaving} inert={leaving} onKeyDown={keys}>
 		<motion.div className="shop-detail-overlay" {...fade(leaving)} onClick={dismiss} />
 		<div className="shop-detail__content" data-testid="shop-card-detail" onClick={(event) => { if (event.target === event.currentTarget) dismiss() }}>
-			<div className="shop-detail__frame">
+			<div className="shop-detail__frame" ref={frame}>
 				<motion.div className="shop-detail__card" layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH}
-					style={{ borderRadius: 17, '--card-color': art.color, ...(home && { position: 'fixed', left: home.left, top: home.top, width: home.width }) } as CSSProperties}
+					style={{ borderRadius: radius(home ? home.width : frameWidth), '--card-color': art.color, ...(home && { position: 'fixed', left: home.left, top: home.top, width: home.width }) } as CSSProperties}
 					onLayoutAnimationComplete={() => { if (home) land.current?.() }}>
 					<div className="shop-float"><PassCard draft={draft} variant="shop" /></div>
 				</motion.div>
