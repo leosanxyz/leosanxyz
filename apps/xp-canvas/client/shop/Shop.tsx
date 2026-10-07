@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, usePresence } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion, usePresence } from 'motion/react'
 import { GACHAPON_DURATION } from '../../shared/gachaponShape'
 import { defaultHologram, defaultPass, type PassDraft, type RewardSkin } from '../../shared/pass'
 import {
@@ -44,6 +44,8 @@ const GATHER = { type: 'spring', duration: 0.5, bounce: 0 } as const
 /** Card widths in px. The corners scale with the card, 17 px at the row's 196 px, so a card keeps its look at every size and through every morph. */
 const CARD = { spread: 120, tray: 34, row: 196 }
 const radius = (width: number) => Math.round(width * 17 / 196)
+/** A scrolled strip's slide back to its start before the cards gather. */
+const REWIND_MS = 180, REWIND_EASE = cubicBezier(.19, 1, .22, 1)
 
 /** `hh:mm` until the next rotation, ticking every second. */
 function Countdown({ at }: { at: number }) {
@@ -301,16 +303,35 @@ function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onR
 		// The quiz held focus; the new title takes it, so keyboard and screen reader users hear it.
 		requestAnimationFrame(() => title.current?.focus({ preventScroll: true }))
 	}
+	/**
+	 * A scrolled strip slides back to its start before the cards gather. The deck does not scroll, and the browser would reset
+	 * the scroll in the gather's first frame, which Motion reads as a scroll rather than a move, so the cards would jump.
+	 */
+	function openQuiz(then?: () => void) {
+		const strip = list.current, from = strip?.scrollLeft ?? 0
+		const show = () => { then?.(); setOpen(true) }
+		if (!strip || !from) { show(); return }
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) { strip.scrollLeft = 0; show(); return }
+		// Snapping would pull each step back to the nearest card; the gather turns it off from here on.
+		strip.style.scrollSnapType = 'none'
+		const start = performance.now()
+		const step = (time: number) => {
+			const t = Math.min(1, (time - start) / REWIND_MS)
+			strip.scrollLeft = from * (1 - REWIND_EASE(t))
+			requestAnimationFrame(t < 1 ? step : () => { strip.style.scrollSnapType = ''; show() })
+		}
+		requestAnimationFrame(step)
+	}
 	async function retry() {
 		await onRetry()
-		setGraded(null); setOpen(true)
+		openQuiz(() => setGraded(null))
 	}
 	async function start() {
-		if (await onReview()) setOpen(true)
+		if (await onReview()) openQuiz()
 	}
 
 	const free = state.teacher ? <p className="shop-panel__note">Los alumnos ganan una tirada gratis al repasar 3 preguntas.</p>
-		: review.active ? <button className="shop-button" onClick={() => setOpen(true)}>Continuar repaso</button>
+		: review.active ? <button className="shop-button" onClick={() => openQuiz()}>Continuar repaso</button>
 		: <button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
 	const debug = import.meta.env.DEV && !state.teacher && view !== 'quiz'
 		&& <button type="button" className="shop-debug" onClick={() => void onDebugReset()}>Debug: reiniciar preguntas</button>
@@ -415,10 +436,15 @@ function Strip({ className, list: given, tray = false, gathering = false, cardWi
 		return () => { observer.disconnect(); strip.removeEventListener('scroll', update) }
 	}, [list, tray, gathering])
 	// Programmatic scrolls can still move an `overflow-y: hidden` box; the strip only ever scrolls sideways.
-	return <motion.ul ref={list} className={className} layoutScroll data-tray={tray || undefined} data-gathering={gathering || undefined} data-more={more} data-locked={locked || undefined} {...handlers}
-		style={{ '--card-w': `${cardWidth}px` } as CSSProperties} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
-		{children}
-	</motion.ul>
+	// Past an edge with more cards, the cards blur and fade out under an overlay; the wrapper holds the overlays over the scrolling list.
+	return <div className="shop-scroller" data-more={more}>
+		<motion.ul ref={list} className={className} layoutScroll data-tray={tray || undefined} data-gathering={gathering || undefined} data-more={more} data-locked={locked || undefined} {...handlers}
+			style={{ '--card-w': `${cardWidth}px` } as CSSProperties} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
+			{children}
+		</motion.ul>
+		<i className="shop-scroller__fade" data-side="left" aria-hidden="true" />
+		<i className="shop-scroller__fade" data-side="right" aria-hidden="true" />
+	</div>
 }
 
 const LETTERS = 'ABCD'
@@ -579,8 +605,9 @@ function ShopCard({ skin, faceUp = false, width, state, fresh = false, open, onR
 	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${art.name}` : 'Revelar carta'} onClick={press} />
 	return <div className="shop-card-slot" {...slot}>
 		<div className="shop-card-stage" ref={stage}>
-			{/* `layoutId` alone animates its layout too. It moves with the slot's spring, so the card never drifts inside a gathering slot; the morph uses the detail's own spring. */}
-			<motion.div layoutId={reduced ? undefined : morphId(skin)} transition={GATHER} style={{ borderRadius: radius(width) }}>
+			{/* `layoutId` alone animates its layout too. It moves with the slot's spring, so the card never drifts inside a gathering slot; the morph uses the detail's own spring.
+			    The machine's cards change size, so their corners ease with that spring too; the row's never do. */}
+			<motion.div layoutId={reduced ? undefined : morphId(skin)} transition={GATHER} {...(faceUp ? { initial: false, animate: { borderRadius: radius(width) } } : { style: { borderRadius: radius(width) } })}>
 				<PassCard draft={draft} variant="shop" back={!revealed} backFace={CARD_BACK} actions={actions} />
 			</motion.div>
 			{/* The flash reaches past the card, so it leaves once it fades; left behind, it let the row scroll vertically. */}
@@ -689,6 +716,6 @@ function ShopSkeleton() {
 				<div className="shop-skeleton__block shop-skeleton__review" />
 			</div>
 		</div>
-		<ul className="shop-row">{Array.from({ length: 6 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__sale" /></li>)}</ul>
+		<div className="shop-scroller"><ul className="shop-row">{Array.from({ length: 6 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__sale" /></li>)}</ul></div>
 	</div>
 }

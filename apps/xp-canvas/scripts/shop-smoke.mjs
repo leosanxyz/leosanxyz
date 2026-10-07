@@ -119,18 +119,22 @@ try {
 	assert.deepEqual(desk, { overflow: 'auto', overflowY: 'hidden', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too, never up or down')
 	const stripWidth = () => strip.evaluate((list) => Math.round(list.children[0].getBoundingClientRect().width))
 	assert.equal(await stripWidth(), 120, 'the strip\'s cards are 120 px wide')
-	/** Both rows fade an edge exactly where more cards wait past it. */
+	/** Both rows fade and blur an edge exactly where more cards wait past it. The blur's overlays fade in over 200 ms. */
 	for (const list of [strip, row]) {
 		const edges = await list.evaluate(async (element) => {
-			const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-			element.scrollLeft = 0; await frame()
-			const start = element.dataset.more ?? null, overflows = element.scrollWidth > element.clientWidth
-			element.scrollLeft = element.scrollWidth; await frame()
-			const end = element.dataset.more ?? null
-			element.scrollLeft = 0; await frame()
-			return { overflows, start, end }
+			const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
+			const fades = () => Object.fromEntries([...element.parentElement.querySelectorAll(':scope > .shop-scroller__fade')]
+				.map((fade) => [fade.dataset.side, `${getComputedStyle(fade).opacity}${getComputedStyle(fade).backdropFilter.includes('blur') ? ' blur' : ''}`]))
+			element.scrollLeft = 0; await settle()
+			const start = element.dataset.more ?? null, overflows = element.scrollWidth > element.clientWidth, startFades = fades(), mask = getComputedStyle(element).maskImage
+			element.scrollLeft = element.scrollWidth; await settle()
+			const end = element.dataset.more ?? null, endFades = fades()
+			element.scrollLeft = 0; await settle()
+			return { overflows, start, end, startFades, endFades, mask: overflows ? null : mask }
 		})
-		assert.deepEqual(edges, edges.overflows ? { overflows: true, start: 'right', end: 'left' } : { overflows: false, start: null, end: null }, 'the edges fade only where cards continue')
+		assert.deepEqual(edges, edges.overflows
+			? { overflows: true, start: 'right', end: 'left', startFades: { left: '0 blur', right: '1 blur' }, endFades: { left: '1 blur', right: '0 blur' }, mask: null }
+			: { overflows: false, start: null, end: null, startFades: { left: '0 blur', right: '0 blur' }, endFades: { left: '0 blur', right: '0 blur' }, mask: 'none' }, 'the edges fade and blur only where cards continue')
 	}
 	/** The rows never scroll vertically: nothing reaches past them and they stay at the top. */
 	const rowStill = async (moment) => {
@@ -249,6 +253,12 @@ try {
 	const clips = () => student.evaluate(() => ({ strip: getComputedStyle(document.querySelector('.shop-strip')).overflowX, panel: getComputedStyle(document.querySelector('.shop-panel')).overflowX }))
 	await student.waitForTimeout(Math.max(0, 120 - (Date.now() - gatherStarted)))
 	assert.deepEqual(await clips(), { strip: 'visible', panel: 'visible' }, 'nothing clips the cards while they gather')
+	// The corners ease with the gather: mid-way they sit between the spread card's 10 px and the thumbnail's 3 px. Mid-animation Motion writes them as a share of the box.
+	const midCorner = await strip.evaluate((list) => {
+		const card = list.querySelector('.pass-card'), value = getComputedStyle(card).borderTopLeftRadius
+		return value.endsWith('%') ? parseFloat(value) / 100 * card.getBoundingClientRect().width : parseFloat(value)
+	})
+	assert(midCorner > 3 && midCorner < 10, `the corners ease with the gather (${midCorner} px at 120 ms)`)
 	assert.equal(await student.locator('[role="dialog"]').count(), 0, 'the review lives in the panel')
 	assert.equal((await panel.boundingBox()).width, panelWidth, 'the panel keeps its width')
 	assert.equal((await hero.boundingBox()).height, heroHeight, 'the machine sets the panel height')
@@ -269,8 +279,8 @@ try {
 	assert.equal(await student.locator('.shop-tray').count(), 0, 'no capsule around the deck')
 	assert.deepEqual(await strip.evaluate((list) => {
 		const first = list.children[0].getBoundingClientRect(), last = list.lastElementChild.getBoundingClientRect(), box = list.getBoundingClientRect()
-		return { overflow: getComputedStyle(list).overflowX, scrolls: list.scrollWidth > list.clientWidth, more: list.dataset.more ?? null, centred: Math.abs((first.left + last.right) / 2 - (box.left + box.right) / 2) <= 1 }
-	}), { overflow: 'visible', scrolls: false, more: null, centred: true }, 'the deck is centred and never scrolls')
+		return { overflow: getComputedStyle(list).overflowX, scrolls: list.scrollWidth > list.clientWidth, more: list.dataset.more ?? null, mask: getComputedStyle(list).maskImage, centred: Math.abs((first.left + last.right) / 2 - (box.left + box.right) / 2) <= 1 }
+	}), { overflow: 'visible', scrolls: false, more: null, mask: 'none', centred: true }, 'the deck is centred, never scrolls and fades nothing')
 	assert.deepEqual(await focused(), [], 'nothing is focused at rest')
 	assert.equal(await preview.count(), 0, 'no preview at rest')
 	// Hovering a thumbnail focuses it and raises its preview; leaving the deck clears both.
@@ -512,6 +522,56 @@ try {
 	assert.equal((await (await teacher.request.get('/api/portal/roster')).json()).students.find((s) => s.id === id).points, 105, 'teacher sees the net balance')
 	await student.screenshot({ path: '/tmp/shop-after.png', fullPage: true })
 
+	// The page never scrolls sideways, at rest, as the cards gather, in the quiz or on the failed step. A second student keeps the first one's review attempts.
+	{
+		const other = `Q${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`
+		assert.equal((await teacher.request.post('/api/portal/students', { data: { students: [{ username: other, name: 'Bea Tienda' }] } })).status(), 201)
+		const otherId = (await (await teacher.request.get('/api/portal/roster')).json()).students.find((s) => s.username === other).id
+		const bea = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } })
+		assert.equal((await bea.request.post('/api/portal/login', { data: { username: other, password: other } })).status(), 200)
+		assert.equal((await bea.request.post('/api/portal/password', { data: { password: 'qa-shop-password' } })).status(), 200)
+		const draft = await (await bea.request.get('/api/portal/pass')).json()
+		assert.equal((await bea.request.put('/api/portal/pass', { data: { draft: { ...draft.draft, step: 4, opened: true, signature: { kind: 'drawn', strokes: [[[20, 100], [100, 45], [160, 220]]] } }, revision: draft.revision, completed: true } })).status(), 200)
+		const { grants } = await (await teacher.request.get(`/api/portal/boards/${board.id}/access`)).json()
+		assert.equal((await teacher.request.put(`/api/portal/boards/${board.id}/access`, { data: { grants: [...grants, { kind: 'user', subjectId: otherId }] } })).status(), 200)
+		// The review draws on the boards the student can open, so access is enough.
+		const wide = await bea.newPage()
+		wide.on('pageerror', (error) => errors.push(error.message))
+		const flat = async (moment) => assert.deepEqual(await wide.evaluate(() => [document.scrollingElement, document.querySelector('.board-main')].map((box) => [box.scrollWidth - box.clientWidth, box.scrollLeft])),
+			[[0, 0], [0, 0]], `the page never scrolls sideways ${moment}`)
+		const otherQuiz = wide.getByTestId('shop-review')
+		for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
+			const at = `at ${viewport.width} × ${viewport.height}`
+			await wide.setViewportSize(viewport)
+			await wide.goto('/tienda')
+			await wide.locator('.shop-row .shop-card').first().waitFor()
+			await wide.waitForTimeout(700)
+			await flat(`at rest ${at}`)
+			await wide.getByRole('button', { name: 'Repasar 3 preguntas' }).click()
+			await otherQuiz.waitFor()
+			const opened = Date.now()
+			await wide.waitForTimeout(Math.max(0, 120 - (Date.now() - opened)))
+			await flat(`as the cards gather ${at}`)
+			await wide.waitForTimeout(700)
+			await flat(`in the quiz ${at}`)
+			const box = await otherQuiz.boundingBox()
+			await wide.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+			await wide.mouse.wheel(300, 0)
+			await wide.waitForTimeout(400)
+			await flat(`after a sideways wheel over the quiz ${at}`)
+			for (let n = 1; n <= 3; n++) {
+				await otherQuiz.locator(`.shop-review__progress i:nth-child(${n})[data-state="current"]`).waitFor()
+				const [, answers, correct] = correctFor(await otherQuiz.locator('.shop-review__question').innerText())
+				await otherQuiz.getByRole('button', { name: answers[(correct + 1) % 4], exact: true }).click()
+				await otherQuiz.locator('.shop-review__answer[data-result]').first().waitFor()
+			}
+			await wide.getByRole('heading', { name: 'Casi' }).waitFor()
+			await wide.waitForTimeout(700)
+			await flat(`on the failed step ${at}`)
+		}
+		await bea.close()
+	}
+
 	// The teacher previews the shop without buying.
 	await page.goto('/tienda')
 	await page.getByTestId('portal-shop').waitFor()
@@ -560,5 +620,5 @@ try {
 	await mobile.getByTestId('shop-card-detail').waitFor({ state: 'detached' })
 	await mobile.screenshot({ path: '/tmp/shop-phone.png', fullPage: true })
 	assert.deepEqual(errors, [])
-	console.log('Shop smoke passed: the machine\'s daily cards in the hero strip with a tray during the quiz, six-hour cards for sale, dot, card reveals, daily gift, per-question review in the panel with a centred deck, hover focus and floating preview, resume, retry, a rain inside the panel and free spin, paid spin, purchase in the detail, instant reopen, a row that never scrolls vertically, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
+	console.log('Shop smoke passed: the machine\'s daily cards in the hero strip with a tray during the quiz, six-hour cards for sale, dot, card reveals, daily gift, per-question review in the panel with a centred deck, hover focus and floating preview, resume, retry, a rain inside the panel and free spin, paid spin, purchase in the detail, instant reopen, a row that never scrolls vertically, blurred edges, corners that ease with the gather, a page that never scrolls sideways, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
 } finally { await browser.close() }

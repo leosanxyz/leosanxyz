@@ -62,12 +62,13 @@
 .shop-button:enabled:active { transform: translateY(1px) scale(.98); }
 .shop-button:disabled { opacity: .55; cursor: default; }
 
-/* The machine's cards in one row that scrolls sideways at every width, never up or down. The padding leaves room for the shadows and the hover lift; the margins take it back. */
-.shop-strip { display: flex; gap: 10px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; margin: -12px -16px -40px; padding: 12px 16px 48px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* The machine's cards in one row that scrolls sideways at every width, never up or down. The padding leaves room for the shadows and the hover lift; its wrapper's margins take it back. */
+.shop-strip { display: flex; gap: 10px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; padding: 12px 16px 48px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .shop-strip::-webkit-scrollbar { display: none; }
 .shop-strip[data-locked] { overflow-x: hidden; }
 /* During the quiz the cards gather into a small deck centred over the questions. Six overlapped thumbnails always fit, so it never scrolls. */
-.shop-strip[data-tray] { gap: 0; justify-content: center; overflow: visible; scroll-snap-type: none; height: auto; margin: 0; padding: 14px 0; }
+.shop-strip[data-tray] { gap: 0; justify-content: center; overflow: visible; scroll-snap-type: none; height: auto; padding: 14px 0; }
+.shop-scroller:has(> .shop-strip[data-tray]) { margin: 0; }
 .shop-strip[data-tray] > li { z-index: 1; }
 .shop-strip[data-tray] > li + li { margin-left: -9px; }
 .shop-strip[data-tray] .shop-card-stage { transition: transform 200ms cubic-bezier(.19, 1, .22, 1), box-shadow 200ms ease, filter 420ms ease; }
@@ -81,12 +82,13 @@
 /* The focused card at full size, risen over the quiz while the pointer stays on its thumbnail. */
 .shop-tray__preview { position: absolute; top: 64px; z-index: 3; width: 150px; perspective: 900px; pointer-events: none; transform-origin: top center; }
 .shop-tray__preview .shop-float { --float-ms: 4200ms; animation-delay: 0ms; }
-/* More cards past an edge: that edge fades over the strip's own padding. */
-.shop-strip[data-more] { mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent); }
-.shop-strip[data-more='left'] { mask-image: linear-gradient(to right, transparent, #000 16px); }
-.shop-strip[data-more='right'] { mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); }
+/* More cards past an edge: that edge fades out on an eased ramp, under the wrapper's blur. */
+.shop-strip[data-more='both'] { mask-image: linear-gradient(to right, transparent 0, #0006 12px, #000d 26px, #000 40px, #000 calc(100% - 40px), #000d calc(100% - 26px), #0006 calc(100% - 12px), transparent 100%); }
+.shop-strip[data-more='left'] { mask-image: linear-gradient(to right, transparent 0, #0006 12px, #000d 26px, #000 40px); }
+.shop-strip[data-more='right'] { mask-image: linear-gradient(to right, #000 calc(100% - 40px), #000d calc(100% - 26px), #0006 calc(100% - 12px), transparent 100%); }
 /* While the cards gather or spread they keep their old size for a few frames; neither the strip nor the panel clips them against their new boxes, only the hero's rounded edge. */
 .shop-strip[data-gathering] { overflow: visible; mask-image: none; }
+.shop-scroller:has(> .shop-strip[data-gathering]) .shop-scroller__fade { display: none; }
 .shop-panel[data-gathering] { overflow: visible; }
 /* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
 .shop-strip > li { flex: 0 0 var(--card-w); aspect-ratio: .686; scroll-snap-align: start; }
@@ -95,18 +97,29 @@
 .shop-strip .shop-card-stage { transition: transform 320ms cubic-bezier(.2, .9, .3, 1.2), filter 420ms ease; }
 .shop-strip .shop-card-slot[data-owned='true'] .shop-card-stage { filter: grayscale(.9) brightness(.85); }
 
+/* Each scroller sits in a wrapper that takes back its padding with negative margins and holds a progressive blur over each edge where more cards wait. */
+.shop-scroller { position: relative; }
+.shop-scroller:has(> .shop-strip) { margin: -12px -16px -40px; }
+.shop-scroller:has(> .shop-row) { margin: -20px -20px -40px; }
+.shop-scroller__fade { position: absolute; top: 0; bottom: 0; width: 72px; pointer-events: none; opacity: 0; transition: opacity 200ms ease; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.shop-scroller:has(> .shop-strip) .shop-scroller__fade { width: 56px; }
+.shop-scroller__fade[data-side='left'] { left: 0; mask-image: linear-gradient(to right, #000 0, #000 28%, transparent 100%); }
+.shop-scroller__fade[data-side='right'] { right: 0; mask-image: linear-gradient(to left, #000 0, #000 28%, transparent 100%); }
+.shop-scroller:is([data-more='left'], [data-more='both']) .shop-scroller__fade[data-side='left'],
+.shop-scroller:is([data-more='right'], [data-more='both']) .shop-scroller__fade[data-side='right'] { opacity: 1; }
+
 /* The cards for sale, under the hero, with the clock of their next rotation beside the title. */
 .shop-cards { position: relative; scroll-margin-top: 76px; }
 .shop-cards__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 20px; }
 .shop-cards__meter { display: flex; align-items: baseline; gap: 6px; margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
 .shop-cards__meter svg { align-self: center; }
-/* One row that scrolls sideways at every width, never up or down: six cards, then the gift. The padding leaves room for the shadows and the hover lift; the margins take it back. */
-.shop-row { display: flex; gap: 16px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; margin: -20px -20px -40px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* One row that scrolls sideways at every width, never up or down: six cards, then the gift. The padding leaves room for the shadows and the hover lift; its wrapper's margins take it back. */
+.shop-row { display: flex; gap: 16px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .shop-row::-webkit-scrollbar { display: none; }
 .shop-row[data-locked] { overflow-x: hidden; }
-.shop-row[data-more] { mask-image: linear-gradient(to right, transparent, #000 20px, #000 calc(100% - 20px), transparent); }
-.shop-row[data-more='left'] { mask-image: linear-gradient(to right, transparent, #000 20px); }
-.shop-row[data-more='right'] { mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent); }
+.shop-row[data-more='both'] { mask-image: linear-gradient(to right, transparent 0, #0006 17px, #000d 36px, #000 56px, #000 calc(100% - 56px), #000d calc(100% - 36px), #0006 calc(100% - 17px), transparent 100%); }
+.shop-row[data-more='left'] { mask-image: linear-gradient(to right, transparent 0, #0006 17px, #000d 36px, #000 56px); }
+.shop-row[data-more='right'] { mask-image: linear-gradient(to right, #000 calc(100% - 56px), #000d calc(100% - 36px), #0006 calc(100% - 17px), transparent 100%); }
 /* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
 .shop-row > li { flex: 0 0 var(--card-w); aspect-ratio: .686; scroll-snap-align: start; }
 
@@ -169,8 +182,8 @@
 /* Coins fly to the counter above the page; `coins.ts` moves them. */
 .shop-flight__coin { position: fixed; z-index: 30; left: 0; top: 0; width: 18px; height: 18px; pointer-events: none; opacity: 0; box-shadow: inset 0 0 0 1.5px #d38d1c, 0 2px 6px #0004; }
 
-/* The daily gift: a gold ticket the size of a card. */
-.shop-gift { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; aspect-ratio: .686; padding: 8%; overflow: hidden;
+/* The daily gift: a gold ticket the size of a card. Positioned, so its screen-reader text stays inside its clip instead of widening the page past the row. */
+.shop-gift { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; aspect-ratio: .686; padding: 8%; overflow: hidden;
 	border: 1px solid #ffffff70; border-radius: 17px; container-type: inline-size; text-align: center; transition: filter 420ms ease;
 	background: linear-gradient(165deg, #ffe08a, #ffb13d); box-shadow: 0 1px 2px #0004, 0 12px 20px -14px #000a, 0 35px 40px -27px #0006, inset 0 0 0 1px #fff2; }
 .shop-gift[data-claimed='true'] { filter: grayscale(.9) brightness(.8); }
@@ -252,6 +265,10 @@
 @media (max-width: 650px) {
 	.shop-hero { margin: 0 -6px 18px; padding: 0 14px 14px; border-radius: 24px; }
 	.shop-review__answers { grid-template-columns: minmax(0, 1fr); }
+	.shop .shop-scroller .shop-scroller__fade { width: 48px; }
+	/* The page's padding is 16 px here; the row's room for shadows stays inside it, so the page never scrolls sideways. */
+	.shop-scroller:has(> .shop-row) { margin-inline: -16px; }
+	.shop-row { padding-inline: 16px; scroll-padding-inline: 16px; }
 	.shop-points strong { font-size: 16px; }
 }
 @media (max-width: 340px) { .shop-machine-frame { width: 255px; height: 374px; }.shop-machine { transform: scale(.85); transform-origin: top left; } }
