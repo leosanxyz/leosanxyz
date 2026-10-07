@@ -1,4 +1,4 @@
-/* A small warm shopfront on the sidebar's cool panel, in the gachapon palette. The cards stand on the page itself. */
+/* A small warm shopfront on the sidebar's cool panel, in the gachapon palette. The cards for sale stand on the page itself. */
 .shop { --shop-bg: #eaf0f1; --shop-ink: #3d1a10; --shop-text: #7a4b3c; --shop-muted: #a3786a; --shop-line: #f2dfcd; --shop-action: #c64a30;
 	position: relative; max-width: 1180px; color: var(--shop-ink); }
 .shop *, .shop-detail * { box-sizing: border-box; }
@@ -35,39 +35,75 @@
 .shop-machine .gachapon__status, .shop-machine .gachapon__base p:not(.xp-sr-only) { position: absolute; top: auto; bottom: -30px; left: 50%; right: auto; width: max-content; max-width: 320px; margin: 0; padding: 7px 14px;
 	border-radius: 999px; background: #fffdf9; color: #8a3a2c; font-size: 13px; font-weight: 700; text-align: center; transform: translateX(-50%); box-shadow: 0 0 0 1px var(--shop-line), 0 6px 16px -10px #b0603a66; }
 
-/* The machine sets the panel's height; a taller ticket scrolls inside. The margin keeps it clear of the sticky header when the review scrolls it into view. */
-.shop-ticket { --ticket-pad: 28px; position: relative; align-self: center; max-width: 520px; max-height: 440px; overflow-y: auto; scrollbar-width: none; scroll-margin: 96px 0 24px;
-	padding: var(--ticket-pad); border-radius: 24px; background: #fffdf9; box-shadow: 0 0 0 1px var(--shop-line), 0 22px 44px -26px #b0603a59; }
-.shop-ticket::-webkit-scrollbar { display: none; }
-.shop .shop-ticket__title { margin: 0 0 24px; font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: normal; color: var(--shop-ink); outline: none; animation: shop-fade 180ms ease both; }
+/* The machine sets the hero's height; a taller column scrolls inside. Its side padding gives the strip's fades room past the column, which overflow would clip;
+   the margin keeps it clear of the sticky header when the review scrolls it into view. */
+.shop-panel { position: relative; align-self: center; min-width: 0; max-height: 440px; overflow-y: auto; scrollbar-width: none; padding: 12px 16px; margin: -12px -16px; scroll-margin: 96px 0 24px; }
+.shop-panel::-webkit-scrollbar { display: none; }
+.shop-panel__content { margin-top: 18px; animation: shop-fade 180ms ease both; }
+/* The quiz rises in as the cards gather above it. */
+.shop-panel__content[data-view='quiz'] { animation: shop-quiz-in 220ms 120ms cubic-bezier(.19, 1, .22, 1) both; }
+@keyframes shop-quiz-in { from { opacity: 0; transform: translateY(8px); } }
+.shop .shop-panel__title { margin: 0 0 14px; font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: normal; color: var(--shop-ink); outline: none; animation: shop-fade 180ms ease both; }
 /* Earned, spent or out of reach: the title alone. */
-.shop .shop-ticket[data-outcome] .shop-ticket__title { margin: 0; }
-/* The perforation: a dashed line with two half circles cut into the edges. */
-.shop-ticket__free { position: relative; display: flex; align-items: center; min-height: 68px; padding-top: 24px; border-top: 2px dashed #f0d2b8; }
-.shop-ticket__free::before, .shop-ticket__free::after { content: ''; position: absolute; top: -14px; width: 26px; height: 26px; border-radius: 50%; background: var(--shop-bg); }
-.shop-ticket__free::before { left: calc(-1 * var(--ticket-pad) - 14px); box-shadow: inset -2px 0 0 var(--shop-line); }
-.shop-ticket__free::after { right: calc(-1 * var(--ticket-pad) - 14px); box-shadow: inset 2px 0 0 var(--shop-line); }
-/* Below the perforation: the review, or the button that opens it. Each step, each question and each title fade in over the last. */
-.shop-ticket__step, .shop-review__step { width: 100%; animation: shop-fade 180ms ease both; }
-.shop-ticket__step[data-view='free'] { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.shop .shop-panel[data-outcome] .shop-panel__title { margin: 0; }
+/* Below the title: the review, or the button that opens it. Each question fades in over the last. */
+.shop-panel__step, .shop-review__step { width: 100%; }
+.shop-review__step { animation: shop-fade 180ms ease both; }
+.shop-panel__step[data-view='free'] { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 @keyframes shop-fade { from { opacity: 0; } }
-.shop-ticket h3 { margin: 0; outline: none; color: var(--shop-ink); }
-.shop-ticket__note { margin: 0; color: var(--shop-muted); font-size: 14px; }
+.shop-panel h3 { margin: 0; outline: none; color: var(--shop-ink); }
+.shop-panel__note { margin: 0; color: var(--shop-muted); font-size: 14px; }
 .shop-button { min-height: 44px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--shop-action); color: #fff; font-weight: 650; box-shadow: 0 2px 0 #9e3a24;
 	transition: transform 120ms ease, background-color 160ms ease; }
 .shop-button:enabled:active { transform: translateY(1px) scale(.98); }
 .shop-button:disabled { opacity: .55; cursor: default; }
 
+/* The machine's cards in one row that scrolls sideways at every width, never up or down. The padding leaves room for the shadows and the hover lift; the margins take it back. */
+.shop-strip { --card-w: 120px; display: flex; gap: 10px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; margin: -12px -16px -40px; padding: 12px 16px 48px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.shop-strip::-webkit-scrollbar { display: none; }
+.shop-strip[data-locked] { overflow-x: hidden; }
+/* During the quiz the cards gather into a small deck centred over the questions. Six overlapped thumbnails always fit, so it never scrolls. */
+.shop-strip[data-tray] { --card-w: 34px; gap: 0; justify-content: center; overflow: visible; scroll-snap-type: none; height: auto; margin: 0; padding: 14px 0; }
+.shop-strip[data-tray] > li { z-index: 1; }
+.shop-strip[data-tray] > li + li { margin-left: -9px; }
+/* At 34 px the card's 17 px corners would make pills; they match the focus ring instead. */
+.shop-strip[data-tray] .pass-card, .shop .shop-strip[data-tray] .shop-card { border-radius: 6px; }
+.shop-strip[data-tray] .shop-card-stage { transition: transform 200ms cubic-bezier(.19, 1, .22, 1), box-shadow 200ms ease, filter 420ms ease; }
+/* The gather and the spread are the slots' layout animation alone. Snapping would re-snap to the moving cards and scroll the strip against their slide. */
+.shop-strip[data-gathering] { scroll-snap-type: none; }
+.shop-strip[data-gathering] .shop-card-stage { transition: filter 420ms ease; }
+.shop .shop-strip[data-gathering] .shop-card-slot .shop-card-stage { transform: none; }
+/* The thumbnail under the pointer rises out of the deck with a white ring. */
+.shop-strip[data-tray] > li[data-focus] { z-index: 2; }
+.shop-strip[data-tray] > li[data-focus] .shop-card-stage { transform: translateY(-6px) scale(1.25); box-shadow: 0 0 0 2px #fff, 0 8px 16px -8px #3d1a1099; border-radius: 6px; }
+/* The focused card at full size, risen over the quiz while the pointer stays on its thumbnail. */
+.shop-tray__preview { position: absolute; top: 64px; z-index: 3; width: 150px; perspective: 900px; pointer-events: none; transform-origin: top center; }
+.shop-tray__preview .shop-float { --float-ms: 4200ms; animation-delay: 0ms; }
+/* More cards past an edge: that edge fades over the strip's own padding. */
+.shop-strip[data-more] { mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent); }
+.shop-strip[data-more='left'] { mask-image: linear-gradient(to right, transparent, #000 16px); }
+.shop-strip[data-more='right'] { mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); }
+/* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
+.shop-strip > li { flex: 0 0 var(--card-w); aspect-ratio: .686; scroll-snap-align: start; }
+
+/* The machine's cards are always face up; owned ones fade to grey, like a claimed gift. */
+.shop-strip .shop-card-stage { transition: transform 320ms cubic-bezier(.2, .9, .3, 1.2), filter 420ms ease; }
+.shop-strip .shop-card-slot[data-owned='true'] .shop-card-stage { filter: grayscale(.9) brightness(.85); }
+
+/* The cards for sale, under the hero, with the clock of their next rotation beside the title. */
 .shop-cards { position: relative; scroll-margin-top: 76px; }
 .shop-cards__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 20px; }
-.shop-countdown { margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.shop-cards__meter { display: flex; align-items: baseline; gap: 6px; margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.shop-cards__meter svg { align-self: center; }
 /* One row that scrolls sideways at every width, never up or down: six cards, then the gift. The padding leaves room for the shadows and the hover lift; the margins take it back. */
 .shop-row { display: flex; gap: 16px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; margin: -20px -20px -40px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .shop-row::-webkit-scrollbar { display: none; }
 .shop-row[data-locked] { overflow-x: hidden; }
+.shop-row[data-more] { mask-image: linear-gradient(to right, transparent, #000 20px, #000 calc(100% - 20px), transparent); }
+.shop-row[data-more='left'] { mask-image: linear-gradient(to right, transparent, #000 20px); }
+.shop-row[data-more='right'] { mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent); }
 /* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
-.shop-row > li { flex: 0 0 196px; aspect-ratio: .686; scroll-snap-align: start; animation: shop-card-in 520ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
-@keyframes shop-card-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
+.shop-row > li { flex: 0 0 196px; aspect-ratio: .686; scroll-snap-align: start; }
 
 /* The profile card does the tilt, light and flip; the shop adds a button over it, and a breathing glow under a face-down card. */
 .shop-card-stage { position: relative; isolation: isolate; transition: transform 320ms cubic-bezier(.2, .9, .3, 1.2); }
@@ -98,13 +134,22 @@
 /* The detail: the card at full size over a dark veil, with its name and one button. */
 .shop-detail { position: fixed; inset: 0; z-index: 10000; display: flex; padding: 72px 16px 24px; overflow: auto; }
 .shop-detail-overlay { position: fixed; inset: 0; background: #1b1322e0; }
-/* A closing detail never catches a click: the row works while its card flies home. */
+/* A closing detail never catches a click: the strip works while its card flies home. */
 .shop-detail[data-leaving='true'], .shop-detail[data-leaving='true'] * { pointer-events: none; }
 .shop-detail__content { --pass-card-w: min(360px, 78vw); position: relative; display: flex; flex-direction: column; align-items: center; margin: auto; }
 .shop-detail__text { display: flex; flex-direction: column; align-items: center; }
 /* The frame holds the card's place while it flies back to its slot. */
 .shop-detail__frame { width: var(--pass-card-w); aspect-ratio: .686; }
-.shop-detail__card { position: relative; width: 100%; }
+.shop-detail__card { position: relative; width: 100%; perspective: 1200px; }
+/* Once the morph lands, the card floats; it starts and ends at rest, and the pointer's tilt takes over while it hovers. */
+.shop-float { transform-style: preserve-3d; animation: shop-float 5200ms 600ms ease-in-out infinite; animation-duration: var(--float-ms, 5200ms); }
+@keyframes shop-float {
+	0%, 100% { transform: none; }
+	25% { transform: rotateY(4deg) rotateX(-2deg) translateY(-6px); }
+	75% { transform: rotateY(-4deg) rotateX(2deg) translateY(-2px); }
+}
+.shop-float:hover { animation-play-state: paused; }
+.shop-detail[data-leaving='true'] .shop-float { animation: none; }
 .shop-detail__name { margin: 18px 0 0; color: #fff3e2; font-size: 18px; font-weight: 650; line-height: 1.3; text-align: center; }
 .shop-detail__buy { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; margin-top: 14px; padding: 0 24px; border: 1px solid transparent; border-radius: 14px;
 	background: #c64a30; color: #fff; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color 160ms ease; }
@@ -145,17 +190,20 @@
 .shop-skeleton__block { border-radius: 16px; background: linear-gradient(100deg, #f6e4d5 30%, #fbefe5 50%, #f6e4d5 70%) 0 0 / 300% 100%; animation: shop-shimmer 1400ms ease-in-out infinite; }
 .shop-skeleton .shop-hero { background: none; padding: 0; }
 .shop-skeleton__machine { width: 300px; height: 440px; border-radius: 120px 120px 40px 40px; }
-.shop-skeleton__ticket { height: 300px; }
-.shop-skeleton__card { aspect-ratio: .686; }
+.shop-skeleton__panel { display: grid; gap: 18px; min-width: 0; }
+.shop-skeleton__bar { height: 20px; }
+.shop-skeleton__row { display: flex; gap: 10px; overflow: hidden; }
+.shop-skeleton__card { flex: 0 0 56px; height: 82px; border-radius: 10px; }
+.shop-skeleton__review { height: 120px; }
+.shop-skeleton__sale { aspect-ratio: .686; }
 @keyframes shop-shimmer { to { background-position: -150% 0; } }
 
-/* Review, inside the ticket */
+/* Review, on the panel */
 .shop-review__progress { display: flex; gap: 6px; margin-bottom: 10px; }
 .shop-review__progress i { flex: 1; height: 6px; border-radius: 999px; background: #f1e1d3; transition: background-color 220ms ease; }
 .shop-review__progress i[data-state='done'] { background: #e9694f; }
 .shop-review__progress i[data-state='current'] { background: #ffc54a; }
-.shop-review__count { margin: 0 0 6px; color: #a0705c; font-size: 13px; font-weight: 650; }
-.shop-ticket .shop-review__question { margin-bottom: 16px; font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.shop-panel .shop-review__question { margin-bottom: 16px; font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -.015em; overflow-wrap: anywhere; }
 .shop-review__answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .shop-review__answer { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 10px 14px; border: 1.5px solid #f0dccb; border-radius: 14px; background: #fff;
 	color: var(--shop-ink); font-size: 16px; text-align: left; overflow-wrap: anywhere; transition: border-color 160ms ease, background-color 160ms ease, transform 120ms ease; }
@@ -170,17 +218,17 @@
 .shop-review__answer[data-result='wrong'] > span { background: #c64a30; color: #fff; }
 .shop-review__answers[data-shake] { animation: shop-shake 320ms ease-in-out; }
 @keyframes shop-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
-.shop-review__footer { display: flex; align-items: center; gap: 10px; }
-.shop .shop-review__close { padding: 6px 0; border: 0; background: none; color: #8a4a35; font-size: 13px; }
 .shop .shop-review__back { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 12px; background: transparent; color: #8a4a35; font-weight: 650; }
 .shop-review__result { display: grid; justify-items: center; gap: 10px; isolation: isolate; text-align: center; }
-.shop-ticket .shop-review__result h3 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.shop-panel .shop-review__result h3 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
 .shop-review__result > p { margin: 0; color: #7a4b3c; font-size: 14px; line-height: 1.5; }
 @media (hover: hover) and (pointer: fine) {
 	/* The slot under the pointer lifts; the tilt lives on the card inside, and an open card stays put for the morph. */
 	.shop-card-stage { transition: transform 220ms cubic-bezier(.2, .9, .3, 1); }
 	.shop-gift { transition: transform 220ms cubic-bezier(.2, .9, .3, 1), filter 420ms ease; }
 	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: translateY(-8px); }
+	.shop-strip[data-tray] > li:not([data-focus]) .shop-card-slot:hover .shop-card-stage { transform: none; }
+	.shop-strip .shop-card-stage { transition: transform 220ms cubic-bezier(.2, .9, .3, 1), filter 420ms ease; }
 	.shop-card-slot[data-open='true'] .shop-card-stage { transform: none; }
 	.shop .shop-gift__claim:enabled:hover { background: #b34129; }
 	.shop-button:enabled:hover, .shop-detail__buy[data-mode='buy']:hover { background: #b34129; }
@@ -191,20 +239,21 @@
 @media (hover: none) { .shop-card-slot:has(.shop-card:active) .shop-card-stage { transform: scale(.98); transition-duration: 120ms; } }
 @media (max-width: 900px) {
 	.shop-hero { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 12px; padding: 0 24px 24px; }
-	.shop-ticket { width: 100%; max-width: 560px; }
+	.shop-panel { width: calc(100% + 32px); }
 }
 @media (max-width: 650px) {
 	.shop-hero { margin: 0 -6px 18px; padding: 0 14px 14px; border-radius: 24px; }
-	.shop-ticket { --ticket-pad: 20px; }
 	.shop-review__answers { grid-template-columns: minmax(0, 1fr); }
 	.shop-points strong { font-size: 16px; }
 }
 @media (max-width: 340px) { .shop-machine-frame { width: 255px; height: 374px; }.shop-machine { transform: scale(.85); transform-origin: top left; } }
 @media (prefers-reduced-motion: reduce) {
-	.shop-points strong, .shop-row > li, .shop-card-stage, .shop-card-stage::before, .shop-burst, .shop-toast, .shop-skeleton__block,
-	.shop-ticket__title, .shop-ticket__step, .shop-review__step, .shop-review__answers { animation: none !important; }
+	.shop-points strong, .shop-card-stage, .shop-card-stage::before, .shop-burst, .shop-toast, .shop-skeleton__block, .shop-float,
+	.shop-panel__title, .shop-panel__content, .shop-review__step, .shop-review__answers { animation: none !important; }
+	/* The quiz still fades in, at once. */
+	.shop-panel__content[data-view='quiz'] { animation: shop-fade 220ms ease both !important; }
 	.shop-burst { display: none; }
-	.shop-card-stage, .shop-gift, .shop-detail__buy, .shop-review__answer, .shop-review__progress i { transition: none !important; }
+	.shop-card-stage, .shop-strip .shop-card-stage, .shop-gift, .shop-detail__buy, .shop-review__answer, .shop-review__progress i { transition: none !important; }
 	.shop-review__answer:active { transform: none; }
 	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: none; }
 }

@@ -6,7 +6,7 @@ import { body, json, PortalError } from './portalHttp'
 import type { BoardLibrary } from '../shared/boards'
 import { isRewardSkin, type RewardSkin } from '../shared/pass'
 import {
-	giftAmount, giftStreak, nextShopRotation, SHOP_CARD_COST, SHOP_GIFT_POINTS, SHOP_REVEAL_POINTS, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool,
+	gachaPool, giftAmount, giftStreak, nextShopRotation, SHOP_CARD_COST, SHOP_GIFT_POINTS, SHOP_REVEAL_POINTS, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool, shopSlot,
 	type FreeSpinState, type ShopGift, type ShopGiftClaim, type ShopAnswer, type ShopPurchase, type ShopQuestion, type ShopReveal, type ShopSpin, type ShopState,
 } from '../shared/shop'
 
@@ -33,10 +33,10 @@ async function student(session: AuthSession, env: CanvasEnv, day: string) {
 	return { points, owned: owned.results.map((row) => row.skin), reviews: reviews.results, freeSpin }
 }
 
-/** Today's turned cards, from their point awards `["shop-reveal", user, day, skin]`. */
-async function revealed(env: CanvasEnv, userId: string, day: string) {
+/** The cards for sale turned in this rotation, from their point awards `["shop-reveal", user, slot, skin]`. */
+async function revealed(env: CanvasEnv, userId: string, slot: string) {
 	const rows = await portalDb(env).prepare("SELECT json_extract(source_key, '$[3]') AS skin FROM point_awards WHERE user_id = ? AND activity_kind = 'shop-reveal' AND json_extract(source_key, '$[2]') = ?")
-		.bind(userId, day).all<{ skin: RewardSkin }>()
+		.bind(userId, slot).all<{ skin: RewardSkin }>()
 	return rows.results.map((row) => row.skin)
 }
 
@@ -84,12 +84,13 @@ async function collectQuestions(session: AuthSession, env: CanvasEnv): Promise<S
 }
 
 export async function handleShopRequest(request: Request, session: AuthSession, env: CanvasEnv, path: string, method: string): Promise<Response> {
-	const now = Date.now(), day = shopDay(now), pool = shopPool(day)
-	const shared = { day, pool, rotatesAt: nextShopRotation(now), spinCost: SHOP_SPIN_COST, cardCost: SHOP_CARD_COST }
+	// The machine's prizes change daily; the cards for sale every six hours, never among the machine's.
+	const now = Date.now(), day = shopDay(now), slot = shopSlot(now), pool = gachaPool(day), shop = shopPool(slot)
+	const shared = { day, pool, slot, shop, rotatesAt: nextShopRotation(now), spinCost: SHOP_SPIN_COST, cardCost: SHOP_CARD_COST }
 	if (session.user.role === 'teacher') {
 		if (path === '/api/portal/shop' && method === 'GET') return json({
 			...shared, points: 0, owned: [], freeSpin: 'locked', review: { attemptsLeft: 0, active: null },
-			revealed: pool, gift: { claimed: true, amount: SHOP_GIFT_POINTS, streak: 0 }, teacher: true,
+			revealed: shop, gift: { claimed: true, amount: SHOP_GIFT_POINTS, streak: 0 }, teacher: true,
 		} satisfies ShopState)
 		throw new PortalError(403, 'Los alumnos compran aquí con sus puntos.')
 	}
@@ -106,16 +107,16 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 	}
 
 	if (path === '/api/portal/shop' && method === 'GET') {
-		const [{ points, owned, reviews, freeSpin }, turned, daily] = await Promise.all([student(session, env, day), revealed(env, user.id, day), gift(env, user.id, day)])
+		const [{ points, owned, reviews, freeSpin }, turned, daily] = await Promise.all([student(session, env, day), revealed(env, user.id, slot), gift(env, user.id, day)])
 		return json({ ...shared, points, owned, freeSpin, review: reviewState(reviews, freeSpin), revealed: turned, gift: daily, teacher: false } satisfies ShopState)
 	}
 
 	// Turning a card pays once: the award key repeats for a double tap.
 	if (path === '/api/portal/shop/reveal' && method === 'POST') {
 		const skin = (await body(request)).skin
-		if (!isRewardSkin(skin) || !pool.includes(skin)) throw new PortalError(403, 'Esa carta no está en la tienda de hoy.')
-		await savePointAward(env, { sourceKey: JSON.stringify(['shop-reveal', user.id, day, skin]), eventId: crypto.randomUUID(), userId: user.id, activityKind: 'shop-reveal', amount: SHOP_REVEAL_POINTS, createdAt: now })
-		const [turned, points] = await Promise.all([revealed(env, user.id, day), readPoints(env, user.id)])
+		if (!isRewardSkin(skin) || !shop.includes(skin)) throw new PortalError(403, 'Esa carta no está en la tienda ahora.')
+		await savePointAward(env, { sourceKey: JSON.stringify(['shop-reveal', user.id, slot, skin]), eventId: crypto.randomUUID(), userId: user.id, activityKind: 'shop-reveal', amount: SHOP_REVEAL_POINTS, createdAt: now })
+		const [turned, points] = await Promise.all([revealed(env, user.id, slot), readPoints(env, user.id)])
 		return json({ revealed: turned, points } satisfies ShopReveal)
 	}
 
@@ -195,7 +196,7 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 	if (path === '/api/portal/shop/buy' && method === 'POST') {
 		const skin = (await body(request)).skin
 		if (!isRewardSkin(skin)) throw new PortalError(400, 'Esa carta no existe.')
-		if (!pool.includes(skin)) throw new PortalError(403, 'Esa carta ya no está en la tienda de hoy.')
+		if (!shop.includes(skin)) throw new PortalError(403, 'Esa carta ya no está en la tienda ahora.')
 		const claimed = await db.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
 			SELECT ?, ?, ?, ?, ? WHERE ? <= ${balance} AND NOT EXISTS (SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ?)
 			RETURNING skin`).bind(JSON.stringify(['shop-card', user.id, skin]), user.id, skin, now, SHOP_CARD_COST, SHOP_CARD_COST, user.id, user.id, user.id, skin).first()
