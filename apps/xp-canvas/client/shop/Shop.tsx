@@ -230,7 +230,11 @@ export default function Shop() {
 	const graded = (result: ShopAnswer) => setState((current) => current && { ...current, freeSpin: result.freeSpin, review: { attemptsLeft: result.attemptsLeft, active: null } })
 
 	const student = state && !state.teacher
-	const header = student ? <PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} /> : null
+	// In development a reset lives up by the points, out of the panel.
+	const header = student ? <>
+		{import.meta.env.DEV && <button type="button" className="shop-debug" onClick={() => void (async () => { await portalRequest('shop/debug/reset-review', 'POST', {}); await load() })()}>Debug: reiniciar preguntas</button>}
+		<PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} />
+	</> : null
 	return <LibraryShell title="Tienda" view="shop" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} actions={header} testId="portal-shop">
 		<div className="shop" aria-busy={!state}>
 			{loadError && !state && <p className="xp-error shop-alert" role="alert">{loadError} <button className="portal-link" onClick={() => void load()}>Reintentar</button></p>}
@@ -239,7 +243,7 @@ export default function Shop() {
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
 				<section className="shop-hero" ref={hero}>
 					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
-					<Panel state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} onDebugReset={async () => { await portalRequest('shop/debug/reset-review', 'POST', {}); await load() }}
+					<Panel state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review}
 						strip={(tray) => <Strip className="shop-strip" key={state.day} list={tray.list} tray={tray.on} gathering={tray.gathering} cardWidth={tray.on ? CARD.tray : CARD.spread} handlers={tray.handlers} locked={locks > 0}>
 							{state.pool.map((skin) => <motion.li key={skin} data-slot={skin} data-focus={(tray.on && tray.focus === skin) || undefined} layout={!reduced} transition={GATHER}>
 								<ShopCard skin={skin} faceUp width={tray.on ? CARD.tray : CARD.spread} state={state} open={detail?.skin === skin || flying.includes(skin)} onOpen={(card) => setDetail({ skin: card, purchasable: false })} />
@@ -269,9 +273,9 @@ export default function Shop() {
 }
 
 /** The hero's right column: the machine's cards and the review that earns the free spin next to it. */
-function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onRetry, onDebugReset }: {
+function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onRetry }: {
 	strip: (tray: Tray) => ReactNode
-	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>; onDebugReset: () => Promise<void>
+	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>
 	onAnswer: (review: ShopReview, index: number, answer: number) => Promise<ShopAnswer>; onGraded: (result: ShopAnswer) => void; onRetry: () => Promise<void>
 }) {
 	const { freeSpin, review } = state
@@ -333,8 +337,6 @@ function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onR
 	const free = state.teacher ? <p className="shop-panel__note">Los alumnos ganan una tirada gratis al repasar 3 preguntas.</p>
 		: review.active ? <button className="shop-button" onClick={() => openQuiz()}>Continuar repaso</button>
 		: <button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
-	const debug = import.meta.env.DEV && !state.teacher && view !== 'quiz'
-		&& <button type="button" className="shop-debug" onClick={() => void onDebugReset()}>Debug: reiniciar preguntas</button>
 	const heading = outcome === 'available' ? 'Felicidades! Reclama tu tirada gratis! :)' : outcome === 'later' ? 'Vuelve mañana por otra tirada!' : '¡Repasa los conceptos de clase y gana una tirada! :)'
 	const headline = <h2 id="shop-panel-title" className="shop-panel__title" ref={title} tabIndex={-1} key={heading}>{heading}</h2>
 	// While the cards gather or spread, the panel does not clip them either; only the hero's rounded edge does.
@@ -347,12 +349,11 @@ function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onR
 				<button type="button" className="xp-icon-button shop-panel__back" aria-label="Cerrar el repaso" disabled={grading} onClick={() => setOpen(false)}><Icon name="back" /></button>
 				{headline}
 			</div> : headline}
-			{outcome ? debug : <div className="shop-panel__step" data-view={view} data-testid="shop-free-spin">
+			{!outcome && <div className="shop-panel__step" data-view={view} data-testid="shop-free-spin">
 				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active}
 					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} onGrading={setGrading} />
 					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
-				{debug}
 			</div>}
 		</div>
 		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} leaving={celebration.leaving} />, hero.current)}
@@ -442,8 +443,8 @@ function Strip({ className, list: given, tray = false, gathering = false, cardWi
 			style={{ '--card-w': `${cardWidth}px` } as CSSProperties} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
 			{children}
 		</motion.ul>
-		<i className="shop-scroller__fade" data-side="left" aria-hidden="true" />
-		<i className="shop-scroller__fade" data-side="right" aria-hidden="true" />
+		{/* Four blurs stack at each edge, each masked nearer it than the last, so the blur grows toward the edge the way iOS blurs a header. The first also tints the edge with the surface. */}
+		{(['left', 'right'] as const).map((side) => [1, 2, 3, 4].map((layer) => <i key={`${side}${layer}`} className="shop-scroller__fade" data-side={side} data-layer={layer} aria-hidden="true" />))}
 	</div>
 }
 

@@ -119,10 +119,10 @@ try {
 	assert.deepEqual(desk, { overflow: 'auto', overflowY: 'hidden', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too, never up or down')
 	const stripWidth = () => strip.evaluate((list) => Math.round(list.children[0].getBoundingClientRect().width))
 	assert.equal(await stripWidth(), 120, 'the strip\'s cards are 120 px wide')
-	/** Both rows fade and blur an edge exactly where more cards wait past it. The blur's overlays fade in over 200 ms. */
+	/** Both rows fade and blur an edge exactly where more cards wait past it. The blur's overlays fade in over 200 ms; software rendering starts the fade late, so the wait is longer. */
 	for (const list of [strip, row]) {
 		const edges = await list.evaluate(async (element) => {
-			const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
+			const settle = () => new Promise((resolve) => setTimeout(resolve, 600))
 			const fades = () => Object.fromEntries([...element.parentElement.querySelectorAll(':scope > .shop-scroller__fade')]
 				.map((fade) => [fade.dataset.side, `${getComputedStyle(fade).opacity}${getComputedStyle(fade).backdropFilter.includes('blur') ? ' blur' : ''}`]))
 			element.scrollLeft = 0; await settle()
