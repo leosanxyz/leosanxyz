@@ -124,7 +124,7 @@ try {
 		const edges = await list.evaluate(async (element) => {
 			const settle = () => new Promise((resolve) => setTimeout(resolve, 600))
 			const fades = () => Object.fromEntries([...element.parentElement.querySelectorAll(':scope > .shop-scroller__fade')]
-				.map((fade) => [fade.dataset.side, `${getComputedStyle(fade).opacity}${getComputedStyle(fade).backdropFilter.includes('blur') ? ' blur' : ''}`]))
+				.map((fade) => [fade.dataset.side, `${getComputedStyle(fade).opacity}${/blur\(|url\(/.test(getComputedStyle(fade).backdropFilter) ? ' blur' : ''}`]))
 			element.scrollLeft = 0; await settle()
 			const start = element.dataset.more ?? null, overflows = element.scrollWidth > element.clientWidth, startFades = fades(), mask = getComputedStyle(element).maskImage
 			element.scrollLeft = element.scrollWidth; await settle()

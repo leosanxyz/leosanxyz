@@ -101,20 +101,16 @@
 .shop-scroller { position: relative; }
 .shop-scroller:has(> .shop-strip) { margin: -12px -16px -40px; }
 .shop-scroller:has(> .shop-row) { margin: -20px -20px -40px; }
-/* A progressive blur at each edge with more cards past it, as iOS blurs the content under a header: four stacked blurs, each masked to a narrower band
-   at the edge than the last, so the blur grows from nothing at the inner side to about 16 px at the edge; the surface's colour tints it toward the edge,
-   so the cards dissolve into the page instead of smearing. Each band also fades out at the top and bottom, so its box never shows over flat background. */
+/* Past an edge with more cards, the cards blur and dissolve into the surface's colour, as iOS blurs the content under a header. The blur fades inward
+   (see BLUR in Shop.tsx for how); the tint is a plain gradient. The identity edge of the overlay draws nothing, so its box never shows. */
 .shop-scroller__fade { position: absolute; top: 0; bottom: 0; width: 72px; pointer-events: none; opacity: 0; transition: opacity 200ms ease;
-	--fade-y: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask-composite: intersect; }
+	background: linear-gradient(to var(--inward), var(--shop-surface) 0, color-mix(in srgb, var(--shop-surface) 70%, transparent) 25%, transparent 65%); }
 .shop-scroller:has(> .shop-strip) .shop-scroller__fade { width: 56px; }
 .shop-scroller__fade[data-side='left'] { left: 0; --inward: right; }
 .shop-scroller__fade[data-side='right'] { right: 0; --inward: left; }
-.shop-scroller__fade[data-layer='1'] { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); mask-image: linear-gradient(to var(--inward), #000 0 40%, transparent 100%), var(--fade-y);
-	background: linear-gradient(to var(--inward), var(--shop-surface) 0, color-mix(in srgb, var(--shop-surface) 92%, transparent) 12%, color-mix(in srgb, var(--shop-surface) 72%, transparent) 25%,
-		color-mix(in srgb, var(--shop-surface) 45%, transparent) 40%, color-mix(in srgb, var(--shop-surface) 20%, transparent) 55%, transparent 70%); }
-.shop-scroller__fade[data-layer='2'] { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); mask-image: linear-gradient(to var(--inward), #000 0 28%, transparent 72%), var(--fade-y); }
-.shop-scroller__fade[data-layer='3'] { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); mask-image: linear-gradient(to var(--inward), #000 0 14%, transparent 48%), var(--fade-y); }
-.shop-scroller__fade[data-layer='4'] { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); mask-image: linear-gradient(to var(--inward), #000 0, transparent 28%), var(--fade-y); }
+.shop-scroller[data-blur='filter'] .shop-scroller__fade[data-side='left'] { backdrop-filter: url(#shop-blur-left); }
+.shop-scroller[data-blur='filter'] .shop-scroller__fade[data-side='right'] { backdrop-filter: url(#shop-blur-right); }
+.shop-scroller[data-blur='mask'] .shop-scroller__fade { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); mask-image: linear-gradient(to var(--inward), #000 0 35%, transparent 100%); }
 .shop-scroller:is([data-more='left'], [data-more='both']) .shop-scroller__fade[data-side='left'],
 .shop-scroller:is([data-more='right'], [data-more='both']) .shop-scroller__fade[data-side='right'] { opacity: 1; }
 

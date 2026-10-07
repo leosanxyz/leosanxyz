@@ -237,6 +237,7 @@ export default function Shop() {
 	</> : null
 	return <LibraryShell title="Tienda" view="shop" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} actions={header} testId="portal-shop">
 		<div className="shop" aria-busy={!state}>
+			{BLUR === 'filter' && <BlurFilters />}
 			{loadError && !state && <p className="xp-error shop-alert" role="alert">{loadError} <button className="portal-link" onClick={() => void load()}>Reintentar</button></p>}
 			{!state && !loadError && <ShopSkeleton />}
 			{state && <>
@@ -411,6 +412,29 @@ function TrayPreview({ skin, list, panel }: { skin: RewardSkin | null; list: Ref
 	</AnimatePresence>
 }
 
+
+/** How each edge's overlay blurs the cards under it. Chromium on macOS ignores a mask over a backdrop filter, so there the filter fades itself inward:
+ *  an SVG filter mixes the blurred backdrop with the sharp one along a ramp. Safari and Firefox mask the blur instead. */
+const BLUR = typeof navigator !== 'undefined' && 'userAgentData' in navigator ? 'filter' : 'mask'
+/** An alpha ramp the filter stretches over the overlay: opaque at the outer edge, clear at the inner one. */
+const blurRamp = (side: 'left' | 'right') => {
+	const stops = side === 'left' ? [[0, 1], [0.35, 1], [1, 0]] : [[0, 0], [0.65, 1], [1, 1]]
+	const gradient = stops.map(([offset, alpha]) => `<stop offset="${offset}" stop-color="#fff" stop-opacity="${alpha}"/>`).join('')
+	return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="8" preserveAspectRatio="none"><defs><linearGradient id="g">${gradient}</linearGradient></defs><rect width="72" height="8" fill="url(#g)"/></svg>`)}`
+}
+/** The two edge filters, once per page. */
+function BlurFilters() {
+	return <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true"><defs>
+		{(['left', 'right'] as const).map((side) => <filter key={side} id={`shop-blur-${side}`} x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
+			<feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
+			<feImage href={blurRamp(side)} preserveAspectRatio="none" result="ramp" />
+			<feComposite in="blur" in2="ramp" operator="in" result="blurred" />
+			<feComposite in="SourceGraphic" in2="ramp" operator="out" result="sharp" />
+			<feMerge><feMergeNode in="sharp" /><feMergeNode in="blurred" /></feMerge>
+		</filter>)}
+	</defs></svg>
+}
+
 /** One row of cards that only scrolls sideways. Its edges fade where more cards wait past them. */
 function Strip({ className, list: given, tray = false, gathering = false, cardWidth, handlers, locked, children }: {
 	className: string; list?: RefObject<HTMLUListElement | null>; tray?: boolean; gathering?: boolean; cardWidth: number; handlers?: TrayHandlers; locked: boolean; children: ReactNode
@@ -438,13 +462,13 @@ function Strip({ className, list: given, tray = false, gathering = false, cardWi
 	}, [list, tray, gathering])
 	// Programmatic scrolls can still move an `overflow-y: hidden` box; the strip only ever scrolls sideways.
 	// Past an edge with more cards, the cards blur and fade out under an overlay; the wrapper holds the overlays over the scrolling list.
-	return <div className="shop-scroller" data-more={more}>
+	return <div className="shop-scroller" data-more={more} data-blur={BLUR}>
 		<motion.ul ref={list} className={className} layoutScroll data-tray={tray || undefined} data-gathering={gathering || undefined} data-more={more} data-locked={locked || undefined} {...handlers}
 			style={{ '--card-w': `${cardWidth}px` } as CSSProperties} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
 			{children}
 		</motion.ul>
-		{/* Four blurs stack at each edge, each masked nearer it than the last, so the blur grows toward the edge the way iOS blurs a header. The first also tints the edge with the surface. */}
-		{(['left', 'right'] as const).map((side) => [1, 2, 3, 4].map((layer) => <i key={`${side}${layer}`} className="shop-scroller__fade" data-side={side} data-layer={layer} aria-hidden="true" />))}
+		<i className="shop-scroller__fade" data-side="left" aria-hidden="true" />
+		<i className="shop-scroller__fade" data-side="right" aria-hidden="true" />
 	</div>
 }
 
