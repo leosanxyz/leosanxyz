@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useIsPresent, useMotionValue } from 'motion/react'
 import type { PassDraft, PassSticker, StickerId } from '../../../shared/pass'
+import { uuid } from '../../uuid'
 import type { PassCard } from './PassCard'
 import { StickerArt } from './StickerArt'
 import { packs, stickerArt } from './catalog'
@@ -82,7 +83,7 @@ export function StickerEditor({
 			!remainingStickerCount(draft.stickers, art)
 		)
 			return
-		const id = crypto.randomUUID()
+		const id = uuid()
 		onChange([
 			...draft.stickers,
 			{

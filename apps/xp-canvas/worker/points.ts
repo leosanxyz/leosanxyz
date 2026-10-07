@@ -5,7 +5,7 @@ export interface PointAward {
 	sourceKey: string
 	eventId: string
 	userId: string
-	activityKind: 'question'
+	activityKind: 'question' | 'shop-reveal' | 'shop-gift'
 	amount: number
 	createdAt: number
 }

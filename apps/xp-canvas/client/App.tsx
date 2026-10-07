@@ -12,6 +12,7 @@ const ReviewOnboarding = import.meta.env.DEV ? lazy(() => import('./portal/pass/
 const Room = lazy(() => import('./pages/Room').then((module) => ({ default: module.Room })))
 const Students = lazy(() => import('./portal/Students'))
 const Profile = lazy(() => import('./portal/Profile'))
+const Shop = lazy(() => import('./shop/Shop'))
 
 export function App() {
 	const path = usePathname()
@@ -25,6 +26,7 @@ function Routes() {
 	if (path === '/bienvenida/revision' && user?.role === 'teacher' && ReviewOnboarding) return <Suspense fallback={<div>Preparando las bienvenidas…</div>}><ReviewOnboarding /></Suspense>
 	if (path === '/perfil' && mode === 'portal') return <Suspense fallback={<div className="board-loading">Abriendo tu perfil…</div>}><Profile /></Suspense>
 	if (path === '/mi-pase' && mode === 'portal' && user?.role === 'student') return <Suspense fallback={<div className="board-loading">Abriendo tu perfil…</div>}><Profile initiallyEditing /></Suspense>
+	if (path === '/tienda' && mode === 'portal' && user) return <Suspense fallback={<div className="board-loading">Abriendo la tienda…</div>}><Shop /></Suspense>
 	if (path === '/bienvenida' && mode === 'portal' && user?.role === 'student') return <ReplayOnboarding />
 	if (path === '/') return mode === 'portal' && user?.role === 'student' ? <StudentBoards /> : <BoardManager />
 	if (path === '/alumnos' && mode === 'portal' && user?.role === 'teacher') return <Suspense fallback={<div className="board-loading">Abriendo alumnos…</div>}><Students /></Suspense>

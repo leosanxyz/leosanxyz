@@ -1,0 +1,213 @@
+/* A small warm shopfront on the sidebar's cool panel, in the gachapon palette. The cards stand on the page itself. */
+.shop { --shop-bg: #eaf0f1; --shop-ink: #3d1a10; --shop-text: #7a4b3c; --shop-muted: #a3786a; --shop-line: #f2dfcd; --shop-action: #c64a30;
+	position: relative; max-width: 1180px; color: var(--shop-ink); }
+.shop *, .shop-detail * { box-sizing: border-box; }
+.shop button, .shop-detail button { font: inherit; cursor: pointer; touch-action: manipulation; }
+.shop button:focus-visible, .shop-detail button:focus-visible { outline: 2px solid #079ab5; outline-offset: 2px; }
+.shop h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; color: var(--shop-ink); }
+.shop-alert { margin: 0 0 18px; }
+.shop-toast { position: fixed; z-index: 20; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); margin: 0; padding: 12px 20px; border-radius: 999px;
+	background: #3d1a10; color: #fff7ef; font-size: 15px; font-weight: 600; box-shadow: 0 14px 34px -14px #3d1a1099; transform: translateX(-50%);
+	animation: shop-toast-in 260ms cubic-bezier(.2, .9, .3, 1.15) both; }
+@keyframes shop-toast-in { from { opacity: 0; transform: translate(-50%, 12px) scale(.96); } }
+
+.shop-coin { display: inline-block; flex-shrink: 0; width: 1em; height: 1em; border-radius: 50%; vertical-align: -.12em;
+	background: radial-gradient(circle at 35% 30%, #fff6d2 0 16%, #ffc54a 18% 60%, #e9a32b 62%); box-shadow: inset 0 0 0 1.5px #d38d1c; }
+.shop-points { display: inline-flex; align-items: center; gap: 8px; margin: 0; min-height: 44px; color: #6b3a12; font-variant-numeric: tabular-nums; }
+.shop-points strong { font-size: 18px; font-weight: 700; animation: shop-pop 420ms cubic-bezier(.2, .9, .3, 1.2); }
+[data-testid='portal-shop'] .board-header h1 { flex-basis: 90px; }
+/* The counter stays in view, so points can fly into it from anywhere on the page. */
+[data-testid='portal-shop'] .board-header { position: sticky; top: 0; z-index: 5; padding: 8px 0; background: #fff; box-shadow: 0 -32px 0 8px #fff, 0 0 0 8px #fff; }
+@keyframes shop-pop { from { transform: scale(1.25); color: #e9694f; } }
+
+.shop-hero { position: relative; overflow: hidden; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 48px; align-items: center; margin-bottom: 18px; padding: 28px; border-radius: 28px; background: var(--shop-bg); }
+/* A right answer in the review rains inside the panel, piles up on its bottom edge and fades with data-leaving instead of its own fade. */
+.shop-hero .question-celebration { position: absolute; animation: none; transition: opacity 500ms ease-out; }
+.shop-hero .question-celebration[data-leaving] { opacity: 0; }
+.shop-machine-frame { position: relative; isolation: isolate; width: 300px; height: 440px; scroll-margin: 24px; }
+/* A soft shadow on the panel floor, under the machine's base. */
+.shop-machine-frame::after { content: ''; position: absolute; left: 50%; bottom: 2.5%; width: 74%; height: 9%; transform: translateX(-50%); border-radius: 50%;
+	background: radial-gradient(ellipse at center, #3d1a1030 0%, #3d1a1016 45%, transparent 72%); pointer-events: none; z-index: -1; }
+/* Room for the label under the machine, only while there is one. */
+.shop-machine-frame:has(.gachapon__status, .gachapon__base p:not(.xp-sr-only)) { margin-bottom: 36px; }
+.shop-machine { position: relative; width: 300px; height: 440px; }
+/* Only states that need words get a label under the machine, like a note on the counter. */
+.shop-machine .gachapon__status, .shop-machine .gachapon__base p:not(.xp-sr-only) { position: absolute; top: auto; bottom: -30px; left: 50%; right: auto; width: max-content; max-width: 320px; margin: 0; padding: 7px 14px;
+	border-radius: 999px; background: #fffdf9; color: #8a3a2c; font-size: 13px; font-weight: 700; text-align: center; transform: translateX(-50%); box-shadow: 0 0 0 1px var(--shop-line), 0 6px 16px -10px #b0603a66; }
+
+/* The machine sets the panel's height; a taller ticket scrolls inside. The margin keeps it clear of the sticky header when the review scrolls it into view. */
+.shop-ticket { --ticket-pad: 28px; position: relative; align-self: center; max-width: 520px; max-height: 440px; overflow-y: auto; scrollbar-width: none; scroll-margin: 96px 0 24px;
+	padding: var(--ticket-pad); border-radius: 24px; background: #fffdf9; box-shadow: 0 0 0 1px var(--shop-line), 0 22px 44px -26px #b0603a59; }
+.shop-ticket::-webkit-scrollbar { display: none; }
+.shop .shop-ticket__title { margin: 0 0 24px; font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: normal; color: var(--shop-ink); outline: none; animation: shop-fade 180ms ease both; }
+/* Earned, spent or out of reach: the title alone. */
+.shop .shop-ticket[data-outcome] .shop-ticket__title { margin: 0; }
+/* The perforation: a dashed line with two half circles cut into the edges. */
+.shop-ticket__free { position: relative; display: flex; align-items: center; min-height: 68px; padding-top: 24px; border-top: 2px dashed #f0d2b8; }
+.shop-ticket__free::before, .shop-ticket__free::after { content: ''; position: absolute; top: -14px; width: 26px; height: 26px; border-radius: 50%; background: var(--shop-bg); }
+.shop-ticket__free::before { left: calc(-1 * var(--ticket-pad) - 14px); box-shadow: inset -2px 0 0 var(--shop-line); }
+.shop-ticket__free::after { right: calc(-1 * var(--ticket-pad) - 14px); box-shadow: inset 2px 0 0 var(--shop-line); }
+/* Below the perforation: the review, or the button that opens it. Each step, each question and each title fade in over the last. */
+.shop-ticket__step, .shop-review__step { width: 100%; animation: shop-fade 180ms ease both; }
+.shop-ticket__step[data-view='free'] { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+@keyframes shop-fade { from { opacity: 0; } }
+.shop-ticket h3 { margin: 0; outline: none; color: var(--shop-ink); }
+.shop-ticket__note { margin: 0; color: var(--shop-muted); font-size: 14px; }
+.shop-button { min-height: 44px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--shop-action); color: #fff; font-weight: 650; box-shadow: 0 2px 0 #9e3a24;
+	transition: transform 120ms ease, background-color 160ms ease; }
+.shop-button:enabled:active { transform: translateY(1px) scale(.98); }
+.shop-button:disabled { opacity: .55; cursor: default; }
+
+.shop-cards { position: relative; scroll-margin-top: 76px; }
+.shop-cards__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 20px; }
+.shop-countdown { margin: 0; color: var(--shop-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+/* One row that scrolls sideways at every width, never up or down: six cards, then the gift. The padding leaves room for the shadows and the hover lift; the margins take it back. */
+.shop-row { display: flex; gap: 16px; overflow: auto hidden; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; margin: -20px -20px -40px; padding: 20px 20px 56px; list-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.shop-row::-webkit-scrollbar { display: none; }
+.shop-row[data-locked] { overflow-x: hidden; }
+/* The slot keeps the card's size, so the hole stays while the card is open in the detail. */
+.shop-row > li { flex: 0 0 196px; aspect-ratio: .686; scroll-snap-align: start; animation: shop-card-in 520ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes shop-card-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
+
+/* The profile card does the tilt, light and flip; the shop adds a button over it, and a breathing glow under a face-down card. */
+.shop-card-stage { position: relative; isolation: isolate; transition: transform 320ms cubic-bezier(.2, .9, .3, 1.2); }
+.shop-card-slot[data-revealed='false'] .shop-card-stage::before { content: ''; position: absolute; inset: 2%; z-index: -1; border-radius: 20px; opacity: 0;
+	box-shadow: 0 0 36px 4px #ff9a5c80; animation: shop-breathe 2400ms ease-in-out infinite alternate; }
+@keyframes shop-breathe { from { opacity: .25; } to { opacity: .9; } }
+.shop .shop-card { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 17px; background: none; color: inherit;
+	pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+
+/* Face down: the gachapon ink with an XP monogram and a "Nuevo" ribbon. */
+.pass-card[data-variant='shop'] .pass-card-back { border-color: #ffd45c66;
+	background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='40'%3E%3Ctext x='23' y='25' fill='white' fill-opacity='.08' font-family='Arial' font-weight='900' font-size='13' text-anchor='middle'%3EXP%3C/text%3E%3C/svg%3E") 0 0 / 23cqw auto,
+		radial-gradient(circle at 50% 40%, #c4553a, #8a3a2c 48%, #4a1c18); }
+.shop-card-back { position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; box-shadow: inset 0 0 0 4.5cqw #00000026, inset 0 0 0 calc(4.5cqw + 1px) #ffd45c59; }
+.shop-card-back__emblem { display: grid; place-items: center; width: 44cqw; aspect-ratio: 1; margin-bottom: 22cqw; border-radius: 50%; color: #ffe8a8;
+	background: radial-gradient(circle at 40% 35%, #ffffff1f, transparent 60%), #00000033; box-shadow: inset 0 0 0 2px #ffd45c99, 0 0 0 5px #ffd45c1f;
+	font: 900 17cqw/1 Arial, sans-serif; letter-spacing: -.04em; }
+.shop-card-back__ribbon { position: absolute; left: -12%; right: -12%; top: 60%; padding: 2.5cqw 0; transform: rotate(-16deg);
+	background: linear-gradient(180deg, #ffe48a, #ffc23d); color: #5a1d12; box-shadow: 0 6px 14px -6px #000c, inset 0 1px 0 #fff9;
+	font: 900 11cqw/1 Arial, sans-serif; letter-spacing: .14em; text-align: center; text-transform: uppercase; }
+
+/* The flip's flash, in the colour of the card. */
+.shop-burst { position: absolute; inset: 0; pointer-events: none; }
+.shop-burst b { position: absolute; inset: -25%; border-radius: 50%; opacity: 0; mix-blend-mode: screen;
+	background: radial-gradient(closest-side, #fff 0, color-mix(in srgb, var(--card-color) 85%, transparent) 38%, transparent); animation: shop-flash 620ms 200ms ease-out both; }
+@keyframes shop-flash { from { opacity: 0; transform: scale(.4); } 25% { opacity: 1; } to { opacity: 0; transform: scale(1.15); } }
+
+/* The detail: the card at full size over a dark veil, with its name and one button. */
+.shop-detail { position: fixed; inset: 0; z-index: 10000; display: flex; padding: 72px 16px 24px; overflow: auto; }
+.shop-detail-overlay { position: fixed; inset: 0; background: #1b1322e0; }
+/* A closing detail never catches a click: the row works while its card flies home. */
+.shop-detail[data-leaving='true'], .shop-detail[data-leaving='true'] * { pointer-events: none; }
+.shop-detail__content { --pass-card-w: min(360px, 78vw); position: relative; display: flex; flex-direction: column; align-items: center; margin: auto; }
+.shop-detail__text { display: flex; flex-direction: column; align-items: center; }
+/* The frame holds the card's place while it flies back to its slot. */
+.shop-detail__frame { width: var(--pass-card-w); aspect-ratio: .686; }
+.shop-detail__card { position: relative; width: 100%; }
+.shop-detail__name { margin: 18px 0 0; color: #fff3e2; font-size: 18px; font-weight: 650; line-height: 1.3; text-align: center; }
+.shop-detail__buy { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; margin-top: 14px; padding: 0 24px; border: 1px solid transparent; border-radius: 14px;
+	background: #c64a30; color: #fff; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color 160ms ease; }
+.shop-detail__buy:is([data-mode='confirm'], [data-mode='busy']) { background: #b34129; }
+.shop-detail__buy:is([data-mode='owned'], [data-mode='short'], [data-mode='preview']) { border-color: #fff3e240; background: #fffdf90f; color: #fff3e2; }
+.shop-detail__buy:disabled { cursor: default; }
+.shop-detail .shop-detail__close { position: fixed; top: 16px; right: 16px; color: #fff; }
+
+/* Coins fly to the counter above the page; `coins.ts` moves them. */
+.shop-flight__coin { position: fixed; z-index: 30; left: 0; top: 0; width: 18px; height: 18px; pointer-events: none; opacity: 0; box-shadow: inset 0 0 0 1.5px #d38d1c, 0 2px 6px #0004; }
+
+/* The daily gift: a gold ticket the size of a card. */
+.shop-gift { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; aspect-ratio: .686; padding: 8%; overflow: hidden;
+	border: 1px solid #ffffff70; border-radius: 17px; container-type: inline-size; text-align: center; transition: filter 420ms ease;
+	background: linear-gradient(165deg, #ffe08a, #ffb13d); box-shadow: 0 1px 2px #0004, 0 12px 20px -14px #000a, 0 35px 40px -27px #0006, inset 0 0 0 1px #fff2; }
+.shop-gift[data-claimed='true'] { filter: grayscale(.9) brightness(.8); }
+.shop-gift p { margin: 0; }
+.shop-gift__eyebrow { color: #8a3a2c; font-size: max(9px, 8cqw); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.shop-gift__coins { position: relative; width: 44cqw; aspect-ratio: 1; }
+.shop-gift__coins i { position: absolute; left: 8%; right: 8%; height: 30%; border-radius: 50%;
+	background: radial-gradient(ellipse at 40% 35%, #fff6d2 0 14%, #ffc54a 18% 62%, #e9a32b 66%); box-shadow: inset 0 0 0 2px #d38d1c, 0 4px 0 #c98320, 0 6px 8px -2px #8a3a2c55; }
+.shop-gift__coins i:nth-child(1) { bottom: 0; }
+.shop-gift__coins i:nth-child(2) { bottom: 18%; left: 12%; right: 4%; }
+.shop-gift__coins i:nth-child(3) { bottom: 36%; }
+.shop-gift__coins i:nth-child(4) { bottom: 54%; left: 4%; right: 12%; }
+.shop-gift__amount { color: #fff; font: 900 22cqw/1 system-ui, sans-serif; letter-spacing: -.03em; text-shadow: 0 3px 0 #c4602a, 0 0 18px #fff8; }
+.shop-gift__streak { display: flex; justify-content: center; gap: 4cqw; margin: 0; padding: 0; list-style: none; }
+.shop-gift__streak li { width: 7cqw; aspect-ratio: 1; border-radius: 50%; background: #ffffff59; box-shadow: inset 0 0 0 1.5px #c4602a59; }
+.shop-gift__streak li:last-child { border-radius: 2px; transform: rotate(45deg) scale(1.1); }
+.shop-gift__streak li[data-state='done'] { background: #c4602a; box-shadow: none; }
+.shop-gift__streak li[data-state='today'] { background: #fff; box-shadow: 0 0 0 2px #c4602a, 0 0 10px #fff; }
+.shop .shop-gift__claim { width: 100%; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 10px; background: var(--shop-action); color: #fff; font-size: max(11px, 9cqw); font-weight: 700;
+	box-shadow: 0 2px 0 #8a3a2c; transition: transform 120ms ease, background-color 160ms ease; }
+.shop .shop-gift__claim:enabled:active { transform: translateY(2px); box-shadow: 0 0 0 #8a3a2c; }
+.shop .shop-gift__claim:disabled { opacity: .7; cursor: default; }
+.shop .shop-gift__done { color: #4b4038; font-size: max(11px, 9cqw); font-weight: 700; }
+
+.shop-skeleton__block { border-radius: 16px; background: linear-gradient(100deg, #f6e4d5 30%, #fbefe5 50%, #f6e4d5 70%) 0 0 / 300% 100%; animation: shop-shimmer 1400ms ease-in-out infinite; }
+.shop-skeleton .shop-hero { background: none; padding: 0; }
+.shop-skeleton__machine { width: 300px; height: 440px; border-radius: 120px 120px 40px 40px; }
+.shop-skeleton__ticket { height: 300px; }
+.shop-skeleton__card { aspect-ratio: .686; }
+@keyframes shop-shimmer { to { background-position: -150% 0; } }
+
+/* Review, inside the ticket */
+.shop-review__progress { display: flex; gap: 6px; margin-bottom: 10px; }
+.shop-review__progress i { flex: 1; height: 6px; border-radius: 999px; background: #f1e1d3; transition: background-color 220ms ease; }
+.shop-review__progress i[data-state='done'] { background: #e9694f; }
+.shop-review__progress i[data-state='current'] { background: #ffc54a; }
+.shop-review__count { margin: 0 0 6px; color: #a0705c; font-size: 13px; font-weight: 650; }
+.shop-ticket .shop-review__question { margin-bottom: 16px; font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.shop-review__answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.shop-review__answer { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 10px 14px; border: 1.5px solid #f0dccb; border-radius: 14px; background: #fff;
+	color: var(--shop-ink); font-size: 16px; text-align: left; overflow-wrap: anywhere; transition: border-color 160ms ease, background-color 160ms ease, transform 120ms ease; }
+.shop-review__answer > span { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; background: #fff1e2; color: #c64a30; font-size: 13px; font-weight: 800; transition: inherit; }
+.shop-review__answer[aria-pressed='true'] { border-color: #e9694f; background: #fff3ea; }
+.shop-review__answer[aria-pressed='true'] > span { background: #e9694f; color: #fff; }
+.shop-review__answer:active { transform: scale(.985); }
+.shop-review__answer:disabled { cursor: default; }
+.shop-review__answer[data-result='right'] { border-color: #2f7d58; background: #e3f4ea; }
+.shop-review__answer[data-result='right'] > span { background: #2f7d58; color: #fff; }
+.shop-review__answer[data-result='wrong'] { border-color: #c64a30; background: #fde7e1; }
+.shop-review__answer[data-result='wrong'] > span { background: #c64a30; color: #fff; }
+.shop-review__answers[data-shake] { animation: shop-shake 320ms ease-in-out; }
+@keyframes shop-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+.shop-review__footer { display: flex; align-items: center; gap: 10px; }
+.shop .shop-review__close { padding: 6px 0; border: 0; background: none; color: #8a4a35; font-size: 13px; }
+.shop .shop-review__back { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 12px; background: transparent; color: #8a4a35; font-weight: 650; }
+.shop-review__result { display: grid; justify-items: center; gap: 10px; isolation: isolate; text-align: center; }
+.shop-ticket .shop-review__result h3 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.shop-review__result > p { margin: 0; color: #7a4b3c; font-size: 14px; line-height: 1.5; }
+@media (hover: hover) and (pointer: fine) {
+	/* The slot under the pointer lifts; the tilt lives on the card inside, and an open card stays put for the morph. */
+	.shop-card-stage { transition: transform 220ms cubic-bezier(.2, .9, .3, 1); }
+	.shop-gift { transition: transform 220ms cubic-bezier(.2, .9, .3, 1), filter 420ms ease; }
+	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: translateY(-8px); }
+	.shop-card-slot[data-open='true'] .shop-card-stage { transform: none; }
+	.shop .shop-gift__claim:enabled:hover { background: #b34129; }
+	.shop-button:enabled:hover, .shop-detail__buy[data-mode='buy']:hover { background: #b34129; }
+	.shop-review__answer:enabled:hover { border-color: #f2b79d; }
+	.shop-review__back:hover { background: #f8eadf; }
+}
+/* Touch: a press, no tilt. */
+@media (hover: none) { .shop-card-slot:has(.shop-card:active) .shop-card-stage { transform: scale(.98); transition-duration: 120ms; } }
+@media (max-width: 900px) {
+	.shop-hero { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 12px; padding: 0 24px 24px; }
+	.shop-ticket { width: 100%; max-width: 560px; }
+}
+@media (max-width: 650px) {
+	.shop-hero { margin: 0 -6px 18px; padding: 0 14px 14px; border-radius: 24px; }
+	.shop-ticket { --ticket-pad: 20px; }
+	.shop-review__answers { grid-template-columns: minmax(0, 1fr); }
+	.shop-points strong { font-size: 16px; }
+}
+@media (max-width: 340px) { .shop-machine-frame { width: 255px; height: 374px; }.shop-machine { transform: scale(.85); transform-origin: top left; } }
+@media (prefers-reduced-motion: reduce) {
+	.shop-points strong, .shop-row > li, .shop-card-stage, .shop-card-stage::before, .shop-burst, .shop-toast, .shop-skeleton__block,
+	.shop-ticket__title, .shop-ticket__step, .shop-review__step, .shop-review__answers { animation: none !important; }
+	.shop-burst { display: none; }
+	.shop-card-stage, .shop-gift, .shop-detail__buy, .shop-review__answer, .shop-review__progress i { transition: none !important; }
+	.shop-review__answer:active { transform: none; }
+	.shop-card-slot:hover .shop-card-stage, .shop-gift-slot:hover .shop-gift { transform: none; }
+}
+
+/* Local QA only: the Vite dev build renders this button; production never does. */
+.shop-debug { margin-top: 14px; padding: 6px 10px; border: 1px dashed #a3786a; border-radius: 8px; background: transparent; color: #a3786a; font-size: 12px; }

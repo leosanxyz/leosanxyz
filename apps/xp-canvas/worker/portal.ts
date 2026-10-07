@@ -8,6 +8,8 @@ import type { BoardGrant, Student } from '../shared/portal'
 import { validPass, isRewardSkin } from '../shared/pass'
 import { readPoints } from './points'
 import { readPass } from './studentPass'
+import { body, json, PortalError } from './portalHttp'
+import { handleShopRequest } from './shop'
 import {
 	allowedBoardIds, canReadBoard, clearPortalCookie, constantMatch, createPortalSession,
 	getPortalSession, hashPassword, loginAllowed, normalizeUsername, passwordProblem,
@@ -15,31 +17,6 @@ import {
 	type AuthSession, type UserRow,
 } from './portalAuth'
 
-class PortalError extends Error { constructor(readonly status: number, message: string) { super(message) } }
-const json = (data: unknown, status = 200, cookie?: string) => Response.json(data, {
-	status, headers: { 'cache-control': 'no-store', ...(cookie ? { 'set-cookie': cookie } : {}) },
-})
-async function body(request: Request, limit = 4096): Promise<Record<string, unknown>> {
-	if (!request.headers.get('content-type')?.startsWith('application/json')) throw new PortalError(415, 'Envía una solicitud JSON.')
-	if (Number(request.headers.get('content-length')) > limit) throw new PortalError(413, 'Solicitud demasiado grande.')
-	const reader = request.body?.getReader()
-	if (!reader) throw new PortalError(400, 'Solicitud inválida.')
-	const decoder = new TextDecoder(), chunks: string[] = []
-	let length = 0
-	while (true) {
-		const { value, done } = await reader.read()
-		if (done) break
-		length += value.byteLength
-		if (length > limit) { await reader.cancel(); throw new PortalError(413, 'Solicitud demasiado grande.') }
-		chunks.push(decoder.decode(value, { stream: true }))
-	}
-	const text = chunks.join('') + decoder.decode()
-	try {
-		const result = JSON.parse(text)
-		if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error()
-		return result
-	} catch { throw new PortalError(400, 'Solicitud inválida.') }
-}
 function name(value: unknown) {
 	if (typeof value !== 'string' || !value.trim() || value.trim().length > 120 || /[\x00-\x1f]/.test(value)) throw new PortalError(400, 'Escribe un nombre de hasta 120 caracteres.')
 	return value.trim()
@@ -120,6 +97,7 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			return json({ user: publicUser(updated) }, 200, await createPortalSession(request, updated, env))
 		}
 		if (session.user.mustChangePassword) throw new PortalError(403, 'Cambia tu contraseña antes de continuar.')
+		if (path === '/api/portal/shop' || path.startsWith('/api/portal/shop/')) return await handleShopRequest(request, session, env, path, method)
 		if (path === '/api/portal/pass' && session.user.role === 'student') {
 			if (method === 'GET') return json(await readPass(session.user, env))
 			if (method === 'PUT') {

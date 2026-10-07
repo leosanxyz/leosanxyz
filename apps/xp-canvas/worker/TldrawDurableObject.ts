@@ -128,6 +128,15 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		return this.getOrCreateRoom().getCurrentSnapshot()
 	}
 
+	/** Question shapes for the shop review. The Worker strips the key before answering the student. */
+	listQuestions() {
+		return this.getDocumentSnapshot().documents.flatMap(({ state }) => {
+			const record = state as TLRecord
+			return record.typeName === 'shape' && record.type === 'question'
+				? [{ id: record.id, revision: record.props.revision, question: record.props.question, answers: record.props.answers, correct: record.props.correct }] : []
+		})
+	}
+
 	private questionPeers() {
 		return this.ctx.getWebSockets().flatMap((ws) => {
 			const attachment = getAttachment(ws)

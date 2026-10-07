@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { Dialog, DropdownMenu } from 'radix-ui'
 import type { BoardFolder } from '../../shared/boards'
 import { Icon } from '../components/Icon'
 import { navigate } from '../navigation'
 import { usePortal } from '../portal/PortalProvider'
+import { useShopNotice } from '../shop/shopNotice'
 import './boards.css'
 
 interface LibraryShellProps {
@@ -23,6 +24,7 @@ interface LibraryShellProps {
 export function LibraryShell({ title, view, folders, onViewChange, children, actions, testId, onBack, onNewFolder, onDropBoard, onLeaveLocal }: LibraryShellProps) {
 	const { user } = usePortal()
 	const student = user?.role === 'student'
+	const { hasNews } = useShopNotice(student ? user.id : undefined), newsId = useId()
 	const [open, setOpen] = useState(false), [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 650px)').matches)
 	const [collapsed, setCollapsed] = useState(new Set<string>()), [error, setError] = useState('')
 	useEffect(() => {
@@ -60,6 +62,9 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			{(folders.length > 0 || !student) && <div className="board-folder-heading">Carpetas</div>}
 			{folderTree(null)}
 		</nav>
+		{student && <button className="board-nav-item board-nav-shop" aria-current={view === 'shop' ? 'page' : undefined} onClick={() => { setOpen(false); navigate('/tienda') }}>
+			<Icon name="shop" /><span>Tienda</span>{hasNews && <i className="board-nav-dot" role="img" aria-label="Hay novedades en la tienda" />}
+		</button>}
 		<AccountMenu onNavigate={() => setOpen(false)} onTrash={!student ? () => chooseView('trash') : undefined} onLeaveLocal={onLeaveLocal} onError={setError} />
 	</>
 	return <Dialog.Root open={open} onOpenChange={setOpen}><main className="board-manager" data-testid={testId}>
@@ -68,7 +73,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 		</Dialog.Content></Dialog.Portal> : <aside className="board-sidebar" aria-label="Carpetas de canvases">{sidebar}</aside>}
 		<section className="board-main">
 			<header className="board-header">
-				{mobile && <Dialog.Trigger className="xp-icon-button board-sidebar-trigger" aria-label="Mostrar carpetas"><Icon name="menu" /></Dialog.Trigger>}
+				{mobile && <Dialog.Trigger className="xp-icon-button board-sidebar-trigger" aria-label="Mostrar carpetas" aria-describedby={hasNews ? newsId : undefined}><Icon name="menu" />{hasNews && <i className="board-nav-dot" id={newsId} role="img" aria-label="Hay novedades en la tienda" />}</Dialog.Trigger>}
 				{onBack && <button className="xp-icon-button" aria-label="Volver" title="Volver" onClick={onBack}><Icon name="arrowLeft" /></button>}
 				<h1>{title}</h1>
 				{actions && <div className="board-header-actions">{actions}</div>}
@@ -90,6 +95,7 @@ function AccountMenu({ onNavigate, onTrash, onLeaveLocal, onError }: { onNavigat
 	</DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu board-account-menu" data-animate={animate} onKeyDown={() => setAnimate(false)} side="top" align="start" sideOffset={8} collisionPadding={12}>
 		{mode === 'portal' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => go('/perfil')}><Icon name="user" size={19} />Mi perfil</DropdownMenu.Item>}
 		{user?.role === 'teacher' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => go('/alumnos')}><Icon name="users" size={19} />Alumnos</DropdownMenu.Item>}
+		{user?.role === 'teacher' && mode === 'portal' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => go('/tienda')}><Icon name="shop" size={19} />Ver la tienda</DropdownMenu.Item>}
 		{onTrash && <DropdownMenu.Item className="xp-menu-item" onSelect={onTrash}><Icon name="trash" size={19} />Papelera</DropdownMenu.Item>}
 		{import.meta.env.DEV && user?.role === 'teacher' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => go('/bienvenida/revision')}><Icon name="boards" size={19} />Revisar bienvenidas</DropdownMenu.Item>}
 		{mode === 'portal' && <><DropdownMenu.Separator className="xp-menu-separator" /><DropdownMenu.Item className="xp-menu-item" onSelect={() => { onNavigate(); void logout().catch(() => onError('No pude cerrar la sesión.')) }}><Icon name="logout" size={19} />Cerrar sesión</DropdownMenu.Item></>}
