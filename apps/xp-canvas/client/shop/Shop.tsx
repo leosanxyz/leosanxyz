@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, usePresence } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion, usePresence } from 'motion/react'
 import { GACHAPON_DURATION } from '../../shared/gachaponShape'
 import { defaultHologram, defaultPass, type PassDraft, type RewardSkin } from '../../shared/pass'
 import {
@@ -39,8 +39,23 @@ function shopDraft(skin: RewardSkin): PassDraft {
 	return { ...defaultPass(art.name, skin), finish: 'prism', hologram: { ...defaultHologram(), hue: 360 } }
 }
 
-function countdown(ms: number) {
-	return ms >= 3_600_000 ? `${Math.ceil(ms / 3_600_000)} h` : ms >= 60_000 ? `${Math.ceil(ms / 60_000)} min` : 'menos de 1 min'
+/** The strip's cards gather into the tray and spread back as one motion. */
+const GATHER = { type: 'spring', duration: 0.5, bounce: 0 } as const
+/** Card widths in px. The corners scale with the card, 17 px at the row's 196 px, so a card keeps its look at every size and through every morph. */
+const CARD = { spread: 120, tray: 34, row: 196 }
+const radius = (width: number) => Math.round(width * 17 / 196)
+/** A scrolled strip's slide back to its start before the cards gather. */
+const REWIND_MS = 180, REWIND_EASE = cubicBezier(.19, 1, .22, 1)
+
+/** `hh:mm` until the next rotation, ticking every second. */
+function Countdown({ at }: { at: number }) {
+	const [now, setNow] = useState(Date.now)
+	useEffect(() => {
+		const timer = window.setInterval(() => setNow(Date.now()), 1000)
+		return () => clearInterval(timer)
+	}, [])
+	const ms = Math.max(0, at - now)
+	return <span data-testid="shop-countdown">{String(Math.floor(ms / 3_600_000)).padStart(2, '0') + ':' + String(Math.floor(ms / 60_000) % 60).padStart(2, '0')}</span>
 }
 
 export default function Shop() {
@@ -51,10 +66,11 @@ export default function Shop() {
 	const [notice, setNotice] = useState('')
 	const [pending, setPending] = useState(false), [reveal, setReveal] = useState<ShopSpin | null>(null)
 	const [starting, setStarting] = useState(false)
-	const [detail, setDetail] = useState<RewardSkin | null>(null)
+	// The open card; only the cards for sale can be bought from it.
+	const [detail, setDetail] = useState<{ skin: RewardSkin; purchasable: boolean } | null>(null)
 	// Closed cards still flying back to their slots; their slots stay empty until they land.
 	const [flying, setFlying] = useState<RewardSkin[]>([])
-	// The row does not scroll under a returning card (the morph takes ~570 ms), so its target holds still.
+	// A row does not scroll under a returning card (the morph takes ~570 ms), so its target holds still.
 	const [locks, setLocks] = useState(0)
 	const [now, setNow] = useState(Date.now)
 	const [fresh, setFresh] = useState<RewardSkin[]>([])
@@ -81,8 +97,8 @@ export default function Shop() {
 		const scheduled = timers.current
 		return () => { window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check); clearInterval(tick); for (const timer of scheduled) clearTimeout(timer) }
 	}, [load])
-	// Opening the shop clears the dot, also when a new day arrives while it is open.
-	useEffect(() => { if (state) markSeen() }, [state?.day, markSeen])
+	// Opening the shop clears the dot, also when a rotation arrives while it is open.
+	useEffect(() => { if (state) markSeen() }, [state?.slot, markSeen])
 	// Notices are short and float over the page, so they leave on their own.
 	useEffect(() => {
 		if (!notice) return
@@ -185,7 +201,7 @@ export default function Shop() {
 		try { await review(); return true } catch (cause) { fail(cause, 'No pude preparar el repaso.'); return false }
 		finally { setStarting(false) }
 	}
-	/** Closing frees the row at once: another card can open while this one flies home. */
+	/** Closing frees the rows at once: another card can open while this one flies home. */
 	function closeDetail(skin: RewardSkin) {
 		setFlying((current) => [...current, skin])
 		setDetail(null)
@@ -214,51 +230,62 @@ export default function Shop() {
 	const graded = (result: ShopAnswer) => setState((current) => current && { ...current, freeSpin: result.freeSpin, review: { attemptsLeft: result.attemptsLeft, active: null } })
 
 	const student = state && !state.teacher
-	const header = student ? <PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} /> : null
+	// In development a reset lives up by the points, out of the panel.
+	const header = student ? <>
+		{import.meta.env.DEV && <button type="button" className="shop-debug" onClick={() => void (async () => { await portalRequest('shop/debug/reset-review', 'POST', {}); await load() })()}>Debug: reiniciar preguntas</button>}
+		<PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} />
+	</> : null
 	return <LibraryShell title="Tienda" view="shop" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} actions={header} testId="portal-shop">
 		<div className="shop" aria-busy={!state}>
+			{BLUR === 'filter' && <BlurFilters />}
 			{loadError && !state && <p className="xp-error shop-alert" role="alert">{loadError} <button className="portal-link" onClick={() => void load()}>Reintentar</button></p>}
 			{!state && !loadError && <ShopSkeleton />}
 			{state && <>
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
 				<section className="shop-hero" ref={hero}>
 					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
-					<Ticket state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review} onDebugReset={async () => { await portalRequest('shop/debug/reset-review', 'POST', {}); await load() }} />
+					<Panel state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review}
+						strip={(tray) => <Strip className="shop-strip" key={state.day} list={tray.list} tray={tray.on} gathering={tray.gathering} cardWidth={tray.on ? CARD.tray : CARD.spread} handlers={tray.handlers} locked={locks > 0}>
+							{state.pool.map((skin) => <motion.li key={skin} data-slot={skin} data-focus={(tray.on && tray.focus === skin) || undefined} layout={!reduced} transition={GATHER}>
+								<ShopCard skin={skin} faceUp width={tray.on ? CARD.tray : CARD.spread} state={state} open={detail?.skin === skin || flying.includes(skin)} onOpen={(card) => setDetail({ skin: card, purchasable: false })} />
+							</motion.li>)}
+						</Strip>} />
 				</section>
 				<section className="shop-cards" aria-labelledby="shop-cards-title">
 					<div className="shop-cards__heading">
-						<h2 id="shop-cards-title">Cartas de hoy</h2>
-						<p className="shop-countdown" data-testid="shop-countdown">cambian en {countdown(state.rotatesAt - now)}</p>
+						<h2 id="shop-cards-title">Cartas en venta</h2>
+						<p className="shop-cards__meter"><Icon name="rotate" size={16} /><span className="xp-sr-only">Las cartas cambian en </span><Countdown at={state.rotatesAt} /></p>
 					</div>
-					{/* Programmatic scrolls can still move an `overflow-y: hidden` box; the row only ever scrolls sideways. */}
-					<motion.ul className="shop-row" key={state.day} layoutScroll data-locked={locks > 0 || undefined} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
-						{state.pool.map((skin, i) => <li key={skin} data-slot={skin} style={{ '--i': i } as CSSProperties}>
-							<ShopCard skin={skin} state={state} fresh={fresh.includes(skin)} open={detail === skin || flying.includes(skin)}
-								onReveal={(card, element) => void turnCard(card, element)} onOpen={setDetail} onFlashed={() => setFresh((current) => current.filter((item) => item !== skin))} />
+					<Strip className="shop-row" key={state.slot} cardWidth={CARD.row} locked={locks > 0}>
+						{state.shop.map((skin) => <li key={skin} data-slot={skin}>
+							<ShopCard skin={skin} width={CARD.row} state={state} fresh={fresh.includes(skin)} open={detail?.skin === skin || flying.includes(skin)}
+								onReveal={(card, element) => void turnCard(card, element)} onOpen={(card) => setDetail({ skin: card, purchasable: true })} onFlashed={() => setFresh((current) => current.filter((item) => item !== skin))} />
 						</li>)}
-						<li className="shop-gift-slot" style={{ '--i': state.pool.length } as CSSProperties}>
+						<li className="shop-gift-slot">
 							<GiftTicket gift={state.gift} teacher={state.teacher} claiming={claiming} coins={coins} onClaim={() => void claimGift()} />
 						</li>
-					</motion.ul>
+					</Strip>
 				</section>
 			</>}
 		</div>
 		{reveal && <GachaponReveal result={reveal} />}
-		<AnimatePresence mode="sync">{detail && state && <CardDetail key={detail} skin={detail} state={state} onBuy={buy} onClose={() => closeDetail(detail)} onLanded={() => cardHome(detail)} />}</AnimatePresence>
+		<AnimatePresence mode="sync">{detail && state && <CardDetail key={detail.skin} skin={detail.skin} purchasable={detail.purchasable} state={state} onBuy={buy} onClose={() => closeDetail(detail.skin)} onLanded={() => cardHome(detail.skin)} />}</AnimatePresence>
 	</LibraryShell>
 }
 
-/** The ticket hosts the review below its perforation, so the free spin is earned where it is shown. */
-function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, onDebugReset }: {
-	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>; onDebugReset: () => Promise<void>
+/** The hero's right column: the machine's cards and the review that earns the free spin next to it. */
+function Panel({ state, hero, starting, strip, onReview, onAnswer, onGraded, onRetry }: {
+	strip: (tray: Tray) => ReactNode
+	state: ShopState; hero: RefObject<HTMLElement | null>; starting: boolean; onReview: () => Promise<boolean>
 	onAnswer: (review: ShopReview, index: number, answer: number) => Promise<ShopAnswer>; onGraded: (result: ShopAnswer) => void; onRetry: () => Promise<void>
 }) {
 	const { freeSpin, review } = state
-	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false)
+	const [graded, setGraded] = useState<ShopAnswer | null>(null), [open, setOpen] = useState(false), [grading, setGrading] = useState(false)
 	// The rain falls inside the gachapon panel, measured as it starts.
 	const [celebration, setCelebration] = useState<{ id: string; height: number; leaving?: boolean } | null>(null)
-	const ticket = useRef<HTMLElement>(null), title = useRef<HTMLHeadingElement>(null)
+	const panel = useRef<HTMLElement>(null), title = useRef<HTMLHeadingElement>(null)
 	const view = graded ? 'failed' : !state.teacher && open && review.active ? 'quiz' : 'free'
+	const list = useRef<HTMLUListElement>(null), tray = useTray(list, view === 'quiz')
 	// Once the free spin is earned, spent or out of reach for today, the title says so and stands alone.
 	const outcome = state.teacher || view !== 'free' ? null : freeSpin === 'available' ? 'available'
 		: freeSpin === 'used' || (!review.active && !review.attemptsLeft) ? 'later' : null
@@ -269,9 +296,9 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, 
 		const timer = setTimeout(() => setCelebration(fade ? { ...celebration, leaving: true } : null), celebration.leaving ? 500 : 2500)
 		return () => clearTimeout(timer)
 	}, [celebration])
-	// Opening the quiz brings the whole ticket into view.
+	// Opening the quiz brings the whole panel into view.
 	useEffect(() => {
-		if (view === 'quiz') ticket.current?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+		if (view === 'quiz') panel.current?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
 	}, [view, review.active?.id])
 	function finish(result: ShopAnswer) {
 		setOpen(false)
@@ -281,33 +308,168 @@ function Ticket({ state, hero, starting, onReview, onAnswer, onGraded, onRetry, 
 		// The quiz held focus; the new title takes it, so keyboard and screen reader users hear it.
 		requestAnimationFrame(() => title.current?.focus({ preventScroll: true }))
 	}
+	/**
+	 * A scrolled strip slides back to its start before the cards gather. The deck does not scroll, and the browser would reset
+	 * the scroll in the gather's first frame, which Motion reads as a scroll rather than a move, so the cards would jump.
+	 */
+	function openQuiz(then?: () => void) {
+		const strip = list.current, from = strip?.scrollLeft ?? 0
+		const show = () => { then?.(); setOpen(true) }
+		if (!strip || !from) { show(); return }
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) { strip.scrollLeft = 0; show(); return }
+		// Snapping would pull each step back to the nearest card; the gather turns it off from here on.
+		strip.style.scrollSnapType = 'none'
+		const start = performance.now()
+		const step = (time: number) => {
+			const t = Math.min(1, (time - start) / REWIND_MS)
+			strip.scrollLeft = from * (1 - REWIND_EASE(t))
+			requestAnimationFrame(t < 1 ? step : () => { strip.style.scrollSnapType = ''; show() })
+		}
+		requestAnimationFrame(step)
+	}
 	async function retry() {
 		await onRetry()
-		setGraded(null); setOpen(true)
+		openQuiz(() => setGraded(null))
 	}
 	async function start() {
-		if (await onReview()) setOpen(true)
+		if (await onReview()) openQuiz()
 	}
 
-	const free = state.teacher ? <p className="shop-ticket__note">Los alumnos ganan una tirada gratis al repasar 3 preguntas.</p>
-		: review.active ? <button className="shop-button" onClick={() => setOpen(true)}>Continuar repaso</button>
+	const free = state.teacher ? <p className="shop-panel__note">Los alumnos ganan una tirada gratis al repasar 3 preguntas.</p>
+		: review.active ? <button className="shop-button" onClick={() => openQuiz()}>Continuar repaso</button>
 		: <button className="shop-button" disabled={starting} onClick={() => void start()}>{starting ? 'Preparando…' : 'Repasar 3 preguntas'}</button>
-	const debug = import.meta.env.DEV && !state.teacher && view !== 'quiz'
-		&& <button type="button" className="shop-debug" onClick={() => void onDebugReset()}>Debug: reiniciar preguntas</button>
 	const heading = outcome === 'available' ? 'Felicidades! Reclama tu tirada gratis! :)' : outcome === 'later' ? 'Vuelve mañana por otra tirada!' : '¡Repasa los conceptos de clase y gana una tirada! :)'
-	return <section className="shop-ticket" ref={ticket} aria-labelledby="shop-ticket-title" data-outcome={outcome ?? undefined}>
-		<h2 id="shop-ticket-title" className="shop-ticket__title" ref={title} tabIndex={-1} key={heading}>{heading}</h2>
-		{outcome ? debug : <div className="shop-ticket__free" data-state={state.teacher ? 'preview' : freeSpin} data-testid="shop-free-spin">
-			<div className="shop-ticket__step" data-view={view} key={view}>
-				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active} onClose={() => setOpen(false)}
-					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} />
+	const headline = <h2 id="shop-panel-title" className="shop-panel__title" ref={title} tabIndex={-1} key={heading}>{heading}</h2>
+	// While the cards gather or spread, the panel does not clip them either; only the hero's rounded edge does.
+	return <section className="shop-panel" ref={panel} aria-labelledby="shop-panel-title" data-outcome={outcome ?? undefined} data-gathering={tray.gathering || undefined}>
+		{strip(tray)}
+		<TrayPreview skin={tray.shown ? tray.focus : null} list={list} panel={panel} />
+		<div className="shop-panel__content" data-view={view} key={view}>
+			{view === 'quiz' ? <div className="shop-panel__head">
+				{/* Closing keeps the attempt; "Continuar repaso" resumes it. */}
+				<button type="button" className="xp-icon-button shop-panel__back" aria-label="Cerrar el repaso" disabled={grading} onClick={() => setOpen(false)}><Icon name="back" /></button>
+				{headline}
+			</div> : headline}
+			{!outcome && <div className="shop-panel__step" data-view={view} data-testid="shop-free-spin">
+				{view === 'quiz' && review.active ? <Quiz key={review.active.id} review={review.active}
+					onAnswer={(index, answer) => onAnswer(review.active!, index, answer)} onCorrect={(id) => setCelebration({ id, height: hero.current?.clientHeight ?? 0 })} onDone={finish} onGrading={setGrading} />
 					: view === 'failed' && graded ? <Failed result={graded} onRetry={retry} onDone={() => { setGraded(null); setOpen(false) }} />
 					: free}
-				{debug}
-			</div>
-		</div>}
+			</div>}
+		</div>
 		{celebration && hero.current && createPortal(<Celebration key={celebration.id} id={celebration.id} height={celebration.height} leaving={celebration.leaving} />, hero.current)}
 	</section>
+}
+
+type TrayHandlers = Pick<HTMLAttributes<HTMLUListElement>, 'onPointerOver' | 'onPointerLeave' | 'onClickCapture'>
+type Tray = { on: boolean; gathering: boolean; focus: RewardSkin | null; list: RefObject<HTMLUListElement | null>; handlers: TrayHandlers }
+
+/** The quiz's deck: a card is focused only while a mouse is over it, and its preview rises while it is. Touch taps open the detail directly. */
+function useTray(list: RefObject<HTMLUListElement | null>, on: boolean) {
+	const reduced = usePassReducedMotion()
+	const [hovered, setHovered] = useState<RewardSkin | null>(null)
+	useEffect(() => setHovered(null), [on])
+	// The mode settles 600 ms after it changes; deriving it in render marks the very commit that starts the gather.
+	const [settled, setSettled] = useState(on), gathering = on !== settled
+	useEffect(() => {
+		const timer = setTimeout(() => setSettled(on), 600)
+		return () => clearTimeout(timer)
+	}, [on])
+	const handlers: TrayHandlers = on ? {
+		onPointerOver: (event) => {
+			const slot = (event.target as Element).closest<HTMLElement>('[data-slot]')
+			if (event.pointerType === 'mouse' && slot) setHovered(slot.dataset.slot as RewardSkin)
+		},
+		onPointerLeave: () => setHovered(null),
+		// A card opening in the detail ends the preview at once.
+		onClickCapture: () => setHovered(null),
+	} : {}
+	const focus = on ? hovered : null
+	return { on, gathering, focus, list, handlers, shown: !reduced && !!focus }
+}
+
+const PREVIEW_W = 150
+/** The focused card at full size over the quiz, risen from its thumbnail while the pointer stays on it. */
+function TrayPreview({ skin, list, panel }: { skin: RewardSkin | null; list: RefObject<HTMLUListElement | null>; panel: RefObject<HTMLElement | null> }) {
+	const [left, setLeft] = useState(PREVIEW_W / 2)
+	useLayoutEffect(() => {
+		const slot = skin && list.current?.querySelector(`[data-slot="${skin}"]`)?.getBoundingClientRect(), frame = panel.current
+		if (!slot || !frame) return
+		const box = frame.getBoundingClientRect()
+		setLeft(Math.min(Math.max(slot.left + slot.width / 2 - box.left, PREVIEW_W / 2), frame.clientWidth - PREVIEW_W / 2))
+	}, [skin, list, panel])
+	const draft = useMemo(() => skin && shopDraft(skin), [skin])
+	return <AnimatePresence>
+		{skin && draft && <motion.div className="shop-tray__preview" aria-hidden="true" data-skin={skin} style={{ x: '-50%' }}
+			initial={{ opacity: 0, scale: 0.23, y: -36, left }} animate={{ opacity: 1, scale: 1, y: 0, left }} transition={{ type: 'spring', duration: 0.5, bounce: 0.18 }}
+			exit={{ opacity: 0, scale: 0.23, y: -36, transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] } }}>
+			<AnimatePresence mode="popLayout" initial={false}>
+				<motion.div key={skin} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} style={{ borderRadius: radius(PREVIEW_W) }}>
+					<div className="shop-float"><PassCard draft={draft} variant="shop" tilt={false} /></div>
+				</motion.div>
+			</AnimatePresence>
+		</motion.div>}
+	</AnimatePresence>
+}
+
+
+/** How each edge's overlay blurs the cards under it. Chromium on macOS ignores a mask over a backdrop filter, so there the filter fades itself inward:
+ *  an SVG filter mixes the blurred backdrop with the sharp one along a ramp. Safari and Firefox mask the blur instead. */
+const BLUR = typeof navigator !== 'undefined' && 'userAgentData' in navigator ? 'filter' : 'mask'
+/** An alpha ramp the filter stretches over the overlay: opaque at the outer edge, clear at the inner one. */
+const blurRamp = (side: 'left' | 'right') => {
+	const stops = side === 'left' ? [[0, 1], [0.35, 1], [1, 0]] : [[0, 0], [0.65, 1], [1, 1]]
+	const gradient = stops.map(([offset, alpha]) => `<stop offset="${offset}" stop-color="#fff" stop-opacity="${alpha}"/>`).join('')
+	return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="8" preserveAspectRatio="none"><defs><linearGradient id="g">${gradient}</linearGradient></defs><rect width="72" height="8" fill="url(#g)"/></svg>`)}`
+}
+/** The two edge filters, once per page. */
+function BlurFilters() {
+	return <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true"><defs>
+		{(['left', 'right'] as const).map((side) => <filter key={side} id={`shop-blur-${side}`} x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
+			<feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
+			<feImage href={blurRamp(side)} preserveAspectRatio="none" result="ramp" />
+			<feComposite in="blur" in2="ramp" operator="in" result="blurred" />
+			<feComposite in="SourceGraphic" in2="ramp" operator="out" result="sharp" />
+			<feMerge><feMergeNode in="sharp" /><feMergeNode in="blurred" /></feMerge>
+		</filter>)}
+	</defs></svg>
+}
+
+/** One row of cards that only scrolls sideways. Its edges fade where more cards wait past them. */
+function Strip({ className, list: given, tray = false, gathering = false, cardWidth, handlers, locked, children }: {
+	className: string; list?: RefObject<HTMLUListElement | null>; tray?: boolean; gathering?: boolean; cardWidth: number; handlers?: TrayHandlers; locked: boolean; children: ReactNode
+}) {
+	const own = useRef<HTMLUListElement>(null), list = given ?? own
+	const [more, setMore] = useState<'left' | 'right' | 'both'>()
+	// While the cards gather or spread, the stage's hover lift stays off so only the layout animation moves them, and the strip does not clip or fade them.
+	// Its edges are measured again once the cards settle, before that frame paints, so the fades return with the clip.
+	useLayoutEffect(() => {
+		if (gathering) return
+		// The tray never scrolls, so it has no edges to fade.
+		if (tray) { setMore(undefined); return }
+		const strip = list.current!
+		const update = () => {
+			const left = strip.scrollLeft > 2, right = strip.scrollWidth - strip.clientWidth - strip.scrollLeft > 2
+			setMore(left && right ? 'both' : left ? 'left' : right ? 'right' : undefined)
+		}
+		update()
+		// The strip and its slots change size as the cards gather and spread.
+		const observer = new ResizeObserver(update)
+		observer.observe(strip)
+		for (const slot of strip.children) observer.observe(slot)
+		strip.addEventListener('scroll', update, { passive: true })
+		return () => { observer.disconnect(); strip.removeEventListener('scroll', update) }
+	}, [list, tray, gathering])
+	// Programmatic scrolls can still move an `overflow-y: hidden` box; the strip only ever scrolls sideways.
+	// Past an edge with more cards, the cards blur and fade out under an overlay; the wrapper holds the overlays over the scrolling list.
+	return <div className="shop-scroller" data-more={more} data-blur={BLUR}>
+		<motion.ul ref={list} className={className} layoutScroll data-tray={tray || undefined} data-gathering={gathering || undefined} data-more={more} data-locked={locked || undefined} {...handlers}
+			style={{ '--card-w': `${cardWidth}px` } as CSSProperties} onScroll={(event) => { if (event.currentTarget.scrollTop) event.currentTarget.scrollTop = 0 }}>
+			{children}
+		</motion.ul>
+		<i className="shop-scroller__fade" data-side="left" aria-hidden="true" />
+		<i className="shop-scroller__fade" data-side="right" aria-hidden="true" />
+	</div>
 }
 
 const LETTERS = 'ABCD'
@@ -316,9 +478,10 @@ const attempts = (count: number) => count === 1 ? 'Te queda 1 intento hoy.' : `T
 const ADVANCE_MS = 1300
 
 /** One question at a time, graded as soon as it is answered. The server keeps each key until then. */
-function Quiz({ review, onClose, onAnswer, onCorrect, onDone }: {
-	review: ShopReview; onClose: () => void
+function Quiz({ review, onAnswer, onCorrect, onDone, onGrading }: {
+	review: ShopReview
 	onAnswer: (index: number, answer: number) => Promise<ShopAnswer>; onCorrect: (id: string) => void; onDone: (result: ShopAnswer) => void
+	onGrading: (grading: boolean) => void
 }) {
 	const reduced = usePassReducedMotion()
 	const [results, setResults] = useState(review.results)
@@ -330,6 +493,8 @@ function Quiz({ review, onClose, onAnswer, onCorrect, onDone }: {
 	// Focus follows the question and its result for keyboard and screen reader users.
 	useEffect(() => { heading.current?.focus({ preventScroll: true }) }, [index, !!result])
 	useEffect(() => () => clearTimeout(advance.current), [])
+	// The panel's back arrow waits while an answer is graded and shown.
+	useEffect(() => { onGrading(picked !== null); return () => onGrading(false) }, [picked])
 
 	async function choose(answer: number) {
 		if (picked !== null || result) return
@@ -350,7 +515,6 @@ function Quiz({ review, onClose, onAnswer, onCorrect, onDone }: {
 	return <div className="shop-review" data-testid="shop-review">
 		<div className="shop-review__progress" aria-hidden="true">{review.questions.map((_, i) => <i key={i} data-state={results[i] ? 'done' : i === index ? 'current' : 'next'} />)}</div>
 		<div className="shop-review__step" key={index}>
-			<p className="shop-review__count">Pregunta {index + 1} de {review.questions.length}</p>
 			<h3 ref={heading} tabIndex={-1} className="shop-review__question">{question.question}</h3>
 			<div className="shop-review__answers" role="group" aria-label="Respuestas" data-shake={shake || undefined}>
 				{question.answers.map((answer, i) => <button key={i} className="shop-review__answer" aria-pressed={(result?.answer ?? picked) === i} data-result={mark(i)}
@@ -360,9 +524,6 @@ function Quiz({ review, onClose, onAnswer, onCorrect, onDone }: {
 			</div>
 		</div>
 		{error && <p className="xp-error" role="alert">{error}</p>}
-		<div className="shop-review__footer">
-			<button className="shop-review__close" disabled={picked !== null} onClick={onClose}>Cerrar</button>
-		</div>
 	</div>
 }
 
@@ -437,15 +598,16 @@ const morphId = (skin: RewardSkin) => `shop-card-${skin}`
 /**
  * The profile card in its shop dress, with the same tilt, lamp and foil. Face down it is a "Revelar carta" button;
  * face up it opens the card's detail, where it is bought. While the detail is open the card is there, and its slot stays empty.
+ * The machine's cards in the hero are always face up.
  */
-function ShopCard({ skin, state, fresh, open, onReveal, onOpen, onFlashed }: {
-	skin: RewardSkin; state: ShopState; fresh: boolean; open: boolean
-	onReveal: (skin: RewardSkin, card: HTMLElement) => void; onOpen: (skin: RewardSkin) => void; onFlashed: () => void
+function ShopCard({ skin, faceUp = false, width, state, fresh = false, open, onReveal, onOpen, onFlashed }: {
+	skin: RewardSkin; faceUp?: boolean; width: number; state: ShopState; fresh?: boolean; open: boolean
+	onReveal?: (skin: RewardSkin, card: HTMLElement) => void; onOpen: (skin: RewardSkin) => void; onFlashed?: () => void
 }) {
 	const art = skins.find((item) => item.id === skin)!
 	const draft = useMemo(() => shopDraft(skin), [skin])
 	const reduced = usePassReducedMotion()
-	const revealed = state.revealed.includes(skin), owned = state.owned.includes(skin)
+	const revealed = faceUp || state.revealed.includes(skin), owned = state.owned.includes(skin)
 	const stage = useRef<HTMLDivElement>(null), button = useRef<HTMLButtonElement>(null)
 	const mode = revealed ? 'view' : 'reveal'
 	/** Waits for the card to accept focus again, unless the student moved on. */
@@ -460,7 +622,7 @@ function ShopCard({ skin, state, fresh, open, onReveal, onOpen, onFlashed }: {
 		if (mode === 'view') { onOpen(skin); return }
 		// The overlay is inert while the card turns, so a keyboard reveal gets its focus back afterwards.
 		const focused = document.activeElement === button.current
-		onReveal(skin, stage.current!)
+		onReveal?.(skin, stage.current!)
 		if (focused) refocus(FLIP_MS, 12)
 	}
 	const slot = { 'data-open': open, 'data-revealed': revealed, 'data-owned': revealed && owned, 'data-mode': mode, style: { '--card-color': art.color } as CSSProperties }
@@ -468,7 +630,9 @@ function ShopCard({ skin, state, fresh, open, onReveal, onOpen, onFlashed }: {
 	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${art.name}` : 'Revelar carta'} onClick={press} />
 	return <div className="shop-card-slot" {...slot}>
 		<div className="shop-card-stage" ref={stage}>
-			<motion.div layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH} style={{ borderRadius: 17 }}>
+			{/* `layoutId` alone animates its layout too. It moves with the slot's spring, so the card never drifts inside a gathering slot; the morph uses the detail's own spring.
+			    The machine's cards change size, so their corners ease with that spring too; the row's never do. */}
+			<motion.div layoutId={reduced ? undefined : morphId(skin)} transition={GATHER} {...(faceUp ? { initial: false, animate: { borderRadius: radius(width) } } : { style: { borderRadius: radius(width) } })}>
 				<PassCard draft={draft} variant="shop" back={!revealed} backFace={CARD_BACK} actions={actions} />
 			</motion.div>
 			{/* The flash reaches past the card, so it leaves once it fades; left behind, it let the row scroll vertically. */}
@@ -482,11 +646,11 @@ type BuyMode = 'buy' | 'confirm' | 'busy' | 'short' | 'owned' | 'preview'
 const fade = (leaving: boolean) => ({ initial: { opacity: 0 }, animate: { opacity: leaving ? 0 : 1 }, exit: { opacity: 0 }, transition: { duration: 0.2 } })
 
 /**
- * A face-up card at full size: the row card itself grows to the centre and goes back on close. The first tap asks, the second buys.
+ * A face-up card at full size: the strip or row card itself grows to the centre and goes back on close. For a card on sale, the first tap asks, the second buys.
  * It is a hand-made modal because a dialog portal mounts a render late, and the morph needs both ends in the same commit.
  */
-function CardDetail({ skin, state, onBuy, onClose, onLanded }: {
-	skin: RewardSkin; state: ShopState; onBuy: (skin: RewardSkin) => Promise<boolean>; onClose: () => void; onLanded: () => void
+function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
+	skin: RewardSkin; purchasable: boolean; state: ShopState; onBuy: (skin: RewardSkin) => Promise<boolean>; onClose: () => void; onLanded: () => void
 }) {
 	// Closing removes the detail at once; it stays mounted, inert, only while the card flies home.
 	const [present, safeToRemove] = usePresence()
@@ -498,8 +662,11 @@ function CardDetail({ skin, state, onBuy, onClose, onLanded }: {
 	const [confirming, setConfirming] = useState(false), [busy, setBusy] = useState(false)
 	const root = useRef<HTMLDivElement>(null), buyButton = useRef<HTMLButtonElement>(null), close = useRef<HTMLButtonElement>(null)
 	const title = useId()
-	// On close the card flies back to its slot here, above the row's clipping, then hands over to the slot card in place.
+	// On close the card flies back to its slot here, above the strip's clipping, then hands over to the slot card in place.
 	const [home, setHome] = useState<DOMRect | null>(null)
+	// The card's corners follow its width: the frame's while open, the slot's as it lands.
+	const frame = useRef<HTMLDivElement>(null), [frameWidth, setFrameWidth] = useState(360)
+	useLayoutEffect(() => setFrameWidth(frame.current!.getBoundingClientRect().width), [])
 	const mode: BuyMode = owned ? 'owned' : state.teacher ? 'preview' : busy ? 'busy' : missing > 0 ? 'short' : confirming ? 'confirm' : 'buy'
 	const enabled = mode === 'buy' || mode === 'confirm'
 	useEffect(() => {
@@ -507,7 +674,7 @@ function CardDetail({ skin, state, onBuy, onClose, onLanded }: {
 		const timer = setTimeout(() => setConfirming(false), 4000)
 		return () => clearTimeout(timer)
 	}, [confirming])
-	useEffect(() => { (enabled ? buyButton : close).current?.focus({ preventScroll: true }) }, [])
+	useEffect(() => { (purchasable && enabled ? buyButton : close).current?.focus({ preventScroll: true }) }, [])
 	const price = points(state.cardCost)
 
 	const land = useRef<() => void>(undefined)
@@ -548,16 +715,16 @@ function CardDetail({ skin, state, onBuy, onClose, onLanded }: {
 	return createPortal(<div className="shop-detail" ref={root} role="dialog" aria-modal="true" aria-labelledby={title} data-leaving={leaving} inert={leaving} onKeyDown={keys}>
 		<motion.div className="shop-detail-overlay" {...fade(leaving)} onClick={dismiss} />
 		<div className="shop-detail__content" data-testid="shop-card-detail" onClick={(event) => { if (event.target === event.currentTarget) dismiss() }}>
-			<div className="shop-detail__frame">
+			<div className="shop-detail__frame" ref={frame}>
 				<motion.div className="shop-detail__card" layoutId={reduced ? undefined : morphId(skin)} layout={!reduced} transition={MORPH}
-					style={{ borderRadius: 17, '--card-color': art.color, ...(home && { position: 'fixed', left: home.left, top: home.top, width: home.width }) } as CSSProperties}
+					style={{ borderRadius: radius(home ? home.width : frameWidth), '--card-color': art.color, ...(home && { position: 'fixed', left: home.left, top: home.top, width: home.width }) } as CSSProperties}
 					onLayoutAnimationComplete={() => { if (home) land.current?.() }}>
-					<PassCard draft={draft} variant="shop" />
+					<div className="shop-float"><PassCard draft={draft} variant="shop" /></div>
 				</motion.div>
 			</div>
 			<motion.div className="shop-detail__text" {...fade(leaving)}>
 				<h2 className="shop-detail__name" id={title}>{art.name}</h2>
-				<button ref={buyButton} className="shop-detail__buy" data-mode={mode} disabled={!enabled} onClick={() => void press()}>{label}</button>
+				{purchasable && <button ref={buyButton} className="shop-detail__buy" data-mode={mode} disabled={!enabled} onClick={() => void press()}>{label}</button>}
 			</motion.div>
 		</div>
 		<motion.button className="xp-icon-button shop-detail__close" aria-label="Cerrar" ref={close} onClick={dismiss} {...fade(leaving)}><Icon name="close" /></motion.button>
@@ -566,7 +733,14 @@ function CardDetail({ skin, state, onBuy, onClose, onLanded }: {
 
 function ShopSkeleton() {
 	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda">
-		<div className="shop-hero"><div className="shop-skeleton__block shop-skeleton__machine" /><div className="shop-skeleton__block shop-skeleton__ticket" /></div>
-		<ul className="shop-row">{Array.from({ length: 7 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__card" /></li>)}</ul>
+		<div className="shop-hero">
+			<div className="shop-skeleton__block shop-skeleton__machine" />
+			<div className="shop-skeleton__panel">
+				<div className="shop-skeleton__block shop-skeleton__bar" />
+				<div className="shop-skeleton__row">{Array.from({ length: 7 }, (_, i) => <div key={i} className="shop-skeleton__block shop-skeleton__card" />)}</div>
+				<div className="shop-skeleton__block shop-skeleton__review" />
+			</div>
+		</div>
+		<div className="shop-scroller"><ul className="shop-row">{Array.from({ length: 6 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__sale" /></li>)}</ul></div>
 	</div>
 }

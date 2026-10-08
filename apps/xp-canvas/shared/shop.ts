@@ -10,21 +10,28 @@ export const SHOP_REVEAL_POINTS = 5
 export const SHOP_GIFT_POINTS = 25
 export const SHOP_GIFT_STREAK_POINTS = 50
 export const SHOP_GIFT_STREAK_DAYS = 5
+export const SHOP_ROTATION_HOURS = 6
 
-// Mexico has no daylight saving time since 2022, so every shop day lasts exactly 24 h.
+// Mexico has no daylight saving time since 2022, so every shop day lasts exactly 24 h and every rotation 6 h.
 const TIME_ZONE = 'America/Mexico_City'
 const DAY_MS = 24 * 60 * 60 * 1000
+const ROTATION_MS = SHOP_ROTATION_HOURS * 60 * 60 * 1000
 const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' })
 const clockFormat = new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 /** `YYYY-MM-DD` of the shop day in Mexico City. */
 export const shopDay = (now = Date.now()) => dayFormat.format(now)
 
-/** Epoch ms of the next Mexico City midnight, when the pool changes. */
+const clock = (now: number) => Object.fromEntries(clockFormat.formatToParts(now).map((part) => [part.type, Number(part.value)]))
+
+/** `YYYY-MM-DD/n`: the pool's rotation, the n-th six hours of the shop day (0–3). */
+export const shopSlot = (now = Date.now()) => `${shopDay(now)}/${Math.floor(clock(now).hour / SHOP_ROTATION_HOURS)}`
+
+/** Epoch ms of the next rotation, every six hours from Mexico City midnight. */
 export function nextShopRotation(now = Date.now()) {
-	const parts = Object.fromEntries(clockFormat.formatToParts(now).map((part) => [part.type, Number(part.value)]))
+	const parts = clock(now)
 	const elapsed = ((parts.hour * 60 + parts.minute) * 60 + parts.second) * 1000 + (((now % 1000) + 1000) % 1000)
-	return now - elapsed + DAY_MS
+	return now - elapsed % ROTATION_MS + ROTATION_MS
 }
 
 /** The day before a `YYYY-MM-DD` shop day. */
@@ -41,23 +48,32 @@ export function giftStreak(days: string[], today: string) {
 /** What a gift pays when it is the `streak`-th day in a row. */
 export const giftAmount = (streak: number) => streak >= SHOP_GIFT_STREAK_DAYS ? SHOP_GIFT_STREAK_POINTS : SHOP_GIFT_POINTS
 
-/** The same six cards for everyone on a given day: FNV-1a seeds mulberry32, which shuffles the catalog. */
-export function shopPool(day: string): RewardSkin[] {
-	let seed = 0x811c9dc5
-	for (let i = 0; i < day.length; i++) seed = Math.imul(seed ^ day.charCodeAt(i), 0x01000193) >>> 0
+/** The catalog shuffled the same way for everyone with the same seed: FNV-1a seeds mulberry32. */
+function shuffled(seed: string, cards: readonly RewardSkin[]): RewardSkin[] {
+	let state = 0x811c9dc5
+	for (let i = 0; i < seed.length; i++) state = Math.imul(state ^ seed.charCodeAt(i), 0x01000193) >>> 0
 	const random = () => {
-		seed = (seed + 0x6d2b79f5) >>> 0
-		let t = seed
+		state = (state + 0x6d2b79f5) >>> 0
+		let t = state
 		t = Math.imul(t ^ (t >>> 15), t | 1)
 		t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
 		return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 	}
-	const cards = [...REWARD_SKINS]
-	for (let i = cards.length - 1; i > 0; i--) {
+	const result = [...cards]
+	for (let i = result.length - 1; i > 0; i--) {
 		const j = Math.floor(random() * (i + 1));
-		[cards[i], cards[j]] = [cards[j], cards[i]]
+		[result[i], result[j]] = [result[j], result[i]]
 	}
-	return cards.slice(0, SHOP_POOL_SIZE)
+	return result
+}
+
+/** The machine's six prizes for a shop day. */
+export const gachaPool = (day: string) => shuffled(day, REWARD_SKINS).slice(0, SHOP_POOL_SIZE)
+
+/** The six cards for sale in a rotation, never one of that day's machine prizes. */
+export function shopPool(slot: string): RewardSkin[] {
+	const machine = gachaPool(slot.split('/')[0])
+	return shuffled(slot, REWARD_SKINS.filter((skin) => !machine.includes(skin))).slice(0, SHOP_POOL_SIZE)
 }
 
 /** A review question without its key. The correct index stays on the server until grading. */
@@ -71,7 +87,13 @@ export type FreeSpinState = 'locked' | 'available' | 'used'
 export interface ShopGift { claimed: boolean; amount: number; streak: number }
 export interface ShopState {
 	day: string
+	/** The machine's prizes for the day, from `gachaPool`. */
 	pool: RewardSkin[]
+	/** The shop's rotation, from `shopSlot`. */
+	slot: string
+	/** The cards for sale in this rotation, from `shopPool`. */
+	shop: RewardSkin[]
+	/** When the cards for sale change next. */
 	rotatesAt: number
 	spinCost: number
 	cardCost: number
@@ -79,7 +101,7 @@ export interface ShopState {
 	owned: RewardSkin[]
 	freeSpin: FreeSpinState
 	review: { attemptsLeft: number; active: ShopReview | null }
-	/** Today's cards this student already turned over. */
+	/** The cards for sale this student already turned over in this rotation. */
 	revealed: RewardSkin[]
 	gift: ShopGift
 	teacher: boolean
