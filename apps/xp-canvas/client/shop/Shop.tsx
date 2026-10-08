@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, cubicBezier, motion, usePresence } from 'motion/react'
+import cardBack from '../../design/shop/web/card-back.webp'
 import { GACHAPON_DURATION } from '../../shared/gachaponShape'
 import { defaultHologram, defaultPass, type PassDraft, type RewardSkin } from '../../shared/pass'
 import {
@@ -589,7 +590,7 @@ function GiftTicket({ gift, teacher, claiming, coins, onClaim }: { gift: ShopGif
 	</section>
 }
 
-const CARD_BACK = <div className="shop-card-back"><span className="shop-card-back__emblem">XP</span><span className="shop-card-back__ribbon">Nuevo</span></div>
+const CARD_BACK = <img className="shop-card-back" src={cardBack} alt="" draggable={false} />
 
 /** The shared-element morph between a card's slot and the detail, as one card moving rather than a copy. */
 const MORPH = { type: 'spring', stiffness: 260, damping: 30 } as const

@@ -140,17 +140,9 @@
 .shop .shop-card { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: inherit; background: none; color: inherit;
 	pointer-events: auto; -webkit-tap-highlight-color: transparent; }
 
-/* Face down: the gachapon ink with an XP monogram and a "Nuevo" ribbon. */
-.pass-card[data-variant='shop'] .pass-card-back { border-color: #ffd45c66;
-	background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='40'%3E%3Ctext x='23' y='25' fill='white' fill-opacity='.08' font-family='Arial' font-weight='900' font-size='13' text-anchor='middle'%3EXP%3C/text%3E%3C/svg%3E") 0 0 / 23cqw auto,
-		radial-gradient(circle at 50% 40%, #c4553a, #8a3a2c 48%, #4a1c18); }
-.shop-card-back { position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; box-shadow: inset 0 0 0 4.5cqw #00000026, inset 0 0 0 calc(4.5cqw + 1px) #ffd45c59; }
-.shop-card-back__emblem { display: grid; place-items: center; width: 44cqw; aspect-ratio: 1; margin-bottom: 22cqw; border-radius: 50%; color: #ffe8a8;
-	background: radial-gradient(circle at 40% 35%, #ffffff1f, transparent 60%), #00000033; box-shadow: inset 0 0 0 2px #ffd45c99, 0 0 0 5px #ffd45c1f;
-	font: 900 17cqw/1 Arial, sans-serif; letter-spacing: -.04em; }
-.shop-card-back__ribbon { position: absolute; left: -12%; right: -12%; top: 60%; padding: 2.5cqw 0; transform: rotate(-16deg);
-	background: linear-gradient(180deg, #ffe48a, #ffc23d); color: #5a1d12; box-shadow: 0 6px 14px -6px #000c, inset 0 1px 0 #fff9;
-	font: 900 11cqw/1 Arial, sans-serif; letter-spacing: .14em; text-align: center; text-transform: uppercase; }
+/* Face down: Leo's card back, drawn at the card's proportion, so it covers the face without a crop; its frame sits inside the corners the app rounds. */
+.pass-card[data-variant='shop'] .pass-card-back { border-color: #ffffff2e; background: #111; }
+.shop-card-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 /* The flip's flash, in the colour of the card. */
 .shop-burst { position: absolute; inset: 0; pointer-events: none; }
