@@ -493,7 +493,7 @@ try {
 	await rowStill('after a detail closes')
 	assert.equal(await card.getAttribute('data-owned'), 'true')
 	assert.equal(await student.locator('.shop-card__badge').count(), 0, 'owned cards look like the others')
-	assert.equal(await student.getByTestId('shop-machine-status').innerText(), 'Te faltan 45 puntos')
+	assert.equal(await student.getByTestId('shop-machine-status').innerText(), '', 'short of points the machine stays quiet')
 	assert.equal(await points(), 105)
 	// A card closed while the row scrolls still lands in its slot.
 	const third = row.locator(':scope > li').nth(2)
