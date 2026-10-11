@@ -43,14 +43,14 @@ describe('canvas imports', () => {
 	})
 })
 
-it('migrates existing questions to 100 points without changing their answers', async () => {
+it('migrates existing questions to 100 points and no recorded winner without changing their answers', async () => {
 	const { createTLSchema, defaultShapeSchemas } = await import('@tldraw/tlschema')
 	const { questionShapeProps } = await import('../shared/questionShape')
-	const { points: _points, ...oldProps } = questionShapeProps
+	const { points: _points, correctBy: _correctBy, ...oldProps } = questionShapeProps
 	const previous = createTLSchema({ shapes: { ...defaultShapeSchemas, question: { props: oldProps } } })
 	const oldQuestion = previous.types.shape.create({ id: 'shape:old-question' as never, type: 'question', parentId: page.id, index: 'a1' as never, x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, meta: {}, props: { w: 480, h: 400, question: 'Anterior', answers: ['A', 'B', 'C', 'D'], correct: 0, answered: [1], revision: 'original' } as never })
 	const migrated = validateBoardSnapshot({ ...snapshot, schema: previous.serialize(), documents: [...snapshot.documents, { state: oldQuestion, lastChangedClock: 0 }] })
 	const question = migrated.documents.find((record) => record.state.id === oldQuestion.id)?.state as TLRecord | undefined
-	expect(question?.typeName === 'shape' && question.type === 'question' && question.props).toMatchObject({ points: 100, answered: [1], revision: 'original' })
+	expect(question?.typeName === 'shape' && question.type === 'question' && question.props).toMatchObject({ points: 100, correctBy: '', answered: [1], revision: 'original' })
 	for (const points of [-1, .5, 1000001, Infinity, NaN]) expect(() => questionShapeProps.points.validate(points)).toThrow()
 })
