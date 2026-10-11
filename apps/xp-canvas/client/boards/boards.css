@@ -75,3 +75,5 @@
 .board-nav-dot { flex-shrink: 0; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: #f0583a; box-shadow: 0 0 0 2px #eaf0f1; }
 .board-sidebar-trigger { position: relative; }
 .board-sidebar-trigger .board-nav-dot { position: absolute; top: 9px; right: 8px; box-shadow: 0 0 0 2px #fff; }
+.board-delete-message { display: grid; gap: 12px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.board-delete-message p { margin: 0; }

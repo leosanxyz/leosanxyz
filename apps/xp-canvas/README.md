@@ -6,6 +6,8 @@ La primera pantalla es un administrador de canvases con carpetas anidadas, favor
 
 El modo local habitual no pide contraseña. Cualquier persona que pueda acceder a ese servidor puede administrar canvases, dibujar y modificar recursos. La papelera es reversible y no borra los documentos.
 
+**Eliminar carpeta**, en el menú de tres puntos de la carpeta abierta, pide confirmación y retira la carpeta con sus subcarpetas. Sus canvases van a la papelera; al restaurarlos aparecen en la carpeta que contenía a la eliminada, o en **Todos** si estaba en la raíz.
+
 Para las cuentas de alumnos, el entorno QA y la publicación, consulta [PORTAL.md](PORTAL.md).
 
 ## Desarrollo local
