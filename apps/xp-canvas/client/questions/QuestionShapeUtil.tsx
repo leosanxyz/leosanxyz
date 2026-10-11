@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { BaseBoxShapeUtil, HTMLContainer, useEditor, useValue } from 'tldraw'
 import { questionShapeProps, questionShapeMigrations, type QuestionShape } from '../../shared/questionShape'
 import { Icon } from '../components/Icon'
@@ -11,7 +11,7 @@ export class QuestionShapeUtil extends BaseBoxShapeUtil<QuestionShape> {
 	static override props = questionShapeProps
 	static override migrations = questionShapeMigrations
 	override getDefaultProps(): QuestionShape['props'] {
-		return { points: 100, w: 480, h: 400, question: 'Escribe tu pregunta', answers: ['Respuesta A', 'Respuesta B', 'Respuesta C', 'Respuesta D'], correct: 0, answered: [], revision: uuid() }
+		return { points: 100, w: 480, h: 400, question: 'Escribe tu pregunta', answers: ['Respuesta A', 'Respuesta B', 'Respuesta C', 'Respuesta D'], correct: 0, answered: [], correctBy: '', revision: uuid() }
 	}
 	override canEdit() { return false }
 	override canResize() { return false }
@@ -46,10 +46,26 @@ function QuestionCard({ shape }: { shape: QuestionShape }) {
 		return () => animation.cancel()
 	}, [latest?.id])
 	const editor = useEditor()
+	// The card sizes to its content. The teacher's client keeps the shape's bounds in step with it.
+	const card = useRef<HTMLDivElement>(null)
+	useLayoutEffect(() => {
+		const element = card.current
+		if (!isTeacher || !element) return
+		const fit = () => {
+			const current = editor.getShape<QuestionShape>(shape.id)
+			if (current && element.offsetHeight > 0 && Math.abs(current.props.h - element.offsetHeight) > 1) {
+				editor.run(() => editor.updateShape<QuestionShape>({ id: shape.id, type: 'question', props: { h: element.offsetHeight } }), { history: 'ignore' })
+			}
+		}
+		// Observing also runs once, which corrects the dialog's estimate when the content keeps its size.
+		const observer = new ResizeObserver(fit)
+		observer.observe(element)
+		return () => observer.disconnect()
+	}, [editor, isTeacher, shape.id, shape.props.h])
 	const cursorActive = useValue('question cursor', () => editor.getCurrentToolId() === 'select', [editor])
 	const interactive = !isTeacher && canAnswer && cursorActive
 	const stop = (event: { stopPropagation(): void }) => event.stopPropagation()
-	return <HTMLContainer className="question-card" data-question-id={shape.id} data-interactive={interactive}>
+	return <HTMLContainer><div ref={card} className="question-card" data-question-id={shape.id} data-interactive={interactive}>
 		{latest?.correct && typeof latest.points === 'number' && <div key={latest.id} className="question-points" role="status" aria-label={`${latest.points} puntos ganados`}>+{latest.points}</div>}
 		<div className="question-card__title"><h2>{shape.props.question}</h2>{isTeacher && <button type="button" className="question-card__edit" aria-label="Editar pregunta" title="Editar pregunta" onPointerDown={stop} onTouchStart={stop} onTouchEnd={stop} onClick={() => edit(shape)}><Icon name="edit" size={20} /></button>}</div>
 		<div className="question-card__answers">
@@ -59,9 +75,9 @@ function QuestionCard({ shape }: { shape: QuestionShape }) {
 				return <button key={index} ref={(button) => { buttons.current[index] = button }} type="button" className="question-answer" data-result={result}
 					disabled={!interactive || pending || chosen} onPointerDown={stop} onTouchStart={stop} onTouchEnd={stop} onClick={() => answer(shape, index)}>
 					<span className="question-answer__letter">{'ABCD'[index]}</span><span>{label}</span>
-					{chosen && <span className="question-answer__result">{result === 'correct' ? '✓ Correcta' : '× Incorrecta'}</span>}
+					{chosen && <span className="question-answer__result">{result === 'correct' ? `✓ ${shape.props.correctBy || 'Correcta'}` : '× Incorrecta'}</span>}
 				</button>
 			})}
 		</div>
-	</HTMLContainer>
+	</div></HTMLContainer>
 }

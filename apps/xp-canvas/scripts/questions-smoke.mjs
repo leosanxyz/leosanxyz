@@ -89,6 +89,10 @@ try {
 	assert.equal(await ana.page.getByTestId('tools.select').isDisabled(), true)
 	assert.equal(await manager.getByRole('button', { name: 'Editar pregunta', exact: true }).innerText(), '')
 	assert.equal(await ana.page.locator('.question-card__hint, .question-card__heading').count(), 0)
+	await manager.waitForFunction(() => {
+		const card = document.querySelector('.question-card'), shape = window.__xpCanvasEditor.getCurrentPageShapes().find((shape) => shape.type === 'question')
+		return card && Math.abs(shape.props.h - card.offsetHeight) <= 1
+	}, null, { timeout: 5000 })
 	let shape = await manager.evaluate(() => window.__xpCanvasEditor.getCurrentPageShapes().find((shape) => shape.type === 'question'))
 	const endpoint = `/api/boards/${board.id}/interactions`
 	const points = async (context) => (await (await context.request.get('/api/portal/points')).json()).points
@@ -144,6 +148,7 @@ try {
 	await ana.page.locator('.question-answer').nth(1).tap()
 	for (const page of [manager, ana.page, luis.page]) await page.locator('.question-answer[data-result="correct"]').waitFor()
 	assert.equal(await points(ana.context), 175, 'the configured reward goes to the student who answered')
+	for (const page of [manager, ana.page, luis.page]) assert.equal(await page.locator('.question-answer[data-result="correct"] .question-answer__result').innerText(), `✓ ${ana.name}`, 'the card records who answered correctly')
 	assert.equal(await points(luis.context), 0, 'other students receive no points')
 	for (const page of [manager, ana.page, luis.page]) {
 		await page.getByLabel('175 puntos ganados', { exact: true }).waitFor()
@@ -256,6 +261,8 @@ try {
 		assert(beats.at(-1).at - beats.at(-2).at > (beats[1].at - beats[0].at) * 3, 'tick intervals slow before the winner')
 	}
 	assert.equal(new Set(winners).size, 1, 'all clients choose the same student')
+	await manager.locator('[data-draw-selected="true"]').waitFor({ state: 'detached', timeout: 8000 })
+	assert.equal(await manager.getByRole('button', { name: 'Sortear alumno', exact: true }).isEnabled(), true, 'the highlight clears and another draw can start')
 	assert(students.some((student) => student.id === winners[0]), 'winner is a connected student')
 	assert.deepEqual((await (await teacher.request.get(endpoint)).json()).allowedUserIds.sort(), permissionsBefore, 'drawing does not grant control')
 	await manager.screenshot({ path: '/tmp/xp-canvas-student-draw-teacher.png' })

@@ -15,12 +15,11 @@ export const questionPoints = T.integer.refine((value) => {
 	if (value < 0 || value > 1_000_000) throw new Error('Usa entre 0 y 1 000 000 puntos enteros.')
 	return value
 })
-const versions = createShapePropsMigrationIds('question', { AddPoints: 1 })
-export const questionShapeMigrations = createShapePropsMigrationSequence({ sequence: [{
-	id: versions.AddPoints,
-	up: (props) => { props.points = 100 },
-	down: 'retired',
-}] })
+const versions = createShapePropsMigrationIds('question', { AddPoints: 1, AddCorrectBy: 2 })
+export const questionShapeMigrations = createShapePropsMigrationSequence({ sequence: [
+	{ id: versions.AddPoints, up: (props) => { props.points = 100 }, down: 'retired' },
+	{ id: versions.AddCorrectBy, up: (props) => { props.correctBy = '' }, down: 'retired' },
+] })
 export const questionShapeProps = {
 	points: questionPoints,
 	w: T.positiveNumber, h: T.positiveNumber,
@@ -31,12 +30,17 @@ export const questionShapeProps = {
 	}),
 	correct: answerIndex,
 	answered: T.arrayOf(answerIndex),
+	/** The name of the student who chose the correct answer, or empty. */
+	correctBy: T.string.refine((value) => {
+		if (value.length > 100) throw new Error('Nombre inválido.')
+		return value
+	}),
 	revision: text(100),
 }
 
 declare module '@tldraw/tlschema' {
 	export interface TLGlobalShapePropsMap {
-		question: { w: number; h: number; question: string; answers: string[]; points: number; correct: number; answered: number[]; revision: string }
+		question: { w: number; h: number; question: string; answers: string[]; points: number; correct: number; answered: number[]; correctBy: string; revision: string }
 	}
 }
 export type QuestionShape = TLShape<'question'>

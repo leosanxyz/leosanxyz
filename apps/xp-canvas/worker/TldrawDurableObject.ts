@@ -217,7 +217,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 						this.ctx.storage.sql.exec('INSERT INTO point_outbox (event_id, payload) VALUES (?, ?)', eventId, JSON.stringify({ award, feedback }))
 					}
 				}
-				store.set(shape.id, { ...shape, props: { ...shape.props, answered: [...shape.props.answered, command.answer] } })
+				store.set(shape.id, { ...shape, props: { ...shape.props, answered: [...shape.props.answered, command.answer], ...correct && { correctBy: user.name.slice(0, 100) } } })
 				return null
 			}).result
 			if (result) return denied(409, result)

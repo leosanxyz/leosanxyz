@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { DRAW_TIMES, drawStudentAt, type StudentDraw } from '../../shared/studentDraw'
+import { DRAW_DURATION, DRAW_TIMES, drawStudentAt, type StudentDraw } from '../../shared/studentDraw'
+
+// How long the chosen student stays highlighted after the final beat.
+const WINNER_HOLD = 5000
 
 export function useStudentDraw(draw: StudentDraw | null, enabled: boolean) {
 	const [step, setStep] = useState(-1)
@@ -37,6 +40,8 @@ export function useStudentDraw(draw: StudentDraw | null, enabled: boolean) {
 		let last = -1
 		const update = () => {
 			const elapsed = Date.now() - draw.startedAt
+			// Step 24 means the draw is over and nobody is highlighted.
+			if (elapsed >= DRAW_DURATION + WINNER_HOLD) { setStep(24); return }
 			let current = -1
 			while (current < 23 && DRAW_TIMES[current + 1] <= elapsed) current++
 			if (current !== last) {
@@ -45,10 +50,10 @@ export function useStudentDraw(draw: StudentDraw | null, enabled: boolean) {
 				if (current >= 0 && elapsed - DRAW_TIMES[current] < 150) tick.current(current === 23)
 				last = current
 			}
-			if (current < 23) timer = setTimeout(update, Math.max(1, DRAW_TIMES[current + 1] - elapsed))
+			timer = setTimeout(update, Math.max(1, (current < 23 ? DRAW_TIMES[current + 1] : DRAW_DURATION + WINNER_HOLD) - elapsed))
 		}
 		update()
 		return () => clearTimeout(timer)
 	}, [draw])
-	return { activeId: draw && step >= 0 ? drawStudentAt(draw, step) : null, running: Boolean(draw && step < 23), finished: Boolean(draw && step === 23) }
+	return { activeId: draw && step >= 0 && step <= 23 ? drawStudentAt(draw, step) : null, running: Boolean(draw && step < 23), finished: Boolean(draw && step === 23) }
 }
