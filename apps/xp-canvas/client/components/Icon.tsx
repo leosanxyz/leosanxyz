@@ -25,6 +25,7 @@ const paths = {
 	chevron: 'm9 5 7 7-7 7',
 	smile: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM8 14s1 3 4 3 4-3 4-3M8 9h.01M16 9h.01',
 	menu: 'M4 6h16M4 12h16M4 18h16',
+	search: 'M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14ZM21 21l-5-5',
 	play: 'm8 5 11 7-11 7Z',
 	pause: 'M8 5v14M16 5v14',
 	file: 'M14 3H5v18h14V8Zm0 0v5h5M8 12h8M8 16h5',

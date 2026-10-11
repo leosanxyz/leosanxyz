@@ -6,7 +6,9 @@ La primera pantalla es un administrador de canvases con carpetas anidadas, favor
 
 El modo local habitual no pide contraseña. Cualquier persona que pueda acceder a ese servidor puede administrar canvases, dibujar y modificar recursos. La papelera es reversible y no borra los documentos.
 
-Cada carpeta tiene un menú con **Renombrar**, **Nueva subcarpeta**, **Mover carpeta** y **Eliminar carpeta**. Se abre con los tres puntos de la carpeta abierta o, en la barra lateral, con clic derecho o manteniendo pulsada la carpeta en el iPad. Con ratón o trackpad también puedes arrastrar una carpeta o un canvas sobre otra carpeta, o sobre **Todos** para sacarlo de su carpeta.
+Cada carpeta tiene un menú con **Renombrar**, **Nueva subcarpeta**, **Mover carpeta** y **Eliminar carpeta**. Se abre con los tres puntos de la carpeta abierta o, en la barra lateral, con clic derecho o manteniendo pulsada la carpeta en el iPad. Un doble clic sobre el nombre de la carpeta también permite renombrarla ahí mismo: Enter guarda y Escape cancela. Con ratón o trackpad puedes arrastrar una carpeta o un canvas sobre otra carpeta, o sobre **Todos** para sacarlo de su carpeta. La cabecera muestra la ruta de la carpeta abierta y cada carpeta superior es un enlace.
+
+Mover un canvas o una carpeta, o mandar un canvas a la papelera, muestra un aviso con **Deshacer** durante unos segundos. El buscador de la cabecera encuentra canvases por nombre en todas las carpetas, sin distinguir mayúsculas ni acentos; en la papelera busca solo entre los canvases eliminados.
 
 **Eliminar carpeta** pide confirmación y retira la carpeta con sus subcarpetas. Sus canvases van a la papelera; al restaurarlos aparecen en la carpeta que contenía a la eliminada, o en **Todos** si estaba en la raíz.
 

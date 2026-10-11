@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { ContextMenu, Dialog, DropdownMenu } from 'radix-ui'
 import type { BoardFolder } from '../../shared/boards'
 import { Icon } from '../components/Icon'
@@ -12,7 +12,7 @@ export interface FolderAction { label: string; onSelect: () => void; danger?: bo
 export const BOARD_DRAG = 'application/x-xp-board', FOLDER_DRAG = 'application/x-xp-folder'
 
 interface LibraryShellProps {
-	title: string
+	title: ReactNode
 	view: string
 	folders: BoardFolder[]
 	onViewChange: (view: string) => void
@@ -24,10 +24,15 @@ interface LibraryShellProps {
 	onDropBoard?: (boardId: string, folderId: string | null) => void
 	onDropFolder?: (folderId: string, parentId: string | null) => void
 	folderActions?: (folder: BoardFolder) => FolderAction[]
+	/** Folder whose name is being edited in place, started by double click or the folder menu. */
+	renamingFolder?: string | null
+	onRenameStart?: (folderId: string) => void
+	/** `null` cancels the edit. */
+	onRenameEnd?: (folderId: string, name: string | null) => void
 	onLeaveLocal?: () => void
 }
 
-export function LibraryShell({ title, view, folders, onViewChange, children, actions, testId, onBack, onNewFolder, onDropBoard, onDropFolder, folderActions, onLeaveLocal }: LibraryShellProps) {
+export function LibraryShell({ title, view, folders, onViewChange, children, actions, testId, onBack, onNewFolder, onDropBoard, onDropFolder, folderActions, renamingFolder, onRenameStart, onRenameEnd, onLeaveLocal }: LibraryShellProps) {
 	const { user } = usePortal()
 	const student = user?.role === 'student'
 	const { hasNews } = useShopNotice(student ? user.id : undefined), newsId = useId()
@@ -42,6 +47,17 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 		query.addEventListener('change', update)
 		return () => query.removeEventListener('change', update)
 	}, [])
+	// The folder being renamed must be on screen: open the mobile sidebar and expand its ancestors.
+	useEffect(() => {
+		if (!renamingFolder) return
+		if (mobile) setOpen(true)
+		setCollapsed((previous) => {
+			const next = new Set(previous)
+			let folder = folders.find((item) => item.id === renamingFolder)
+			while (folder?.parentId && next.delete(folder.parentId)) folder = folders.find((item) => item.id === folder?.parentId)
+			return next.size === previous.size ? previous : next
+		})
+	}, [renamingFolder, mobile, folders])
 	function chooseView(next: string) { setOpen(false); onViewChange(next) }
 	/** Drop handlers for a folder row, or for "Todos" when `folderId` is null. */
 	function dropZone(folderId: string | null) {
@@ -64,14 +80,17 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 		return folders.filter((folder) => folder.parentId === parentId).map((folder) => {
 			const hasChildren = folders.some((child) => child.parentId === folder.id)
 			const row = <div className="board-folder-row" style={{ paddingLeft: depth * 14 }} data-active={view === folder.id}>
-				<button className="board-nav-item" aria-current={view === folder.id ? 'page' : undefined} onClick={() => chooseView(folder.id)} {...dropZone(folder.id)}
+				{renamingFolder === folder.id ? <div className="board-nav-item board-folder-editing">
+					<Icon name="folder" size={20} /><FolderNameInput name={folder.name} onDone={(name) => onRenameEnd?.(folder.id, name)} />
+				</div> : <button className="board-nav-item" aria-current={view === folder.id ? 'page' : undefined} onClick={() => chooseView(folder.id)} {...dropZone(folder.id)}
+					onDoubleClick={onRenameStart ? () => onRenameStart(folder.id) : undefined}
 					draggable={dragFolders} onDragStart={dragFolders ? (event) => event.dataTransfer.setData(FOLDER_DRAG, folder.id) : undefined}>
 					<Icon name="folder" size={20} /><span>{folder.name}</span>
-				</button>
+				</button>}
 				{hasChildren && <button className="board-folder-toggle" aria-label={`${collapsed.has(folder.id) ? 'Expandir' : 'Contraer'} ${folder.name}`} aria-expanded={!collapsed.has(folder.id)} onClick={() => setCollapsed((previous) => { const next = new Set(previous); if (next.has(folder.id)) next.delete(folder.id); else next.add(folder.id); return next })}><Icon name="chevron" size={15} style={{ transform: collapsed.has(folder.id) ? undefined : 'rotate(90deg)' }} /></button>}
 			</div>
 			return <div key={folder.id}>
-				{folderActions ? <ContextMenu.Root><ContextMenu.Trigger asChild>{row}</ContextMenu.Trigger><ContextMenu.Portal><ContextMenu.Content className="xp-menu board-folder-menu" aria-label={`Opciones de ${folder.name}`}>
+				{folderActions ? <ContextMenu.Root><ContextMenu.Trigger asChild>{row}</ContextMenu.Trigger><ContextMenu.Portal><ContextMenu.Content className="xp-menu board-folder-menu" aria-label={`Opciones de ${folder.name}`} onCloseAutoFocus={(event) => event.preventDefault()}>
 					{folderActions(folder).map((action) => <FolderMenuItem key={action.label} action={action} onSelect={() => { setOpen(false); action.onSelect() }} />)}
 				</ContextMenu.Content></ContextMenu.Portal></ContextMenu.Root> : row}
 				{!collapsed.has(folder.id) && folderTree(folder.id, depth + 1)}
@@ -110,6 +129,20 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			{children}
 		</section>
 	</main></Dialog.Root>
+}
+
+function FolderNameInput({ name, onDone }: { name: string; onDone: (name: string | null) => void }) {
+	const input = useRef<HTMLInputElement>(null), done = useRef(false)
+	// Wait a frame so a closing menu cannot take the focus back.
+	useEffect(() => { const frame = requestAnimationFrame(() => { input.current?.focus(); input.current?.select() }); return () => cancelAnimationFrame(frame) }, [])
+	function finish(value: string | null) {
+		if (done.current) return
+		done.current = true
+		onDone(value === null || !value.trim() || value.trim() === name ? null : value)
+	}
+	return <input ref={input} className="board-folder-input" defaultValue={name} maxLength={120} aria-label="Nombre de la carpeta"
+		onKeyDown={(event) => { if (event.key === 'Enter') finish(event.currentTarget.value); else if (event.key === 'Escape') finish(null) }}
+		onBlur={(event) => finish(event.currentTarget.value)} />
 }
 
 function FolderMenuItem({ action, onSelect }: { action: FolderAction; onSelect: () => void }) {
