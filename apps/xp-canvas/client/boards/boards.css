@@ -6,7 +6,9 @@
 .board-nav-item { display: flex; align-items: center; gap: 13px; width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 10px; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 15px; cursor: pointer; }
 .board-nav-item > svg { flex-shrink: 0; }
 .board-nav-item span { overflow-wrap: anywhere; }
-.board-nav-item[aria-current='page'], .board-folder-row[data-active='true'] { background: #d7e2e5; }
+.board-nav-item[aria-current='page'], .board-folder-row[data-active='true'], .board-folder-row[data-state='open'] { background: #d7e2e5; }
+.board-nav-item[data-drop-target] { box-shadow: inset 0 0 0 2px #079ab5; background: #d3eef3; }
+.board-folder-menu { max-height: min(440px, var(--radix-context-menu-content-available-height)); }
 .board-navigation > .board-nav-item svg { color: #0599b4; }
 .board-folder-heading { margin: 30px 16px 10px; color: #7c888e; font-size: 13px; }
 .board-folder-row { display: flex; align-items: center; border-radius: 14px; }

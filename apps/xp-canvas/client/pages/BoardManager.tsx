@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { DropdownMenu } from 'radix-ui'
 import { type Board, type BoardFolder, type BoardLibrary, folderDescendants } from '../../shared/boards'
 import { closeEditorSession, getEditorSession } from '../access'
 import { boardRequest } from '../boards/api'
-import { LibraryShell } from '../boards/LibraryShell'
+import { BOARD_DRAG, type FolderAction, LibraryShell } from '../boards/LibraryShell'
 import { useBoardView } from '../boards/useBoardView'
 import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
@@ -13,7 +13,7 @@ import '../boards/boards.css'
 import { usePortal } from '../portal/PortalProvider'
 import { BoardAccessDialog } from '../portal/BoardAccessDialog'
 
-type DialogState = { kind: 'new-folder' | 'rename-board' | 'rename-folder' | 'move-board' | 'delete-folder'; id?: string; name: string; folderId: string | null }
+type DialogState = { kind: 'new-folder' | 'rename-board' | 'rename-folder' | 'move-board' | 'move-folder' | 'delete-folder'; id?: string; name: string; folderId: string | null }
 const emptyLibrary: BoardLibrary = { boards: [], folders: [] }
 const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
 
@@ -65,6 +65,19 @@ export default function BoardManager() {
 		return true
 	}).sort((a, b) => b.updatedAt - a.updatedAt)
 
+	async function moveFolder(id: string, parentId: string | null) {
+		if (parentId && folderDescendants(library.folders, id).has(parentId)) return
+		try { await boardRequest(`folders/${id}`, 'PATCH', { parentId }); await load() }
+		catch (cause) { setError(message(cause)) }
+	}
+	function folderActions(folder: BoardFolder): FolderAction[] {
+		return [
+			{ label: 'Renombrar carpeta', onSelect: () => setDialog({ kind: 'rename-folder', id: folder.id, name: folder.name, folderId: folder.parentId }) },
+			{ label: 'Nueva subcarpeta', onSelect: () => setDialog({ kind: 'new-folder', name: '', folderId: folder.id }) },
+			{ label: 'Mover carpeta', onSelect: () => setDialog({ kind: 'move-folder', id: folder.id, name: folder.name, folderId: folder.parentId }) },
+			{ label: 'Eliminar carpeta', danger: true, onSelect: () => { setError(''); setDialog({ kind: 'delete-folder', id: folder.id, name: folder.name, folderId: folder.parentId }) } },
+		]
+	}
 	async function updateBoard(board: Board, data: Partial<Board> | { trashed: boolean }) {
 		try { await boardRequest(`boards/${board.id}`, 'PATCH', data); await load() }
 		catch (cause) { setError(message(cause)) }
@@ -99,7 +112,8 @@ export default function BoardManager() {
 			} else if (dialog.kind === 'delete-folder') {
 				await boardRequest(`folders/${dialog.id}`, 'DELETE')
 				setView(dialog.folderId ?? 'all')
-			} else if (dialog.kind === 'move-board') await boardRequest(`boards/${dialog.id}`, 'PATCH', { folderId: dialog.folderId })
+			} else if (dialog.kind === 'move-folder') await boardRequest(`folders/${dialog.id}`, 'PATCH', { parentId: dialog.folderId })
+			else if (dialog.kind === 'move-board') await boardRequest(`boards/${dialog.id}`, 'PATCH', { folderId: dialog.folderId })
 			else await boardRequest(`${dialog.kind === 'rename-board' ? 'boards' : 'folders'}/${dialog.id}`, 'PATCH', { name: dialog.name })
 			await load(); setDialog(null)
 		} catch (cause) { setError(message(cause)) }
@@ -114,19 +128,22 @@ export default function BoardManager() {
 
 	return <LibraryShell title={title} view={view} folders={library.folders} onViewChange={setView} testId="board-manager"
 		onNewFolder={() => setDialog({ kind: 'new-folder', name: '', folderId: selectedFolder?.id ?? null })}
-		onDropBoard={(boardId, folderId) => { const board = library.boards.find((item) => item.id === boardId); if (board) void updateBoard(board, { folderId }) }}
+		onDropBoard={(boardId, folderId) => { const board = library.boards.find((item) => item.id === boardId); if (board && board.folderId !== folderId) void updateBoard(board, { folderId }) }}
+		onDropFolder={(folderId, parentId) => { if (library.folders.find((item) => item.id === folderId)?.parentId !== parentId) void moveFolder(folderId, parentId) }}
+		folderActions={folderActions}
 		onLeaveLocal={mode !== 'portal' && authRequired ? () => { void closeEditorSession().then(() => setIsEditor(false)).catch((cause) => setError(message(cause))) } : undefined}
 		actions={<>
 					{selectedFolder && <DropdownMenu.Root><DropdownMenu.Trigger className="xp-icon-button" aria-label="Opciones de carpeta"><Icon name="more" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu" align="end">
-						<DropdownMenu.Item className="xp-menu-item" onSelect={() => setDialog({ kind: 'rename-folder', id: selectedFolder.id, name: selectedFolder.name, folderId: selectedFolder.parentId })}>Renombrar carpeta</DropdownMenu.Item>
-						<DropdownMenu.Item className="xp-menu-item" onSelect={() => setDialog({ kind: 'new-folder', name: '', folderId: selectedFolder.id })}>Nueva subcarpeta</DropdownMenu.Item>
-						<DropdownMenu.Separator className="xp-menu-separator" /><DropdownMenu.Item className="xp-menu-item xp-menu-item--danger" onSelect={() => { setError(''); setDialog({ kind: 'delete-folder', id: selectedFolder.id, name: selectedFolder.name, folderId: selectedFolder.parentId }) }}>Eliminar carpeta</DropdownMenu.Item>
+						{folderActions(selectedFolder).map((action) => <Fragment key={action.label}>
+							{action.danger && <DropdownMenu.Separator className="xp-menu-separator" />}
+							<DropdownMenu.Item className={action.danger ? 'xp-menu-item xp-menu-item--danger' : 'xp-menu-item'} onSelect={action.onSelect}>{action.label}</DropdownMenu.Item>
+						</Fragment>)}
 					</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>}
 					<button className="xp-icon-button board-new" aria-label="Nuevo canvas" title="Nuevo canvas" disabled={busy} onClick={() => void createBoard()}><Icon name="edit" /></button>
 		</>}>
 			{error && <p className="xp-error board-error" role="alert">{error}</p>}
 			<div className="board-grid" aria-busy={loading}>
-				{boards.map((board) => <article className="board-card" key={board.id} data-board-id={board.id} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData('application/x-xp-board', board.id)}>
+				{boards.map((board) => <article className="board-card" key={board.id} data-board-id={board.id} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
 					<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
 						<div className="board-card-preview">{board.thumbnailAt ? <img src={`/api/boards/${board.id}/thumbnail?v=${board.thumbnailAt}`} loading="lazy" decoding="async" alt="" draggable={false} /> : <Icon name="boards" size={44} />}</div>
 						<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
@@ -146,12 +163,12 @@ export default function BoardManager() {
 			</div>
 			{!boards.length && <p className="board-empty">{loading ? 'Cargando…' : view === 'trash' ? 'La papelera está vacía.' : selectedFolder ? 'No hay canvases en esta carpeta.' : 'No hay canvases aquí.'}</p>}
 		{sharing && <BoardAccessDialog board={sharing} onClose={() => setSharing(null)} />}
-		{dialog && <Modal title={dialog.kind === 'new-folder' ? 'Nueva carpeta' : dialog.kind === 'move-board' ? 'Mover a carpeta' : dialog.kind === 'delete-folder' ? 'Eliminar carpeta' : 'Renombrar'} initialFocusRef={dialog.kind === 'delete-folder' ? cancelRef : undefined} onClose={() => { if (!busy) setDialog(null) }}><form className="xp-form" onSubmit={submitDialog}>
-			{dialog.kind === 'move-board' ? <label>Carpeta de destino<select value={dialog.folderId ?? ''} onChange={(event) => setDialog({ ...dialog, folderId: event.target.value || null })}><option value="">Sin carpeta</option>{library.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder, library.folders)}</option>)}</select></label>
+		{dialog && <Modal title={dialog.kind === 'new-folder' ? 'Nueva carpeta' : dialog.kind === 'move-board' ? 'Mover a carpeta' : dialog.kind === 'move-folder' ? 'Mover carpeta' : dialog.kind === 'delete-folder' ? 'Eliminar carpeta' : 'Renombrar'} initialFocusRef={dialog.kind === 'delete-folder' ? cancelRef : undefined} onClose={() => { if (!busy) setDialog(null) }}><form className="xp-form" onSubmit={submitDialog}>
+			{dialog.kind === 'move-board' || dialog.kind === 'move-folder' ? <label>Carpeta de destino<select value={dialog.folderId ?? ''} onChange={(event) => setDialog({ ...dialog, folderId: event.target.value || null })}><option value="">Sin carpeta</option>{moveTargets(dialog, library.folders).map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder, library.folders)}</option>)}</select></label>
 				: dialog.kind === 'delete-folder' ? <DeleteFolderMessage folder={dialog} library={library} />
 				: <label>Nombre<input value={dialog.name} onChange={(event) => setDialog({ ...dialog, name: event.target.value })} maxLength={120} autoFocus onFocus={(event) => event.target.select()} /></label>}
 			{error && <p role="alert" className="xp-error">{error}</p>}
-			<div className="xp-dialog-actions"><button ref={cancelRef} type="button" disabled={busy} onClick={() => setDialog(null)}>Cancelar</button><button className={dialog.kind === 'delete-folder' ? 'xp-danger' : 'xp-primary'} disabled={busy || (dialog.kind !== 'move-board' && !dialog.name.trim())}>{dialog.kind === 'move-board' ? 'Mover' : dialog.kind === 'delete-folder' ? busy ? 'Eliminando…' : 'Eliminar' : 'Guardar'}</button></div>
+			<div className="xp-dialog-actions"><button ref={cancelRef} type="button" disabled={busy} onClick={() => setDialog(null)}>Cancelar</button><button className={dialog.kind === 'delete-folder' ? 'xp-danger' : 'xp-primary'} disabled={busy || (!dialog.kind.startsWith('move') && !dialog.name.trim())}>{dialog.kind.startsWith('move') ? 'Mover' : dialog.kind === 'delete-folder' ? busy ? 'Eliminando…' : 'Eliminar' : 'Guardar'}</button></div>
 		</form></Modal>}
 	</LibraryShell>
 }
@@ -164,6 +181,13 @@ function DeleteFolderMessage({ folder, library }: { folder: DialogState; library
 		<p>¿Eliminar <strong>{folder.name}</strong>{removed.size > 1 ? ` y ${removed.size - 1 === 1 ? 'su subcarpeta' : `sus ${removed.size - 1} subcarpetas`}` : ''}?</p>
 		<p>{boards ? `${boards === 1 ? 'Su canvas irá' : `Sus ${boards} canvases irán`} a la papelera. Si ${boards === 1 ? 'lo' : 'los'} restauras, ${boards === 1 ? 'volverá' : 'volverán'} a ${parent ? `«${parent.name}»` : 'Todos los canvases'}.` : 'La carpeta está vacía.'}</p>
 	</div>
+}
+
+/** A folder cannot move into itself or anything nested inside it. */
+function moveTargets(dialog: DialogState, folders: BoardFolder[]) {
+	if (dialog.kind !== 'move-folder') return folders
+	const blocked = folderDescendants(folders, dialog.id!)
+	return folders.filter((folder) => !blocked.has(folder.id))
 }
 
 function message(cause: unknown) { return cause instanceof Error ? cause.message : 'No se pudo guardar el cambio.' }

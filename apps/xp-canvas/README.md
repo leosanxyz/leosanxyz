@@ -6,7 +6,9 @@ La primera pantalla es un administrador de canvases con carpetas anidadas, favor
 
 El modo local habitual no pide contraseña. Cualquier persona que pueda acceder a ese servidor puede administrar canvases, dibujar y modificar recursos. La papelera es reversible y no borra los documentos.
 
-**Eliminar carpeta**, en el menú de tres puntos de la carpeta abierta, pide confirmación y retira la carpeta con sus subcarpetas. Sus canvases van a la papelera; al restaurarlos aparecen en la carpeta que contenía a la eliminada, o en **Todos** si estaba en la raíz.
+Cada carpeta tiene un menú con **Renombrar**, **Nueva subcarpeta**, **Mover carpeta** y **Eliminar carpeta**. Se abre con los tres puntos de la carpeta abierta o, en la barra lateral, con clic derecho o manteniendo pulsada la carpeta en el iPad. Con ratón o trackpad también puedes arrastrar una carpeta o un canvas sobre otra carpeta, o sobre **Todos** para sacarlo de su carpeta.
+
+**Eliminar carpeta** pide confirmación y retira la carpeta con sus subcarpetas. Sus canvases van a la papelera; al restaurarlos aparecen en la carpeta que contenía a la eliminada, o en **Todos** si estaba en la raíz.
 
 Para las cuentas de alumnos, el entorno QA y la publicación, consulta [PORTAL.md](PORTAL.md).
 
