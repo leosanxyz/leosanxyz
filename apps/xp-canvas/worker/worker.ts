@@ -125,6 +125,7 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	.patch('/api/boards/:boardId', handleLibraryRequest)
 	.post('/api/folders', handleLibraryRequest)
 	.patch('/api/folders/:folderId', handleLibraryRequest)
+	.delete('/api/folders/:folderId', handleLibraryRequest)
 	.get('/api/boards/:boardId/thumbnail', handleThumbnail)
 	.put('/api/boards/:boardId/thumbnail', handleThumbnail)
 	.post('/api/uploads/:uploadId', handleAssetUpload)

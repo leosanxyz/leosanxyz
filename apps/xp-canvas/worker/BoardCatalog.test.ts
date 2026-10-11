@@ -9,6 +9,7 @@ function fixture() {
 	const rows = new Map<string, { kind: string; data: string }>()
 	const ctx = { storage: {
 		sql: { exec(query: string, ...params: string[]) {
+			if (query.startsWith('DELETE')) { if (rows.get(params[0])?.kind === params[1]) rows.delete(params[0]) }
 			if (query.startsWith('INSERT')) {
 				const [id, kind, data] = params
 				if (!query.includes('OR IGNORE') || !rows.has(id)) rows.set(id, { kind, data })
@@ -63,5 +64,28 @@ describe('board copy publication', () => {
 		})
 		expect((await f.requestCopy()).status).toBe(404)
 		expect(f.rows.size).toBe(1)
+	})
+})
+
+describe('folder deletion', () => {
+	it('removes nested folders and trashes their canvases into the parent, leaving siblings alone', async () => {
+		const { catalog, rows } = fixture()
+		const send = async (path: string, method: string, body?: unknown) => (await catalog.fetch(new Request(`http://catalog/api/${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body) }))).json() as Promise<Record<string, unknown>>
+		const term = await send('folders', 'POST', { name: 'Semestre' })
+		const unit = await send('folders', 'POST', { name: 'Unidad', parentId: term.id })
+		const lesson = await send('folders', 'POST', { name: 'Clase', parentId: unit.id })
+		const sibling = await send('folders', 'POST', { name: 'Otra', parentId: term.id })
+		const inUnit = await send('boards', 'POST', { name: 'A', folderId: unit.id })
+		const inLesson = await send('boards', 'POST', { name: 'B', folderId: lesson.id })
+		const alreadyTrashed = await send('boards', 'POST', { name: 'C', folderId: lesson.id })
+		await send(`boards/${alreadyTrashed.id}`, 'PATCH', { trashed: true })
+		const kept = await send('boards', 'POST', { name: 'D', folderId: sibling.id })
+
+		expect(await send(`folders/${unit.id}`, 'DELETE')).toEqual({ trashed: [inUnit.id, inLesson.id] })
+		const board = (id: unknown) => JSON.parse(rows.get(id as string)!.data)
+		expect([unit.id, lesson.id].some((id) => rows.has(id as string))).toBe(false)
+		expect(rows.has(sibling.id as string)).toBe(true)
+		for (const id of [inUnit.id, inLesson.id, alreadyTrashed.id]) expect(board(id)).toMatchObject({ folderId: term.id, trashedAt: expect.any(Number) })
+		expect(board(kept.id)).toMatchObject({ folderId: sibling.id, trashedAt: null })
 	})
 })

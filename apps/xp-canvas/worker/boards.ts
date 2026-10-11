@@ -22,6 +22,11 @@ export async function handleLibraryRequest(request: IRequest, env: CanvasEnv) {
 	if (portalEnabled(env) && response.ok && request.method === 'PATCH' && request.params.boardId && patchAffectsAccess(body)) {
 		await env.TLDRAW_DURABLE_OBJECT.get(env.TLDRAW_DURABLE_OBJECT.idFromName(request.params.boardId)).revalidatePortalSessions()
 	}
+	// Deleting a folder trashes its canvases, so students watching them must be disconnected too.
+	if (portalEnabled(env) && response.ok && request.method === 'DELETE' && request.params.folderId) {
+		const { trashed } = await response.clone().json<{ trashed: string[] }>()
+		await Promise.all(trashed.map((id) => env.TLDRAW_DURABLE_OBJECT.get(env.TLDRAW_DURABLE_OBJECT.idFromName(id)).revalidatePortalSessions()))
+	}
 	const result = new Response(response.body, response)
 	result.headers.set('cache-control', 'no-store')
 	return result

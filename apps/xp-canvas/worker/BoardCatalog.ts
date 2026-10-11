@@ -64,6 +64,23 @@ export class BoardCatalog extends DurableObject<Env> {
 		return Response.json(copy, { status: 201 })
 	}
 
+	/** Deleting a folder never deletes canvases: they go to the trash and restore into the folder's parent. */
+	private deleteFolder(id: string): Response {
+		return this.ctx.storage.transactionSync(() => {
+			const folder = this.read<BoardFolder>(id, 'folder')
+			if (!folder) throw new CatalogError(404, 'La carpeta no existe.')
+			const removed = folderDescendants(this.list<BoardFolder>('folder'), id), now = Date.now(), trashed: string[] = []
+			for (const board of this.list<Board>('board')) {
+				if (!board.folderId || !removed.has(board.folderId)) continue
+				board.folderId = folder.parentId
+				if (!board.trashedAt) { board.trashedAt = now; trashed.push(board.id) }
+				this.write('board', board)
+			}
+			for (const folderId of removed) this.ctx.storage.sql.exec('DELETE FROM catalog WHERE id = ? AND kind = ?', folderId, 'folder')
+			return Response.json({ trashed })
+		})
+	}
+
 	async importBoard(name: string, snapshot: RoomSnapshot): Promise<Board> {
 		const title = this.name(name), id = crypto.randomUUID()
 		await this.env.TLDRAW_DURABLE_OBJECT.get(this.env.TLDRAW_DURABLE_OBJECT.idFromName(id)).initializeCopy(snapshot)
@@ -80,6 +97,7 @@ export class BoardCatalog extends DurableObject<Env> {
 			const parts = url.pathname.split('/').filter(Boolean)
 			const collection = parts[1], id = parts[2]
 			if (request.method === 'POST' && collection === 'boards' && id && parts[3] === 'copy' && parts.length === 4) return await this.copyBoard(id)
+			if (request.method === 'DELETE' && collection === 'folders' && id && parts.length === 3) return this.deleteFolder(id)
 			if (request.method === 'GET') {
 				if (collection === 'library') return Response.json({ boards: this.list<Board>('board'), folders: this.list<BoardFolder>('folder') })
 				if (collection === 'resource-folders') return Response.json({

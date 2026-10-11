@@ -6,7 +6,9 @@
 .board-nav-item { display: flex; align-items: center; gap: 13px; width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 10px; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 15px; cursor: pointer; }
 .board-nav-item > svg { flex-shrink: 0; }
 .board-nav-item span { overflow-wrap: anywhere; }
-.board-nav-item[aria-current='page'], .board-folder-row[data-active='true'] { background: #d7e2e5; }
+.board-nav-item[aria-current='page'], .board-folder-row[data-active='true'], .board-folder-row[data-state='open'] { background: #d7e2e5; }
+.board-nav-item[data-drop-target] { box-shadow: inset 0 0 0 2px #079ab5; background: #d3eef3; }
+.board-folder-menu { max-height: min(440px, var(--radix-context-menu-content-available-height)); }
 .board-navigation > .board-nav-item svg { color: #0599b4; }
 .board-folder-heading { margin: 30px 16px 10px; color: #7c888e; font-size: 13px; }
 .board-folder-row { display: flex; align-items: center; border-radius: 14px; }
@@ -75,3 +77,22 @@
 .board-nav-dot { flex-shrink: 0; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: #f0583a; box-shadow: 0 0 0 2px #eaf0f1; }
 .board-sidebar-trigger { position: relative; }
 .board-sidebar-trigger .board-nav-dot { position: absolute; top: 9px; right: 8px; box-shadow: 0 0 0 2px #fff; }
+.board-delete-message { display: grid; gap: 12px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.board-delete-message p { margin: 0; }
+.board-search { display: flex; align-items: center; gap: 8px; width: 220px; max-width: 100%; height: 44px; padding: 0 14px; border: 1px solid #e3e7e9; border-radius: 22px; background: #f7fafb; color: #73838b; }
+.board-search:focus-within { border-color: #079ab5; background: #fff; }
+.board-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: #20252a; font: inherit; font-size: 15px; outline: none; }
+.board-crumb { padding: 0; border: 0; background: none; color: #8a979d; font: inherit; letter-spacing: inherit; cursor: pointer; }
+.board-crumb:focus-visible { outline: 2px solid #079ab5; outline-offset: 2px; border-radius: 4px; }
+.board-crumb-separator { margin: 0 .3em; color: #c2cacd; font-weight: 400; }
+@media (hover: hover) and (pointer: fine) { .board-crumb:hover { color: #20252a; } }
+.board-toast { position: fixed; z-index: 50; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 8px 8px 8px 20px; border-radius: 999px; background: #20252a; color: #fff; font-size: 14px; box-shadow: 0 8px 30px #14212c33; transform: translateX(-50%); animation: board-toast-in 220ms cubic-bezier(.23, 1, .32, 1) both; }
+.board-toast span { min-width: 0; overflow-wrap: anywhere; }
+.board-toast button { flex-shrink: 0; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: #ffffff1f; color: #7fe0f2; font: inherit; font-weight: 600; cursor: pointer; }
+.board-toast button:focus-visible { outline: 2px solid #7fe0f2; outline-offset: 2px; }
+@keyframes board-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .board-toast { animation-name: board-toast-fade; } }
+@keyframes board-toast-fade { from { opacity: 0; } }
+@media (max-width: 650px) { .board-search { order: -1; flex: 1 1 100%; width: auto; } }
+.board-folder-editing { cursor: text; }
+.board-folder-input { flex: 1; min-width: 0; margin: -6px 0; padding: 5px 8px; border: 1px solid #079ab5; border-radius: 7px; background: #fff; color: #20252a; font: inherit; outline: none; box-shadow: 0 0 0 3px #079ab526; }
