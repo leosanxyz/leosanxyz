@@ -22,7 +22,12 @@ export function ShopMachine({ state, pending, reveal, onSpin, onReady }: { state
 		prizeColor: skins.find((skin) => skin.id === reveal?.skin)?.color ?? '#ffb347', sway: false,
 	})
 	useEffect(() => { prepareGachaponAudio() }, [])
-	useEffect(() => { if (status3d !== 'loading') onReady?.() }, [status3d, onReady])
+	useEffect(() => {
+		if (status3d === 'loading') return
+		// The first draw compiles the machine's shaders and can block the page; announce readiness once it has painted.
+		let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => onReady?.()) }) })
+		return () => cancelAnimationFrame(frame)
+	}, [status3d, onReady])
 	// The coin is spent when the spin starts and returned if the student can no longer spin.
 	useEffect(() => { if (coinAt !== null && !ready && !pending) setCoinAt(null) }, [coinAt, ready, pending])
 	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todas las cartas de hoy'

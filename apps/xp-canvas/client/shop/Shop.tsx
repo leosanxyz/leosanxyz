@@ -70,6 +70,20 @@ export default function Shop() {
 		const promise = new Promise<void>((done) => { resolve = done })
 		return { promise, resolve }
 	})
+	// The shop waits hidden behind its skeleton until the 3D machine is built, since building it blocks the page
+	// for a moment. Then the skeleton fades out and the shop fades in after it, so the two never overlap.
+	const [entrance, setEntrance] = useState<'hidden' | 'in' | 'done'>('hidden')
+	const machineBuilt = useCallback(() => setEntrance((current) => current === 'hidden' ? 'in' : current), [])
+	useEffect(() => {
+		if (!state || entrance === 'done') return
+		if (entrance === 'hidden') {
+			const timer = window.setTimeout(machineBuilt, 1500)
+			return () => clearTimeout(timer)
+		}
+		machineReady.resolve()
+		const timer = window.setTimeout(() => setEntrance('done'), 1100)
+		return () => clearTimeout(timer)
+	}, [state, entrance, machineBuilt, machineReady])
 	const [notice, setNotice] = useState('')
 	const [pending, setPending] = useState(false), [reveal, setReveal] = useState<ShopSpin | null>(null)
 	const [starting, setStarting] = useState(false)
@@ -243,14 +257,14 @@ export default function Shop() {
 		<PointsPill value={state.points + landed} counting={landed !== 0} pill={pill} />
 	</> : null
 	return <LibraryShell title="Tienda" view="shop" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} actions={header} testId="portal-shop">
-		<div className="shop" aria-busy={!state}>
+		<div className="shop" aria-busy={!state} data-entrance={state && entrance !== 'done' ? entrance : undefined}>
 			{BLUR === 'filter' && <BlurFilters />}
 			{loadError && !state && <p className="xp-error shop-alert" role="alert">{loadError} <button className="portal-link" onClick={() => void load()}>Reintentar</button></p>}
 			{!state && !loadError && <ShopSkeleton hold={machineReady.promise} />}
 			{state && <>
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
 				<section className="shop-hero" ref={hero}>
-					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} onReady={machineReady.resolve} /></div>
+					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} onReady={machineBuilt} /></div>
 					<Panel state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review}
 						strip={(tray) => <Strip className="shop-strip" key={state.day} list={tray.list} tray={tray.on} gathering={tray.gathering} cardWidth={tray.on ? CARD.tray : CARD.spread} handlers={tray.handlers} locked={locks > 0}>
 							{state.pool.map((skin) => <motion.li key={skin} data-slot={skin} data-focus={(tray.on && tray.focus === skin) || undefined} layout={!reduced} transition={GATHER}>
@@ -739,7 +753,7 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 }
 
 function ShopSkeleton({ hold }: { hold: Promise<void> }) {
-	// It stays in front until the 3D machine is ready: building it blocks the page for a moment.
+	// It stays in front until the shop is ready to fade in.
 	const skeleton = useSkeleton<HTMLDivElement>(0, hold)
 	// Same sections and sizes as the shop, so its content crossfades into place without moving.
 	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda" {...skeleton}>
