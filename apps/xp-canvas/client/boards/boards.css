@@ -57,7 +57,7 @@
 .board-empty { color: #929a9e; text-align: center; padding: 80px 20px; font-size: 15px; }
 .board-error { margin: 0 0 20px; }
 .board-sidebar-trigger, .board-sidebar-scrim { display: none; }
-.board-welcome, .board-loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #f9fbfc; color: #52656f; }
+.board-welcome { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #f9fbfc; color: #52656f; }
 .board-welcome h1 { margin: 0 0 8px; color: #20252a; font-size: 30px; letter-spacing: -.03em; }
 .board-welcome > svg { color: #05accb; }
 .board-welcome a { color: #7d8a91; font-size: 13px; padding: 12px; }

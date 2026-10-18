@@ -79,7 +79,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 	function folderTree(parentId: string | null, depth = 0): ReactNode {
 		return folders.filter((folder) => folder.parentId === parentId).map((folder) => {
 			const hasChildren = folders.some((child) => child.parentId === folder.id)
-			const row = <div className="board-folder-row" style={{ paddingLeft: depth * 14 }} data-active={view === folder.id}>
+			const row = <div className="board-folder-row xp-reveal" style={{ paddingLeft: depth * 14 }} data-active={view === folder.id}>
 				{renamingFolder === folder.id ? <div className="board-nav-item board-folder-editing">
 					<Icon name="folder" size={20} /><FolderNameInput name={folder.name} onDone={(name) => onRenameEnd?.(folder.id, name)} />
 				</div> : <button className="board-nav-item" aria-current={view === folder.id ? 'page' : undefined} onClick={() => chooseView(folder.id)} {...dropZone(folder.id)}
@@ -106,7 +106,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			<button className="board-nav-item" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><Icon name="boards" /><span>{student ? 'Todas' : 'Todos'}</span></button>
 			<button className="board-nav-item" aria-current={view === 'recent' ? 'page' : undefined} onClick={() => chooseView('recent')}><Icon name="recent" /><span>Recientes</span></button>
 			{!student && <button className="board-nav-item" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><Icon name="star" /><span>Favoritos</span></button>}
-			{(folders.length > 0 || !student) && <div className="board-folder-heading">Carpetas</div>}
+			{(folders.length > 0 || !student) && <div className={student ? 'board-folder-heading xp-reveal' : 'board-folder-heading'}>Carpetas</div>}
 			{folderTree(null)}
 		</nav>
 		{student && <button className="board-nav-item board-nav-shop" aria-current={view === 'shop' ? 'page' : undefined} onClick={() => { setOpen(false); navigate('/tienda') }}>

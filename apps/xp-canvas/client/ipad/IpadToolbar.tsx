@@ -74,6 +74,12 @@ export const XP_CANVAS_COMPONENTS: TLComponents = {
 	MenuPanel: HeaderMenuPanel,
 	QuickActions: ResponsiveQuickActions,
 	StylePanel: ResponsiveStylePanel,
+	LoadingScreen: QuietLoadingScreen,
+}
+
+/** While the document syncs, the stage stays empty instead of showing tldraw's spinner. */
+function QuietLoadingScreen() {
+	return <div className="tl-loading" aria-busy="true" />
 }
 
 function CanvasOverlayControls() {

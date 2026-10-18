@@ -52,32 +52,23 @@ export function PassGate({ children }: { children: ReactNode }) {
 		window.addEventListener('xp-skin-unlocked', unlock)
 		return () => window.removeEventListener('xp-skin-unlocked', unlock)
 	}, [required, user?.id])
-	const waiting = (
-		<main className="portal-entry">
-			<section className="portal-entry-card">
-				<h1>Preparando tu pase</h1>
-				<p role="status">Un momento…</p>
-			</section>
-		</main>
-	)
+	if (onboarding && !profile && !error) return <PassSkeleton />
 	if (onboarding && !profile)
 		return (
 			<main className="portal-entry">
 				<section className="portal-entry-card">
-					<h1>Preparando tu pase</h1>
-					<p role={error ? 'alert' : 'status'}>{error || 'Un momento…'}</p>
-					{error && (
-						<button
-							className="xp-primary"
-							onClick={() =>
-								void refresh().catch(() =>
-									setError('No pude cargar tu pase. Inténtalo de nuevo.'),
-								)
-							}
-						>
-							Reintentar
-						</button>
-					)}
+					<h1>No pude abrir tu pase</h1>
+					<p role="alert">{error}</p>
+					<button
+						className="xp-primary"
+						onClick={() =>
+							void refresh().catch(() =>
+								setError('No pude cargar tu pase. Inténtalo de nuevo.'),
+							)
+						}
+					>
+						Reintentar
+					</button>
 					<button className="portal-link" onClick={() => void logout()}>
 						Cerrar sesión
 					</button>
@@ -87,7 +78,7 @@ export function PassGate({ children }: { children: ReactNode }) {
 	return (
 		<PassContext.Provider value={{ profile, error, refresh, accept: setProfile }}>
 			{onboarding && profile ? (
-				<Suspense fallback={waiting}>
+				<Suspense fallback={<PassSkeleton />}>
 					<Onboarding
 						key={user!.id}
 						profile={profile}
@@ -104,28 +95,29 @@ export function PassGate({ children }: { children: ReactNode }) {
 		</PassContext.Provider>
 	)
 }
-/** Pages that need the pass wait here; finished students reach them before it loads. */
-export function PassPending({ label }: { label: string }) {
+/** The welcome's own background, empty, while its pass loads. */
+function PassSkeleton() {
+	return <main className="pass-experience" aria-busy="true" />
+}
+/** Pages that need the pass show their skeleton here; finished students reach them before it loads. */
+export function PassPending({ children }: { children: ReactNode }) {
 	const { error, refresh } = usePass()
+	if (!error) return children
 	return (
-		<div className="board-loading" role={error ? 'alert' : 'status'}>
-			{error || label}
-			{error && (
-				<>
-					<button className="xp-primary" onClick={() => void refresh().catch(() => {})}>
-						Reintentar
-					</button>
-					<button className="portal-link" onClick={() => navigate('/')}>
-						Mis clases
-					</button>
-				</>
-			)}
+		<div className="board-welcome" role="alert">
+			{error}
+			<button className="xp-primary" onClick={() => void refresh().catch(() => {})}>
+				Reintentar
+			</button>
+			<button className="portal-link" onClick={() => navigate('/')}>
+				Mis clases
+			</button>
 		</div>
 	)
 }
 export function ReplayOnboarding() {
 	const { profile, refresh } = usePass()
-	const loading = <PassPending label="Preparando el pase…" />
+	const loading = <PassPending><PassSkeleton /></PassPending>
 	if (!profile) return loading
 	return (
 		<Suspense fallback={loading}>
