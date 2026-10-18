@@ -2,14 +2,16 @@ import { useRef, type CSSProperties } from 'react'
 
 const UP = 'cubic-bezier(.3, .7, .4, 1)', DOWN = 'cubic-bezier(.6, 0, .8, .4)'
 
-/** One hop per shape, each landing its own way: the square turns, the circle squashes, the triangle spins, the bar stretches. */
+/** One hop per shape, each landing its own way: the square turns, the circle squashes, the triangle spins, the bar stretches.
+ * Every keyframe of a shape lists the same transform functions, so rotations interpolate by angle and a full turn completes. */
 function hop(shape: string, height: number): Keyframe[] {
-	const top = `translateY(${-height}px)`
+	const at = (y: number, turn: number, scaleX = 1, scaleY = 1) => `translateY(${y}px) rotate(${turn}deg) scale(${scaleX}, ${scaleY})`
+	const up = -height
 	switch (shape) {
-		case 'square': return [{ transform: 'none', easing: UP }, { transform: `${top} rotate(45deg)`, offset: .45, easing: DOWN }, { transform: 'rotate(90deg)' }]
-		case 'triangle': return [{ transform: 'none', easing: UP }, { transform: `${top} rotate(180deg)`, offset: .45, easing: DOWN }, { transform: 'rotate(360deg)' }]
-		case 'bar': return [{ transform: 'none', easing: UP }, { transform: `${top} scaleY(1.2)`, offset: .45, easing: DOWN }, { transform: 'scale(1.15, .85)', offset: .78 }, { transform: 'none' }]
-		default: return [{ transform: 'none', easing: UP }, { transform: top, offset: .45, easing: DOWN }, { transform: 'scale(1.18, .8)', offset: .78 }, { transform: 'none' }]
+		case 'square': return [{ transform: at(0, 0), easing: UP }, { transform: at(up, 45), offset: .45, easing: DOWN }, { transform: at(0, 90) }]
+		case 'triangle': return [{ transform: at(0, 0), easing: UP }, { transform: at(up, 180), offset: .45, easing: DOWN }, { transform: at(0, 360) }]
+		case 'bar': return [{ transform: at(0, 0), easing: UP }, { transform: at(up, 0, 1, 1.2), offset: .45, easing: DOWN }, { transform: at(0, 0, 1.15, .85), offset: .78 }, { transform: at(0, 0) }]
+		default: return [{ transform: at(0, 0), easing: UP }, { transform: at(up, 0), offset: .45, easing: DOWN }, { transform: at(0, 0, 1.18, .8), offset: .78 }, { transform: at(0, 0) }]
 	}
 }
 
