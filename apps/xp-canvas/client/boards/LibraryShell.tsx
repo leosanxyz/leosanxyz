@@ -1,11 +1,16 @@
-import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { ContextMenu, Dialog, DropdownMenu } from 'radix-ui'
 import type { BoardFolder } from '../../shared/boards'
 import { Icon } from '../components/Icon'
+import { useEnterReveal, useReveal } from '../components/Skeleton'
 import { navigate } from '../navigation'
 import { usePortal } from '../portal/PortalProvider'
 import { useShopNotice } from '../shop/shopNotice'
 import './boards.css'
+
+// Sections (library, profile, shop, students) each mount their own shell. When one replaces another,
+// the sidebar looks the same and stays still; only the main content fades in.
+let shellsOnScreen = 0
 
 export interface FolderAction { label: string; onSelect: () => void; danger?: boolean }
 
@@ -36,6 +41,11 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 	const { user } = usePortal()
 	const student = user?.role === 'student'
 	const { hasNews } = useShopNotice(student ? user.id : undefined), newsId = useId()
+	const [sectionChange] = useState(() => shellsOnScreen > 0)
+	useLayoutEffect(() => { shellsOnScreen++; return () => { shellsOnScreen-- } }, [])
+	const enter = useEnterReveal(sectionChange)
+	// Folders that arrive after the sidebar is on screen fade in; remembered ones are there from the start.
+	const revealFolders = useReveal(folders.length > 0)
 	const [open, setOpen] = useState(false), [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 650px)').matches)
 	const [collapsed, setCollapsed] = useState(new Set<string>()), [error, setError] = useState('')
 	const [dropTarget, setDropTarget] = useState<string | null>(null)
@@ -79,7 +89,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 	function folderTree(parentId: string | null, depth = 0): ReactNode {
 		return folders.filter((folder) => folder.parentId === parentId).map((folder) => {
 			const hasChildren = folders.some((child) => child.parentId === folder.id)
-			const row = <div className="board-folder-row xp-reveal" style={{ paddingLeft: depth * 14 }} data-active={view === folder.id}>
+			const row = <div className="board-folder-row" style={{ paddingLeft: depth * 14 }} data-active={view === folder.id}>
 				{renamingFolder === folder.id ? <div className="board-nav-item board-folder-editing">
 					<Icon name="folder" size={20} /><FolderNameInput name={folder.name} onDone={(name) => onRenameEnd?.(folder.id, name)} />
 				</div> : <button className="board-nav-item" aria-current={view === folder.id ? 'page' : undefined} onClick={() => chooseView(folder.id)} {...dropZone(folder.id)}
@@ -102,11 +112,11 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			{onNewFolder && <button className="xp-icon-button" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => { setOpen(false); onNewFolder() }}><Icon name="folderPlus" /></button>}
 			{mobile && <Dialog.Close className="xp-icon-button" aria-label="Cerrar carpetas"><Icon name="close" /></Dialog.Close>}
 		</div></div>
-		<nav className="board-navigation" aria-label={student ? 'Clases' : 'Canvases'}>
+		<nav className="board-navigation" aria-label={student ? 'Clases' : 'Canvases'} data-reveal={revealFolders}>
 			<button className="board-nav-item" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><Icon name="boards" /><span>{student ? 'Todas' : 'Todos'}</span></button>
 			<button className="board-nav-item" aria-current={view === 'recent' ? 'page' : undefined} onClick={() => chooseView('recent')}><Icon name="recent" /><span>Recientes</span></button>
 			{!student && <button className="board-nav-item" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><Icon name="star" /><span>Favoritos</span></button>}
-			{(folders.length > 0 || !student) && <div className={student ? 'board-folder-heading xp-reveal' : 'board-folder-heading'}>Carpetas</div>}
+			{(folders.length > 0 || !student) && <div className="board-folder-heading" data-with-folders={student || undefined}>Carpetas</div>}
 			{folderTree(null)}
 		</nav>
 		{student && <button className="board-nav-item board-nav-shop" aria-current={view === 'shop' ? 'page' : undefined} onClick={() => { setOpen(false); navigate('/tienda') }}>
@@ -118,7 +128,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 		{mobile ? <Dialog.Portal><Dialog.Overlay className="board-sidebar-scrim" /><Dialog.Content className="board-sidebar board-sidebar-mobile" aria-describedby={undefined}>
 			<Dialog.Title className="xp-sr-only">Carpetas de canvases</Dialog.Title>{sidebar}
 		</Dialog.Content></Dialog.Portal> : <aside className="board-sidebar" aria-label="Carpetas de canvases">{sidebar}</aside>}
-		<section className="board-main">
+		<section className="board-main" data-reveal={enter}>
 			<header className="board-header">
 				{mobile && <Dialog.Trigger className="xp-icon-button board-sidebar-trigger" aria-label="Mostrar carpetas" aria-describedby={hasNews ? newsId : undefined}><Icon name="menu" />{hasNews && <i className="board-nav-dot" id={newsId} role="img" aria-label="Hay novedades en la tienda" />}</Dialog.Trigger>}
 				{onBack && <button className="xp-icon-button" aria-label="Volver" title="Volver" onClick={onBack}><Icon name="arrowLeft" /></button>}

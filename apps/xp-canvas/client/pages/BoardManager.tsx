@@ -5,6 +5,7 @@ import { closeEditorSession, getEditorSession } from '../access'
 import { boardRequest } from '../boards/api'
 import { BOARD_DRAG, type FolderAction, LibraryShell } from '../boards/LibraryShell'
 import { BoardPreview, useRevealOrder } from '../boards/BoardPreview'
+import { libraryKey, rememberedLibrary, rememberLibrary } from '../boards/useBoardLibrary'
 import { useBoardView } from '../boards/useBoardView'
 import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
@@ -18,19 +19,23 @@ import { BoardAccessDialog } from '../portal/BoardAccessDialog'
 type Notice = { text: string; undo: () => Promise<void>; key: number }
 type DialogState = { kind: 'new-folder' | 'rename-board' | 'move-board' | 'move-folder' | 'delete-folder'; id?: string; name: string; folderId: string | null }
 const emptyLibrary: BoardLibrary = { boards: [], folders: [] }
+// The last editor check, so coming back to the library does not wait for it again; it still refreshes.
+let editorCheck: { key: string; isEditor: boolean; authRequired: boolean } | null = null
 const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
 
 export default function BoardManager() {
-	const { mode } = usePortal()
+	const { mode, user } = usePortal()
+	const key = libraryKey(user?.id)
+	const known = editorCheck?.key === key ? editorCheck : null
 	const [sharing, setSharing] = useState<Board | null>(null)
-	const [isEditor, setIsEditor] = useState<boolean | null>(null)
-	const [authRequired, setAuthRequired] = useState(true)
+	const [isEditor, setIsEditor] = useState<boolean | null>(known?.isEditor ?? null)
+	const [authRequired, setAuthRequired] = useState(known?.authRequired ?? true)
 	const [unlock, setUnlock] = useState(false)
-	const [library, setLibrary] = useState<BoardLibrary>(emptyLibrary)
+	const [library, setLibrary] = useState<BoardLibrary>(() => rememberedLibrary(key) ?? emptyLibrary)
 	const [view, setView] = useBoardView()
 	const [dialog, setDialog] = useState<DialogState | null>(null)
 	const [busy, setBusy] = useState(false)
-	const [loading, setLoading] = useState(true)
+	const [loading, setLoading] = useState(() => !rememberedLibrary(key))
 	const [error, setError] = useState('')
 	const cancelRef = useRef<HTMLButtonElement>(null)
 	const [query, setQuery] = useState('')
@@ -43,7 +48,8 @@ export default function BoardManager() {
 		let active = true
 		void getEditorSession().then(({ isEditor, authRequired }) => { if (active) { setIsEditor(isEditor); setAuthRequired(authRequired) } }).catch(() => { if (active) { setIsEditor(false); setError('No pude conectar con el servidor.') } })
 		return () => { active = false }
-	}, [])
+	}, [key])
+	useEffect(() => { if (isEditor !== null) editorCheck = { key, isEditor, authRequired } }, [key, isEditor, authRequired])
 
 	const load = useCallback(async (signal?: AbortSignal) => {
 		try {
@@ -52,6 +58,8 @@ export default function BoardManager() {
 		} catch (cause) { if (!signal?.aborted) setError(message(cause)) }
 		finally { if (!signal?.aborted) setLoading(false) }
 	}, [])
+
+	useEffect(() => { if (!loading) rememberLibrary(key, library) }, [key, library, loading])
 
 	useEffect(() => {
 		if (!isEditor) return

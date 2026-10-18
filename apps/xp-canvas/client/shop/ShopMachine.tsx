@@ -7,7 +7,7 @@ import { useMachine3D } from '../gachapon/useMachine3D'
 import '../gachapon/gachapon.css'
 
 /** The canvas gachapon outside tldraw. `data-gachapon-id="shop"` lets the reveal fly out of its slot. */
-export function ShopMachine({ state, pending, reveal, onSpin }: { state: ShopState; pending: boolean; reveal: GachaponResult | null; onSpin: (free: boolean) => void }) {
+export function ShopMachine({ state, pending, reveal, onSpin, onReady }: { state: ShopState; pending: boolean; reveal: GachaponResult | null; onSpin: (free: boolean) => void; onReady?: () => void }) {
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const [coinAt, setCoinAt] = useState<number | null>(null)
 	const free = state.freeSpin === 'available'
@@ -22,6 +22,7 @@ export function ShopMachine({ state, pending, reveal, onSpin }: { state: ShopSta
 		prizeColor: skins.find((skin) => skin.id === reveal?.skin)?.color ?? '#ffb347', sway: false,
 	})
 	useEffect(() => { prepareGachaponAudio() }, [])
+	useEffect(() => { if (status3d !== 'loading') onReady?.() }, [status3d, onReady])
 	// The coin is spent when the spin starts and returned if the student can no longer spin.
 	useEffect(() => { if (coinAt !== null && !ready && !pending) setCoinAt(null) }, [coinAt, ready, pending])
 	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todas las cartas de hoy'

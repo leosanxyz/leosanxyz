@@ -206,16 +206,18 @@
 .shop .shop-gift__claim:disabled { opacity: .7; cursor: default; }
 .shop .shop-gift__done { color: #4b4038; font-size: max(11px, 9cqw); font-weight: 700; }
 
-.shop-skeleton__block { border-radius: 16px; background: linear-gradient(100deg, #f6e4d5 30%, #fbefe5 50%, #f6e4d5 70%) 0 0 / 300% 100%; animation: shop-shimmer 1400ms ease-in-out infinite; }
-.shop-skeleton .shop-hero { background: none; padding: 0; }
-.shop-skeleton__machine { width: 300px; height: 440px; border-radius: 120px 120px 40px 40px; }
-.shop-skeleton__panel { display: grid; gap: 18px; min-width: 0; }
-.shop-skeleton__bar { height: 20px; }
-.shop-skeleton__row { display: flex; gap: 10px; overflow: hidden; }
-.shop-skeleton__card { flex: 0 0 56px; height: 82px; border-radius: 10px; }
-.shop-skeleton__review { height: 120px; }
-.shop-skeleton__sale { aspect-ratio: .686; }
-@keyframes shop-shimmer { to { background-position: -150% 0; } }
+/* The skeleton's leaving copy lives outside .shop, so the panel color is written out here. */
+.shop-skeleton .shop-hero { background: #eaf0f1; }
+.shop-skeleton .shop-hero .xp-skeleton { --skeleton: #dce6e8; --skeleton-shine: #e5edef; }
+.shop-skeleton__machine { width: 250px; height: 370px; margin: 30px auto 0; border-radius: 110px 110px 36px 36px; }
+.shop-skeleton__panel { display: grid; justify-items: center; gap: 18px; min-width: 0; }
+.shop-skeleton__pool { display: flex; gap: 10px; justify-self: stretch; overflow: hidden; padding: 0 16px; }
+.shop-skeleton__card { flex: 0 0 120px; aspect-ratio: .686; border-radius: 10px; }
+.shop-skeleton__line { width: min(440px, 100%); height: 18px; }
+.shop-skeleton__button { width: 186px; height: 44px; border-radius: 12px; }
+.shop-skeleton__heading { width: 180px; height: 22px; }
+/* Cards for sale show their dark backs. */
+.shop-skeleton__sale { height: 100%; border-radius: 17px; --skeleton: #2a2a2f; --skeleton-shine: #36363c; }
 
 /* Review, on the panel */
 .shop-review__progress { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -271,7 +273,7 @@
 }
 @media (max-width: 340px) { .shop-machine-frame { width: 255px; height: 374px; }.shop-machine { transform: scale(.85); transform-origin: top left; } }
 @media (prefers-reduced-motion: reduce) {
-	.shop-points strong, .shop-card-stage, .shop-card-stage::before, .shop-burst, .shop-toast, .shop-skeleton__block, .shop-float,
+	.shop-points strong, .shop-card-stage, .shop-card-stage::before, .shop-burst, .shop-toast, .shop-float,
 	.shop-panel__title, .shop-panel__content, .shop-review__step, .shop-review__answers { animation: none !important; }
 	/* The quiz still fades in, at once. */
 	.shop-panel__content[data-view='quiz'] { animation: shop-fade 220ms ease both !important; }

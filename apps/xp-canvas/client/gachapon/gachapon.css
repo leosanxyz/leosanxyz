@@ -58,6 +58,9 @@
 
 /* 3D machine: the canvas draws the body; the HTML controls sit over it, aligned by useMachine3D. */
 .gachapon[data-three] { background: transparent; border-color: transparent; box-shadow: none; }
+/* The 3D machine and its controls fade in together once the scene is drawn. */
+.gachapon[data-three] { transition: opacity 400ms ease; }
+.gachapon[data-three='loading'] { opacity: 0; }
 .gachapon__canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .gachapon__settings { position: absolute; z-index: 1; right: 2px; top: 2px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #ffffff8c; font-size: 22px; }
 .gachapon__status { position: absolute; left: 8px; right: 8px; top: 6px; margin: 0; text-align: center; font-size: 12px; font-weight: 750; color: #7a3326; }

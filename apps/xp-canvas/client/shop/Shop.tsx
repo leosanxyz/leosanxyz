@@ -65,6 +65,11 @@ export default function Shop() {
 	const { library } = useBoardLibrary()
 	const { markSeen } = useShopNotice(user?.role === 'student' ? user.id : undefined)
 	const [state, setState] = useState<ShopState | null>(null), [loadError, setLoadError] = useState('')
+	const [machineReady] = useState(() => {
+		let resolve = () => {}
+		const promise = new Promise<void>((done) => { resolve = done })
+		return { promise, resolve }
+	})
 	const [notice, setNotice] = useState('')
 	const [pending, setPending] = useState(false), [reveal, setReveal] = useState<ShopSpin | null>(null)
 	const [starting, setStarting] = useState(false)
@@ -241,11 +246,11 @@ export default function Shop() {
 		<div className="shop" aria-busy={!state}>
 			{BLUR === 'filter' && <BlurFilters />}
 			{loadError && !state && <p className="xp-error shop-alert" role="alert">{loadError} <button className="portal-link" onClick={() => void load()}>Reintentar</button></p>}
-			{!state && !loadError && <ShopSkeleton />}
+			{!state && !loadError && <ShopSkeleton hold={machineReady.promise} />}
 			{state && <>
 				{notice && <p className="shop-toast" role="alert" key={notice}>{notice}</p>}
 				<section className="shop-hero" ref={hero}>
-					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} /></div>
+					<div className="shop-machine-frame"><ShopMachine state={state} pending={pending} reveal={reveal} onSpin={(free) => void spin(free)} onReady={machineReady.resolve} /></div>
 					<Panel state={state} hero={hero} starting={starting} onReview={startReview} onAnswer={answer} onGraded={graded} onRetry={review}
 						strip={(tray) => <Strip className="shop-strip" key={state.day} list={tray.list} tray={tray.on} gathering={tray.gathering} cardWidth={tray.on ? CARD.tray : CARD.spread} handlers={tray.handlers} locked={locks > 0}>
 							{state.pool.map((skin) => <motion.li key={skin} data-slot={skin} data-focus={(tray.on && tray.focus === skin) || undefined} layout={!reduced} transition={GATHER}>
@@ -571,7 +576,7 @@ function PointsPill({ value, counting, pill }: { value: number; counting: boolea
 		frame = requestAnimationFrame(step)
 		return () => { cancelAnimationFrame(frame); setShown(value) }
 	}, [value, reduced, counting])
-	return <p className="shop-points" ref={pill} aria-live="polite">
+	return <p className="shop-points xp-reveal" ref={pill} aria-live="polite">
 		<span className="shop-coin" aria-hidden="true" /><strong key={value} data-testid="shop-points">{points(shown)}</strong><span className="xp-sr-only"> puntos</span>
 	</p>
 }
@@ -733,17 +738,24 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 	</div>, document.body)
 }
 
-function ShopSkeleton() {
-	const skeleton = useSkeleton<HTMLDivElement>()
+function ShopSkeleton({ hold }: { hold: Promise<void> }) {
+	// It stays in front until the 3D machine is ready: building it blocks the page for a moment.
+	const skeleton = useSkeleton<HTMLDivElement>(0, hold)
+	// Same sections and sizes as the shop, so its content crossfades into place without moving.
 	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda" {...skeleton}>
-		<div className="shop-hero">
-			<div className="shop-skeleton__block shop-skeleton__machine" />
+		<section className="shop-hero">
+			<div className="shop-machine-frame"><span className="xp-skeleton shop-skeleton__machine" /></div>
 			<div className="shop-skeleton__panel">
-				<div className="shop-skeleton__block shop-skeleton__bar" />
-				<div className="shop-skeleton__row">{Array.from({ length: 7 }, (_, i) => <div key={i} className="shop-skeleton__block shop-skeleton__card" />)}</div>
-				<div className="shop-skeleton__block shop-skeleton__review" />
+				<div className="shop-skeleton__pool">{Array.from({ length: 6 }, (_, i) => <span key={i} className="xp-skeleton shop-skeleton__card" />)}</div>
+				<span className="xp-skeleton shop-skeleton__line" />
+				<span className="xp-skeleton shop-skeleton__button" />
 			</div>
-		</div>
-		<div className="shop-scroller"><ul className="shop-row">{Array.from({ length: 6 }, (_, i) => <li key={i}><div className="shop-skeleton__block shop-skeleton__sale" /></li>)}</ul></div>
+		</section>
+		<section className="shop-cards">
+			<div className="shop-cards__heading"><span className="xp-skeleton shop-skeleton__heading" /></div>
+			<div className="shop-scroller"><ul className="shop-row" style={{ '--card-w': `${CARD.row}px` } as CSSProperties}>
+				{Array.from({ length: 6 }, (_, i) => <li key={i}><span className="xp-skeleton shop-skeleton__sale" /></li>)}
+			</ul></div>
+		</section>
 	</div>
 }
