@@ -4,6 +4,7 @@ import { type Board, type BoardFolder, type BoardLibrary, folderDescendants } fr
 import { closeEditorSession, getEditorSession } from '../access'
 import { boardRequest } from '../boards/api'
 import { BOARD_DRAG, type FolderAction, LibraryShell } from '../boards/LibraryShell'
+import { BoardPreview, useRevealOrder } from '../boards/BoardPreview'
 import { useBoardView } from '../boards/useBoardView'
 import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
@@ -36,6 +37,7 @@ export default function BoardManager() {
 	const [renamingFolder, setRenamingFolder] = useState<string | null>(null)
 	const [notice, setNotice] = useState<Notice | null>(null)
 	const revealCards = useReveal(!loading)
+	const thumbnails = useRevealOrder()
 
 	useEffect(() => {
 		let active = true
@@ -192,7 +194,7 @@ export default function BoardManager() {
 			<div className="board-grid" aria-busy={loading} data-reveal={revealCards}>
 				{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} style={revealDelay(revealCards, index)} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
 					<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
-						<div className="board-card-preview">{board.thumbnailAt ? <img src={`/api/boards/${board.id}/thumbnail?v=${board.thumbnailAt}`} loading="lazy" decoding="async" alt="" draggable={false} /> : <Icon name="boards" size={44} />}</div>
+						<BoardPreview board={board} index={index} order={thumbnails} />
 						<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
 					</button>
 					{board.favorite && <span className="board-card-favorite" aria-label="Favorito"><Icon name="star" size={16} /></span>}

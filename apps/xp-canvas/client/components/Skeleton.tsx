@@ -10,7 +10,7 @@ const SHIMMER_MS = 1800
 // Skeletons and their ghosts on screen. A skeleton that replaces another one appears at once instead of fading in again.
 let skeletonsOnScreen = 0
 // Every skeleton shimmers in the same phase, so swapping one for another does not make the highlight jump.
-const shimmerPhase = () => `${-Math.round(performance.now() % SHIMMER_MS)}ms`
+export const shimmerPhase = () => `${-Math.round(performance.now() % SHIMMER_MS)}ms`
 
 /**
  * Root of a skeleton. When it unmounts, a copy of it stays in place and fades out over the content
