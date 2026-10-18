@@ -96,8 +96,14 @@ summary {
 
 .xp-reveal,
 .canvas-room[data-stage-reveal] :is(.canvas-stage, .canvas-header-settings) > *,
+.board-navigation[data-reveal] :is(.board-folder-row, [data-with-folders]),
 .board-grid[data-reveal] + .board-empty {
 	animation: xp-reveal var(--reveal-fade) both;
+}
+
+/* A new section: the sidebar stays, its main content fades in quickly. */
+.board-main[data-reveal] > * {
+	animation: xp-reveal 280ms ease both;
 }
 
 /* The first cards arrive under their skeletons' crossfade; only the ones past them fade in. */
@@ -112,9 +118,6 @@ summary {
 .canvas-room[data-stage-reveal='pending'] :is(.canvas-stage, .canvas-header-settings) > * {
 	animation-play-state: paused;
 }
-
-/* The mobile drawer mounts its folders each time it opens; there they appear with the rest of the drawer. */
-.board-sidebar-mobile .xp-reveal { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
 	:root { --reveal-rise: 0px; }

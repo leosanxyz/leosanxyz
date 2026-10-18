@@ -8,7 +8,7 @@ import { navigate } from '../navigation'
 import { usePortal } from './PortalProvider'
 import { portalRequest } from './api'
 import { PassPending, usePass } from './pass/PassGate'
-import { LibrarySkeleton } from '../components/Skeleton'
+import { PanelSkeleton } from '../components/Skeleton'
 import { ProfilePass } from './pass/ProfilePass'
 import './profile.css'
 
@@ -27,8 +27,6 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 		document.addEventListener('visibilitychange', load)
 		return () => { active = false; window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', load) }
 	}, [user?.id, user?.role])
-	// A finished student enters class before the pass loads; the profile waits for it here instead.
-	if (user?.role === 'student' && !profile) return <PassPending><LibrarySkeleton /></PassPending>
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
 				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? <span className="xp-skeleton skeleton-points" /> : <span className="xp-reveal">{points.toLocaleString('es-MX')}</span>}</strong></div>}
@@ -39,7 +37,10 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 				{profile && <button className="profile-settings-row profile-replay" onClick={() => navigate('/bienvenida')}><Icon name="recent" size={20} /><span>Repetir la bienvenida</span><Icon name="chevron" size={17} /></button>}
 			</div>
 	return <LibraryShell title="Mi perfil" view="profile" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} testId="portal-profile">
-		{profile ? <ProfilePass profile={profile} account={account} initiallyEditing={initiallyEditing} /> : <div className="portal-profile portal-profile-grid" data-has-pass="false">{account}</div>}
+		{profile ? <ProfilePass profile={profile} account={account} initiallyEditing={initiallyEditing} />
+			// A finished student enters class before the pass loads; the profile waits for it here.
+			: user?.role === 'student' ? <PassPending><PanelSkeleton /></PassPending>
+			: <div className="portal-profile portal-profile-grid" data-has-pass="false">{account}</div>}
 	</LibraryShell>
 }
 

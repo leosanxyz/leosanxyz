@@ -100,7 +100,8 @@ try {
 	await student.getByRole('button', { name: /^Tienda/ }).click()
 	await student.waitForURL('**/tienda')
 	await student.getByTestId('portal-shop').waitFor()
-	const strip = student.locator('.shop-strip'), row = student.locator('.shop-row')
+	// Inside the shop page: the skeleton's leaving copy, in the body, has the same classes for a moment.
+	const shopPage = student.getByTestId('portal-shop'), strip = shopPage.locator('.shop-strip'), row = shopPage.locator('.shop-row')
 	// The shell shows before the shop loads; count once the cards are there.
 	await row.locator('.shop-card').first().waitFor()
 	assert.equal(await student.locator('.shop-ticket').count(), 0, 'no ticket around the review')
@@ -112,8 +113,8 @@ try {
 	assert.equal(await row.locator(':scope > li').last().getByTestId('shop-gift').count(), 1)
 	assert.equal(await row.getByRole('button', { name: 'Revelar carta' }).count(), 6, 'the cards for sale arrive face down')
 	assert.equal(await student.locator('#shop-cards-title').innerText(), 'Cartas en venta')
-	assert.match(await student.locator('.shop-cards').getByTestId('shop-countdown').innerText(), /^\d{2}:\d{2}$/)
-	assert.equal(await student.locator('.shop-hero').getByTestId('shop-countdown').count(), 0, 'no clock in the hero')
+	assert.match(await student.getByTestId('portal-shop').locator('.shop-cards').getByTestId('shop-countdown').innerText(), /^\d{2}:\d{2}$/)
+	assert.equal(await student.getByTestId('portal-shop').locator('.shop-hero').getByTestId('shop-countdown').count(), 0, 'no clock in the hero')
 	await student.waitForTimeout(700)
 	const desk = await row.evaluate((list) => ({ overflow: getComputedStyle(list).overflowX, overflowY: getComputedStyle(list).overflowY, scrolls: list.scrollWidth > list.clientWidth, width: Math.round(list.children[0].getBoundingClientRect().width) }))
 	assert.deepEqual(desk, { overflow: 'auto', overflowY: 'hidden', scrolls: true, width: 196 }, 'the row scrolls sideways on the desktop too, never up or down')
@@ -242,7 +243,7 @@ try {
 	const corners = (slot) => slot.evaluate((item) => { const card = item.querySelector('.pass-card'); return [getComputedStyle(card).borderTopLeftRadius, getComputedStyle(card.parentElement).borderTopLeftRadius] })
 	const back = student.getByRole('button', { name: 'Cerrar el repaso' })
 	const panel = student.locator('.shop-panel'), panelWidth = (await panel.boundingBox()).width
-	const hero = student.locator('.shop-hero'), heroHeight = (await hero.boundingBox()).height
+	const hero = student.getByTestId('portal-shop').locator('.shop-hero'), heroHeight = (await hero.boundingBox()).height
 	// The dev server also shows the QA reset button.
 	assert.equal((await student.getByTestId('shop-free-spin').innerText()).replace(/\nDebug: reiniciar preguntas$/, ''), 'Repasar 3 preguntas', 'the review button stands alone')
 	assert.equal(await back.count(), 0, 'no back arrow outside the quiz')
@@ -267,7 +268,7 @@ try {
 	assert.equal(await back.isEnabled(), true)
 	assert.equal(await quiz.getByText(/^Pregunta \d de 3$/).count(), 0, 'the progress segments are the only count')
 	// The machine's cards gather into a tray above the quiz.
-	await student.locator('.shop-strip[data-tray]').waitFor()
+	await student.getByTestId('portal-shop').locator('.shop-strip[data-tray]').waitFor()
 	await student.waitForTimeout(700)
 	assert.deepEqual(await strip.evaluate((list) => ({ tray: list.hasAttribute('data-tray'), slots: list.children.length, cardWidth: getComputedStyle(list).getPropertyValue('--card-w').trim(), width: Math.round(list.children[0].getBoundingClientRect().width) })),
 		{ tray: true, slots: 6, cardWidth: '34px', width: 34 }, 'six 34 px thumbnails in the deck during the quiz')
@@ -363,11 +364,11 @@ try {
 	touch.on('pageerror', (error) => errors.push(error.message))
 	await touch.goto('/tienda')
 	await touch.getByRole('button', { name: 'Continuar repaso' }).tap()
-	await touch.locator('.shop-strip[data-tray]').waitFor()
+	await touch.getByTestId('portal-shop').locator('.shop-strip[data-tray]').waitFor()
 	await touch.waitForTimeout(700)
-	await touch.locator('.shop-strip > li').nth(1).locator('.shop-card').tap()
+	await touch.getByTestId('portal-shop').locator('.shop-strip > li').nth(1).locator('.shop-card').tap()
 	await touch.getByTestId('shop-card-detail').waitFor()
-	assert.deepEqual([await touch.locator('.shop-strip > li[data-focus]').count(), await touch.locator('.shop-tray__preview').count(), await touch.locator('.shop-detail__buy').count()], [0, 0, 0], 'a tap opens the detail without focus or preview')
+	assert.deepEqual([await touch.getByTestId('portal-shop').locator('.shop-strip > li[data-focus]').count(), await touch.locator('.shop-tray__preview').count(), await touch.locator('.shop-detail__buy').count()], [0, 0, 0], 'a tap opens the detail without focus or preview')
 	await tablet.close()
 	await student.getByRole('button', { name: 'Continuar repaso' }).click()
 	await onQuestion(2)
@@ -380,7 +381,7 @@ try {
 	assert.equal((await hero.boundingBox()).height, heroHeight, 'the failed step keeps the panel height')
 	assert.match(await panel.innerText(), /Te quedan 2 intentos hoy/)
 	// The cards spread back once the quiz ends.
-	await student.locator('.shop-strip:not([data-tray])').waitFor()
+	await student.getByTestId('portal-shop').locator('.shop-strip:not([data-tray])').waitFor()
 	await student.waitForTimeout(700)
 	assert.deepEqual(await strip.evaluate((list) => ({ tray: list.hasAttribute('data-tray'), slots: list.children.length, width: Math.round(list.children[0].getBoundingClientRect().width) })),
 		{ tray: false, slots: 6, width: 120 }, 'the cards spread back after the quiz')
@@ -544,7 +545,7 @@ try {
 			const at = `at ${viewport.width} × ${viewport.height}`
 			await wide.setViewportSize(viewport)
 			await wide.goto('/tienda')
-			await wide.locator('.shop-row .shop-card').first().waitFor()
+			await wide.getByTestId('portal-shop').locator('.shop-row .shop-card').first().waitFor()
 			await wide.waitForTimeout(700)
 			await flat(`at rest ${at}`)
 			await wide.getByRole('button', { name: 'Repasar 3 preguntas' }).click()
@@ -576,7 +577,7 @@ try {
 	await page.goto('/tienda')
 	await page.getByTestId('portal-shop').waitFor()
 	await page.getByText(TICKET_LINE).waitFor()
-	await page.locator('.shop-row .shop-card').first().click()
+	await page.getByTestId('portal-shop').locator('.shop-row .shop-card').first().click()
 	assert.equal(await page.getByTestId('shop-card-detail').getByRole('button', { name: '300 puntos' }).isDisabled(), true, 'the teacher cannot buy')
 	await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()
 	await page.getByTestId('shop-card-detail').waitFor({ state: 'detached' })
@@ -599,12 +600,12 @@ try {
 	await mobile.locator('.shop-card').first().waitFor()
 	assert.equal(await drawer.getAttribute('aria-describedby'), null, 'the dot clears on the phone too')
 	for (const list of ['.shop-strip', '.shop-row']) {
-		const phoneRow = await mobile.locator(list).evaluate((element) => ({ overflow: getComputedStyle(element).overflowX, scrolls: element.scrollWidth > element.clientWidth, rows: new Set([...element.children].map((item) => item.offsetTop)).size }))
+		const phoneRow = await mobile.getByTestId('portal-shop').locator(list).evaluate((element) => ({ overflow: getComputedStyle(element).overflowX, scrolls: element.scrollWidth > element.clientWidth, rows: new Set([...element.children].map((item) => item.offsetTop)).size }))
 		assert.deepEqual(phoneRow, { overflow: 'auto', scrolls: true, rows: 1 }, `${list} never wraps on the phone`)
 	}
-	assert.equal(await mobile.locator('.shop-row > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 196)
-	assert.equal(await mobile.locator('.shop-strip > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 120)
-	await mobile.locator('.shop-row .shop-card[data-owned="false"]').first().click()
+	assert.equal(await mobile.getByTestId('portal-shop').locator('.shop-row > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 196)
+	assert.equal(await mobile.getByTestId('portal-shop').locator('.shop-strip > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 120)
+	await mobile.getByTestId('portal-shop').locator('.shop-row .shop-card[data-owned="false"]').first().click()
 	await mobile.getByTestId('shop-card-detail').waitFor()
 	await mobile.waitForTimeout(800)
 	const fits = await mobile.getByTestId('shop-card-detail').evaluate((content) => { const box = content.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth })
@@ -612,8 +613,8 @@ try {
 	await mobile.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()
 	await mobile.getByTestId('shop-card-detail').waitFor({ state: 'detached' })
 	await mobile.emulateMedia({ reducedMotion: 'reduce' })
-	assert.equal(await mobile.locator('.shop-row > li').first().evaluate((item) => getComputedStyle(item).animationName), 'none', 'reduced motion keeps the cards still')
-	await mobile.locator('.shop-row .shop-card').first().click()
+	assert.equal(await mobile.getByTestId('portal-shop').locator('.shop-row > li').first().evaluate((item) => getComputedStyle(item).animationName), 'none', 'reduced motion keeps the cards still')
+	await mobile.getByTestId('portal-shop').locator('.shop-row .shop-card').first().click()
 	await mobile.getByTestId('shop-card-detail').waitFor()
 	assert.equal(await mobile.locator('.shop-detail .shop-float').evaluate((float) => getComputedStyle(float).animationName), 'none', 'reduced motion keeps the detail card still')
 	await mobile.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()

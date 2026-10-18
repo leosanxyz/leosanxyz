@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { startTransition, useEffect, useState } from 'react'
 
 export function navigate(path: string) {
 	if (location.pathname + location.search === path) return
@@ -10,7 +10,8 @@ export function navigate(path: string) {
 export function usePathname() {
 	const [path, setPath] = useState(location.pathname)
 	useEffect(() => {
-		const update = () => setPath(location.pathname)
+		// A transition keeps the current page on screen while the next one loads its code.
+		const update = () => startTransition(() => setPath(location.pathname))
 		window.addEventListener('popstate', update)
 		window.addEventListener('xp-navigation', update)
 		return () => { window.removeEventListener('popstate', update); window.removeEventListener('xp-navigation', update) }

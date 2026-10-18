@@ -16,8 +16,10 @@ export const shimmerPhase = () => `${-Math.round(performance.now() % SHIMMER_MS)
  * Root of a skeleton. When it unmounts, a copy of it stays in place and fades out over the content
  * that replaced it, so the swap is a crossfade with no empty frame in between.
  */
-export function useSkeleton<T extends HTMLElement>(leaveDelay = 0) {
+export function useSkeleton<T extends HTMLElement>(leaveDelay = 0, hold?: Promise<unknown>) {
 	const ref = useRef<T>(null)
+	const holdRef = useRef(hold)
+	holdRef.current = hold
 	const [quiet] = useState(() => skeletonsOnScreen > 0)
 	const [style] = useState(() => ({ '--skeleton-phase': shimmerPhase() }) as CSSProperties)
 	useLayoutEffect(() => {
@@ -27,7 +29,7 @@ export function useSkeleton<T extends HTMLElement>(leaveDelay = 0) {
 			skeletonsOnScreen--
 			// Layout cleanups run while the skeleton is still in the document, before the content takes its place.
 			// A skeleton inside another one leaves with it.
-			if (element?.isConnected && !element.parentElement?.closest('[data-skeleton]')) leave(element, leaveDelay)
+			if (element?.isConnected && !element.parentElement?.closest('[data-skeleton]')) leave(element, leaveDelay, holdRef.current)
 		}
 	}, [leaveDelay])
 	return { ref, style, 'data-skeleton': '', 'data-skeleton-quiet': quiet || undefined }
@@ -49,7 +51,10 @@ function measure(element: HTMLElement) {
 	return measured.get(element) ?? element.getBoundingClientRect()
 }
 
-function leave(element: HTMLElement, delay: number) {
+// Longest a skeleton waits in front of content that is still preparing itself.
+const HOLD_MS = 1500
+
+function leave(element: HTMLElement, delay: number, hold?: Promise<unknown>) {
 	const rect = measure(element)
 	if (!rect.width || !rect.height) return
 	const ghost = element.cloneNode(true) as HTMLElement
@@ -68,9 +73,12 @@ function leave(element: HTMLElement, delay: number) {
 		skeletonsOnScreen--
 	}
 	ghost.addEventListener('animationend', (event) => { if (event.target === ghost) remove() })
-	window.setTimeout(remove, 3000)
+	window.setTimeout(remove, HOLD_MS + 3000)
 	// Hold a painted frame before fading, so the heavy frame that mounts the content cannot eat the fade.
-	requestAnimationFrame(() => requestAnimationFrame(() => { ghost.dataset.leaving = 'true' }))
+	const fade = () => requestAnimationFrame(() => requestAnimationFrame(() => { ghost.dataset.leaving = 'true' }))
+	// Content that still prepares itself after mounting (the shop's 3D machine) keeps the skeleton in front until it is ready.
+	if (hold) void Promise.race([hold, new Promise((resolve) => window.setTimeout(resolve, HOLD_MS))]).then(fade)
+	else fade()
 }
 
 // Content without a skeleton of its own fades in for this long; content that was already there never does.
@@ -79,11 +87,8 @@ const REVEAL_MS = 1000
 type Reveal = 'waiting' | 'pending' | 'running' | 'done'
 export type RevealState = 'pending' | 'running' | undefined
 
-/** Entrance of data that was loading. */
-export function useReveal(ready: boolean): RevealState {
-	const [reveal, setReveal] = useState<Reveal>(ready ? 'done' : 'waiting')
-	// Set during render so the content is hidden from its very first frame.
-	if (ready && reveal === 'waiting') setReveal('pending')
+function useRevealState(initial: Reveal) {
+	const [reveal, setReveal] = useState<Reveal>(initial)
 	useEffect(() => {
 		if (reveal === 'pending') {
 			let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => setReveal('running')) })
@@ -93,7 +98,22 @@ export function useReveal(ready: boolean): RevealState {
 		const timer = window.setTimeout(() => setReveal('done'), REVEAL_MS)
 		return () => clearTimeout(timer)
 	}, [reveal])
-	return reveal === 'pending' || reveal === 'running' ? reveal : undefined
+	return [reveal, setReveal] as const
+}
+
+const revealState = (reveal: Reveal): RevealState => reveal === 'pending' || reveal === 'running' ? reveal : undefined
+
+/** Entrance of data that was loading. */
+export function useReveal(ready: boolean) {
+	const [reveal, setReveal] = useRevealState(ready ? 'done' : 'waiting')
+	// Set during render so the content is hidden from its very first frame.
+	if (ready && reveal === 'waiting') setReveal('pending')
+	return revealState(reveal)
+}
+
+/** Entrance of content that takes the place of other content already on screen, such as a new section. */
+export function useEnterReveal(enabled: boolean) {
+	return revealState(useRevealState(enabled ? 'pending' : 'done')[0])
 }
 
 /** Inline delay for the item at `index` of a list that enters in sequence. */
@@ -149,6 +169,12 @@ export function ResourcesSkeleton() {
 		<span className="xp-skeleton skeleton-upload" />
 		<div className="resource-library__list">{range(4).map((index) => <span key={index} className="xp-skeleton skeleton-tile" />)}</div>
 	</aside>
+}
+
+/** A block standing in for a page's main content. */
+export function PanelSkeleton() {
+	const skeleton = useSkeleton<HTMLDivElement>()
+	return <div className="xp-skeleton skeleton-panel" aria-busy="true" {...skeleton} />
 }
 
 export function SkeletonLines({ count = 3 }: { count?: number }) {
