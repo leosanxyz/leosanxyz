@@ -104,6 +104,8 @@ try {
 	const shopPage = student.getByTestId('portal-shop'), strip = shopPage.locator('.shop-strip'), row = shopPage.locator('.shop-row')
 	// The shell shows before the shop loads; count once the cards are there.
 	await row.locator('.shop-card').first().waitFor()
+	// The shop fades in once its machine is built; measure it settled.
+	await shopPage.locator('.shop:not([data-entrance])').waitFor()
 	assert.equal(await student.locator('.shop-ticket').count(), 0, 'no ticket around the review')
 	assert.equal(await strip.locator('.shop-card').count(), 6)
 	assert.equal(await strip.locator(':scope > li').count(), 6, 'the strip holds only the machine\'s six cards')

@@ -216,8 +216,26 @@
 .shop-skeleton__line { width: min(440px, 100%); height: 18px; }
 .shop-skeleton__button { width: 186px; height: 44px; border-radius: 12px; }
 .shop-skeleton__heading { width: 180px; height: 22px; }
-/* Cards for sale show their dark backs. */
-.shop-skeleton__sale { height: 100%; border-radius: 17px; --skeleton: #2a2a2f; --skeleton-shine: #36363c; }
+.shop-skeleton__sale { height: 100%; border-radius: 17px; }
+/* The skeleton fades out first and the shop's content fades in after it. The panels keep their color throughout,
+   so only what is inside them changes and the skeleton's boxes never sit on top of the real ones. */
+.shop-skeleton.skeleton-ghost[data-leaving] { animation-duration: 220ms; }
+/* Each piece waits at 1% rather than 0: at 0 the browser skips painting it, and that first paint (cards, blurs)
+   would then land on the fade's first frame and eat it. Behind the skeleton, 1% cannot be seen. The pieces are
+   hidden one by one, not their panels, so a card's opacity never multiplies with its container's. */
+.shop[data-entrance='hidden'] :is(.shop-machine-frame, .shop-panel > :not(.shop-scroller), .shop-cards__heading, .shop-strip > li, .shop-row > li) { opacity: .01; }
+.shop[data-entrance='in'] :is(.shop-machine-frame, .shop-panel > :not(.shop-scroller), .shop-cards__heading) { animation: shop-enter 380ms ease 120ms both; }
+@keyframes shop-enter { from { opacity: .01; } }
+/* The cards arrive left to right. `translate` leaves `transform` free for the strip's layout animation. */
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li { animation: shop-card-enter 420ms cubic-bezier(.22, 1, .36, 1) 120ms both; }
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li:nth-child(2) { animation-delay: 170ms; }
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li:nth-child(3) { animation-delay: 220ms; }
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li:nth-child(4) { animation-delay: 270ms; }
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li:nth-child(5) { animation-delay: 320ms; }
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li:nth-child(6) { animation-delay: 370ms; }
+.shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li:nth-child(n + 7) { animation-delay: 420ms; }
+@keyframes shop-card-enter { from { opacity: .01; translate: 0 8px; } }
+@media (prefers-reduced-motion: reduce) { .shop[data-entrance='in'] :is(.shop-strip, .shop-row) > li { animation-name: shop-enter; } }
 
 /* Review, on the panel */
 .shop-review__progress { display: flex; gap: 6px; margin-bottom: 10px; }
