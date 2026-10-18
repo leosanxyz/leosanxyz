@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { PortalSession } from '../../shared/portal'
 import { portalRequest } from './api'
+import { RouteSkeleton } from '../components/Skeleton'
 import '../components/ui.css'
 import './portal.css'
 
@@ -29,7 +30,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 		window.addEventListener('xp-session-changed', check)
 		return () => { clearInterval(interval); document.removeEventListener('visibilitychange', check); window.removeEventListener('xp-session-changed', check) }
 	}, [session?.mode, refresh])
-	if (!session) return <main className="portal-entry"><div className="portal-entry-card"><h1>XP Canvas</h1><p role={error ? 'alert' : 'status'}>{error || 'Comprobando tu sesión…'}</p>{error && <button className="xp-primary" onClick={() => { setError(''); void refresh().catch(() => setError('No pude conectar con el servidor.')) }}>Reintentar</button>}</div></main>
+	if (!session && !error) return <RouteSkeleton />
+	if (!session) return <main className="portal-entry"><div className="portal-entry-card"><h1>XP Canvas</h1><p role="alert">{error}</p><button className="xp-primary" onClick={() => { setError(''); void refresh().catch(() => setError('No pude conectar con el servidor.')) }}>Reintentar</button></div></main>
 	return <Context.Provider value={{ ...session, refresh, logout }}>
 		{session.mode === 'portal' && (!session.user || session.user.mustChangePassword) ? <Login key={session.user?.id ?? 'login'} /> : children}
 	</Context.Provider>

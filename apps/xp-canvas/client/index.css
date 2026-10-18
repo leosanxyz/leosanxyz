@@ -32,6 +32,94 @@ summary {
 	font: inherit;
 }
 
+/* Loading shows the shape of what is coming with a slow shimmer, never a status message. */
+.xp-skeleton {
+	--skeleton: #edf1f2;
+	--skeleton-shine: #f6f8f9;
+	display: block;
+	flex-shrink: 0;
+	border-radius: 8px;
+	background: linear-gradient(100deg, var(--skeleton) 30%, var(--skeleton-shine) 50%, var(--skeleton) 70%) 0 0 / 300% 100%;
+	animation: xp-skeleton-in 300ms ease-out both, xp-skeleton-shimmer 1800ms ease-in-out var(--skeleton-phase, 0ms) infinite;
+}
+
+/* A skeleton that replaces another one, and the copy that fades out over the content, skip the entrance. */
+[data-skeleton-quiet] .xp-skeleton,
+.skeleton-ghost .xp-skeleton {
+	animation-name: none, xp-skeleton-shimmer;
+}
+
+/* The skeleton leaves by fading out over the content that replaced it. */
+.skeleton-ghost { z-index: 10000; pointer-events: none; }
+.skeleton-ghost[data-leaving] { animation: xp-skeleton-out 450ms ease both; }
+@keyframes xp-skeleton-out { to { opacity: 0; } }
+
+.board-sidebar .xp-skeleton { --skeleton: #dce6e8; --skeleton-shine: #e5edef; }
+.canvas-header .xp-skeleton { --skeleton: #ebe9e3; --skeleton-shine: #f3f2ee; }
+
+@keyframes xp-skeleton-in { from { opacity: 0; } }
+@keyframes xp-skeleton-shimmer { to { background-position: -150% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+	.xp-skeleton, [data-skeleton-quiet] .xp-skeleton, .skeleton-ghost .xp-skeleton { animation: none; }
+}
+
+.skeleton-heading { width: 104px; height: 20px; margin: 12px 0; }
+.skeleton-icon { width: 22px; height: 22px; border-radius: 6px; }
+.skeleton-label { width: min(120px, 70%); height: 14px; }
+.skeleton-date { width: 48px; height: 10px; }
+.skeleton-points { width: 72px; height: 28px; }
+.skeleton-avatar { width: 36px; height: 36px; border-radius: 50%; }
+.skeleton-title { width: min(280px, 60%); height: 30px; }
+.skeleton-trigger { display: none; width: 44px; height: 44px; border-radius: 12px; }
+.skeleton-panel { height: 320px; border-radius: 18px; }
+.skeleton-fill { width: 100%; height: 100%; border-radius: 0; }
+.skeleton-button { width: 44px; height: 44px; border-radius: 12px; }
+.canvas-identity .skeleton-label { width: 140px; height: 18px; }
+.skeleton-action { width: 88px; height: 36px; border-radius: 10px; }
+.skeleton-upload { height: 44px; border-radius: 12px; }
+.skeleton-tile { aspect-ratio: 1; border-radius: 14px; }
+.skeleton-lines { display: grid; gap: 12px; padding: 4px 0; }
+.skeleton-line { height: 16px; }
+.skeleton-line:last-child { width: 60%; }
+
+@media (max-width: 650px) {
+	.skeleton-trigger { display: block; }
+}
+
+/* Content without a skeleton of its own fades in; lists also rise a little and arrive in sequence.
+   Opacity uses a gentle `ease` so the fade is visible; the rise uses a strong ease-out. */
+:root { --reveal-fade: 600ms ease; --reveal-rise: 6px; }
+
+@keyframes xp-reveal { from { opacity: 0; } }
+@keyframes xp-reveal-rise { from { transform: translateY(var(--reveal-rise)); } }
+
+.xp-reveal,
+.canvas-room[data-stage-reveal] :is(.canvas-stage, .canvas-header-settings) > *,
+.board-grid[data-reveal] + .board-empty {
+	animation: xp-reveal var(--reveal-fade) both;
+}
+
+/* The first cards arrive under their skeletons' crossfade; only the ones past them fade in. */
+.board-grid[data-reveal] > :nth-child(n + 5),
+.portal-students[data-reveal] > *,
+.portal-entry-card {
+	animation: xp-reveal var(--reveal-fade) both, xp-reveal-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* While pending, the entrance holds its first frame: the content is painted once, hidden, before the fade starts. */
+[data-reveal='pending'] *,
+.canvas-room[data-stage-reveal='pending'] :is(.canvas-stage, .canvas-header-settings) > * {
+	animation-play-state: paused;
+}
+
+/* The mobile drawer mounts its folders each time it opens; there they appear with the rest of the drawer. */
+.board-sidebar-mobile .xp-reveal { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+	:root { --reveal-rise: 0px; }
+}
+
 button,
 summary {
 	-webkit-tap-highlight-color: transparent;
@@ -43,7 +131,8 @@ summary {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: auto minmax(0, 1fr);
-	background: #f7f6f2;
+	/* tldraw's light background, so the stage does not change color when the canvas mounts. */
+	background: hsl(210, 20%, 98%);
 }
 
 .canvas-header {
@@ -65,16 +154,6 @@ summary {
 .canvas-actions {
 	display: flex;
 	align-items: center;
-}
-
-.canvas-mark {
-	display: inline-block;
-	width: 12px;
-	height: 12px;
-	border: 3px solid #20201e;
-	border-radius: 50%;
-	box-shadow: inset 0 0 0 2px #f8be36;
-	background: #f8be36;
 }
 
 .canvas-actions {
@@ -363,18 +442,6 @@ summary {
 	font-size: 13px;
 	font-weight: 650;
 	pointer-events: none;
-}
-
-.app-loading {
-	position: fixed;
-	inset: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 10px;
-	background: #f7f6f2;
-	color: #5e5b54;
-	font-size: 14px;
 }
 
 @media (max-width: 760px) {

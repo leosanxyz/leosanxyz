@@ -8,6 +8,7 @@ import { useBoardView } from '../boards/useBoardView'
 import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
+import { BoardCardsSkeleton, LibrarySkeleton, revealDelay, useReveal } from '../components/Skeleton'
 import { navigate } from '../navigation'
 import '../boards/boards.css'
 import { usePortal } from '../portal/PortalProvider'
@@ -34,6 +35,7 @@ export default function BoardManager() {
 	const [query, setQuery] = useState('')
 	const [renamingFolder, setRenamingFolder] = useState<string | null>(null)
 	const [notice, setNotice] = useState<Notice | null>(null)
+	const revealCards = useReveal(!loading)
 
 	useEffect(() => {
 		let active = true
@@ -164,7 +166,7 @@ export default function BoardManager() {
 		finally { setBusy(false) }
 	}
 
-	if (isEditor === null) return <div className="board-loading">Abriendo canvases…</div>
+	if (isEditor === null) return <LibrarySkeleton cards />
 	if (!isEditor) return <div className="board-welcome"><Icon name="boards" size={46} /><h1>Tus canvases</h1><button className="xp-primary" onClick={() => setUnlock(true)}>Editar</button><a href="/board/principal" onClick={(event) => { event.preventDefault(); navigate('/board/principal') }}>Ver Principal</a>
 		{error && <p className="xp-error" role="alert">{error}</p>}
 		{unlock && <EditorCodeDialog onClose={() => setUnlock(false)} onUnlock={() => { setUnlock(false); setIsEditor(true) }} />}
@@ -187,8 +189,8 @@ export default function BoardManager() {
 					<button className="xp-icon-button board-new" aria-label="Nuevo canvas" title="Nuevo canvas" disabled={busy} onClick={() => void createBoard()}><Icon name="plus" /></button>
 		</>}>
 			{error && <p className="xp-error board-error" role="alert">{error}</p>}
-			<div className="board-grid" aria-busy={loading}>
-				{boards.map((board) => <article className="board-card" key={board.id} data-board-id={board.id} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
+			<div className="board-grid" aria-busy={loading} data-reveal={revealCards}>
+				{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} style={revealDelay(revealCards, index)} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
 					<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
 						<div className="board-card-preview">{board.thumbnailAt ? <img src={`/api/boards/${board.id}/thumbnail?v=${board.thumbnailAt}`} loading="lazy" decoding="async" alt="" draggable={false} /> : <Icon name="boards" size={44} />}</div>
 						<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
@@ -205,8 +207,9 @@ export default function BoardManager() {
 						</>}
 					</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
 				</article>)}
+				{loading && !boards.length && <BoardCardsSkeleton />}
 			</div>
-			{!boards.length && <p className="board-empty">{loading ? 'Cargando…' : search ? 'Ningún canvas coincide con la búsqueda.' : view === 'trash' ? 'La papelera está vacía.' : selectedFolder ? 'No hay canvases en esta carpeta.' : 'No hay canvases aquí.'}</p>}
+			{!loading && !boards.length && <p className="board-empty">{search ? 'Ningún canvas coincide con la búsqueda.' : view === 'trash' ? 'La papelera está vacía.' : selectedFolder ? 'No hay canvases en esta carpeta.' : 'No hay canvases aquí.'}</p>}
 		{notice && <div className="board-toast" role="status" key={notice.key}><span>{notice.text}</span><button onClick={() => void undoNotice()}>Deshacer</button></div>}
 		{sharing && <BoardAccessDialog board={sharing} onClose={() => setSharing(null)} />}
 		{dialog && <Modal title={dialog.kind === 'new-folder' ? 'Nueva carpeta' : dialog.kind === 'move-board' ? 'Mover a carpeta' : dialog.kind === 'move-folder' ? 'Mover carpeta' : dialog.kind === 'delete-folder' ? 'Eliminar carpeta' : 'Renombrar'} initialFocusRef={dialog.kind === 'delete-folder' ? cancelRef : undefined} onClose={() => { if (!busy) setDialog(null) }}><form className="xp-form" onSubmit={submitDialog}>

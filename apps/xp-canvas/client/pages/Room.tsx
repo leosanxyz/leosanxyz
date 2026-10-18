@@ -35,6 +35,7 @@ import { boardRequest } from '../boards/api'
 import { installThumbnail } from '../boards/installThumbnail'
 import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
+import { CanvasSkeleton, ResourcesSkeleton, useReveal } from '../components/Skeleton'
 import { Modal } from '../components/Modal'
 import { navigate } from '../navigation'
 import { CANVAS_TOOLS } from '../eraser/PartialEraserTool'
@@ -110,7 +111,7 @@ export function Room({ roomId }: { roomId: string }) {
 	}, [roomId])
 
 	if (error) return <div className="board-welcome"><p role="alert">{error}</p><button className="xp-primary" onClick={() => navigate('/')}>Mis canvases</button></div>
-	if (access === 'checking' || !board) return <LoadingScreen />
+	if (access === 'checking' || !board) return <CanvasSkeleton />
 
 	return (
 		<CanvasRoom
@@ -140,6 +141,8 @@ function CanvasRoom({
 	const roomId = board.id
 	const { mode, user } = usePortal()
 	const [editor, setEditor] = useState<Editor | null>(null)
+	// The canvas stays hidden until tldraw mounts, then fades in.
+	const stageReveal = useReveal(Boolean(editor)) ?? (editor ? undefined : 'pending')
 	const [headerTarget, setHeaderTarget] = useState<HTMLDivElement | null>(null)
 	const [quickShape, setQuickShape] = useState(() => {
 		try {
@@ -318,7 +321,7 @@ function CanvasRoom({
 		<GachaponContext.Provider value={{ userId: user?.id, isTeacher: isEditor, canUse: questions.canAnswer, pending: questions.pending, results: questions.gachaResults, spin: questions.spinGachapon, edit: setGachaponDialog }}>
 		<QuestionContext.Provider value={{ feedback: questions.feedback, isTeacher: isEditor, canAnswer: questions.canAnswer, pending: questions.pending, answer: questions.answer, edit: setQuestionDialog }}>
 		<MailboxContext.Provider value={{ isTeacher: isEditor, enabled: mode === 'portal' && syncConnected, authors: letterAuthors, sent: sentLetters, write: setLetterFor, draw: drawLetter, edit: setMailboxDialog }}>
-		<div className="canvas-room">
+		<div className="canvas-room" data-stage-reveal={stageReveal}>
 			<header className="canvas-header">
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
@@ -405,7 +408,7 @@ function CanvasRoom({
 						/>
 					</IpadToolbarProvider>
 					<PencilHoverPreview stageRef={stageRef} />
-					{isEditor && editor && showResources && <Suspense fallback={<div className="canvas-notice">Abriendo recursos…</div>}>
+					{isEditor && editor && showResources && <Suspense fallback={<ResourcesSkeleton />}>
 						<ResourceLibrary editor={editor} onClose={closeResources} />
 					</Suspense>}
 					{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
@@ -440,13 +443,5 @@ function CanvasRoom({
 		</MailboxContext.Provider>
 		</QuestionContext.Provider>
 		</GachaponContext.Provider>
-	)
-}
-function LoadingScreen() {
-	return (
-		<div className="app-loading">
-			<span className="canvas-mark" aria-hidden="true" />
-			<p>Abriendo el canvas…</p>
-		</div>
 	)
 }

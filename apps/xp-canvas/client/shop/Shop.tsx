@@ -12,6 +12,7 @@ import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
 import { Icon } from '../components/Icon'
+import { useSkeleton } from '../components/Skeleton'
 import { GachaponReveal } from '../gachapon/GachaponReveal'
 import { loadCelebrate, loadPop, playCelebrate, playCoin, playPop } from '../gachapon/gachaponSounds'
 import { navigate } from '../navigation'
@@ -733,7 +734,8 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 }
 
 function ShopSkeleton() {
-	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda">
+	const skeleton = useSkeleton<HTMLDivElement>()
+	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda" {...skeleton}>
 		<div className="shop-hero">
 			<div className="shop-skeleton__block shop-skeleton__machine" />
 			<div className="shop-skeleton__panel">

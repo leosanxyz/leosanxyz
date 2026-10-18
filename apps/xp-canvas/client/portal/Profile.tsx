@@ -8,6 +8,7 @@ import { navigate } from '../navigation'
 import { usePortal } from './PortalProvider'
 import { portalRequest } from './api'
 import { PassPending, usePass } from './pass/PassGate'
+import { LibrarySkeleton } from '../components/Skeleton'
 import { ProfilePass } from './pass/ProfilePass'
 import './profile.css'
 
@@ -27,10 +28,10 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 		return () => { active = false; window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', load) }
 	}, [user?.id, user?.role])
 	// A finished student enters class before the pass loads; the profile waits for it here instead.
-	if (user?.role === 'student' && !profile) return <PassPending label="Abriendo tu perfil…" />
+	if (user?.role === 'student' && !profile) return <PassPending><LibrarySkeleton /></PassPending>
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
-				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? '…' : points.toLocaleString('es-MX')}</strong></div>}
+				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? <span className="xp-skeleton skeleton-points" /> : <span className="xp-reveal">{points.toLocaleString('es-MX')}</span>}</strong></div>}
 				<Collapsible.Root className="profile-password">
 					<Collapsible.Trigger className="profile-settings-row"><Icon name="lock" size={20} /><span>Cambiar contraseña</span><Icon name="chevron" size={17} /></Collapsible.Trigger>
 					<Collapsible.Content className="profile-password-content"><ChangePassword /></Collapsible.Content>
