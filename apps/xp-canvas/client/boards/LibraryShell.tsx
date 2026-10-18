@@ -1,8 +1,10 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
 import { ContextMenu, Dialog, DropdownMenu } from 'radix-ui'
 import type { BoardFolder } from '../../shared/boards'
 import { Icon } from '../components/Icon'
 import { useEnterReveal, useReveal } from '../components/Skeleton'
+import { XpLogo } from '../components/XpLogo'
+import { SidebarIndicator } from './SidebarIndicator'
 import { navigate } from '../navigation'
 import { usePortal } from '../portal/PortalProvider'
 import { useShopNotice } from '../shop/shopNotice'
@@ -91,11 +93,11 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			const hasChildren = folders.some((child) => child.parentId === folder.id)
 			const row = <div className="board-folder-row" style={{ paddingLeft: depth * 14 }} data-active={view === folder.id}>
 				{renamingFolder === folder.id ? <div className="board-nav-item board-folder-editing">
-					<Icon name="folder" size={20} /><FolderNameInput name={folder.name} onDone={(name) => onRenameEnd?.(folder.id, name)} />
-				</div> : <button className="board-nav-item" aria-current={view === folder.id ? 'page' : undefined} onClick={() => chooseView(folder.id)} {...dropZone(folder.id)}
+					<FolderNameInput name={folder.name} onDone={(name) => onRenameEnd?.(folder.id, name)} />
+				</div> : <button className="board-nav-item" data-tone="indigo" aria-current={view === folder.id ? 'page' : undefined} onClick={() => chooseView(folder.id)} {...dropZone(folder.id)}
 					onDoubleClick={onRenameStart ? () => onRenameStart(folder.id) : undefined}
 					draggable={dragFolders} onDragStart={dragFolders ? (event) => event.dataTransfer.setData(FOLDER_DRAG, folder.id) : undefined}>
-					<Icon name="folder" size={20} /><span>{folder.name}</span>
+					<span>{folder.name}</span>
 				</button>}
 				{hasChildren && <button className="board-folder-toggle" aria-label={`${collapsed.has(folder.id) ? 'Expandir' : 'Contraer'} ${folder.name}`} aria-expanded={!collapsed.has(folder.id)} onClick={() => setCollapsed((previous) => { const next = new Set(previous); if (next.has(folder.id)) next.delete(folder.id); else next.add(folder.id); return next })}><Icon name="chevron" size={15} style={{ transform: collapsed.has(folder.id) ? undefined : 'rotate(90deg)' }} /></button>}
 			</div>
@@ -108,21 +110,25 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 		})
 	}
 	const sidebar = <>
-		<div className="board-sidebar-heading"><span>{student ? 'Clases' : 'Canvases'}</span><div>
-			{onNewFolder && <button className="xp-icon-button" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => { setOpen(false); onNewFolder() }}><Icon name="folderPlus" /></button>}
+		<SidebarIndicator current={`${view}:${folders.length}`} />
+		<div className="board-sidebar-heading"><XpLogo size={36} />
 			{mobile && <Dialog.Close className="xp-icon-button" aria-label="Cerrar carpetas"><Icon name="close" /></Dialog.Close>}
-		</div></div>
+		</div>
 		<nav className="board-navigation" aria-label={student ? 'Clases' : 'Canvases'} data-reveal={revealFolders}>
-			<button className="board-nav-item" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><Icon name="boards" /><span>{student ? 'Todas' : 'Todos'}</span></button>
-			<button className="board-nav-item" aria-current={view === 'recent' ? 'page' : undefined} onClick={() => chooseView('recent')}><Icon name="recent" /><span>Recientes</span></button>
-			{!student && <button className="board-nav-item" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><Icon name="star" /><span>Favoritos</span></button>}
-			{(folders.length > 0 || !student) && <div className="board-folder-heading" data-with-folders={student || undefined}>Carpetas</div>}
+			<button className="board-nav-item" data-tone="red" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><span>{student ? 'Todas' : 'Todos'}</span></button>
+			<button className="board-nav-item" data-tone="green" aria-current={view === 'recent' ? 'page' : undefined} onClick={() => chooseView('recent')}><span>Recientes</span></button>
+			{!student && <button className="board-nav-item" data-tone="yellow" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><span>Favoritos</span></button>}
+			{(folders.length > 0 || !student) && <div className="board-folder-heading" data-with-folders={student || undefined}>Carpetas
+				{onNewFolder && <button className="xp-icon-button" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => { setOpen(false); onNewFolder() }}><Icon name="plus" size={18} /></button>}
+			</div>}
 			{folderTree(null)}
 		</nav>
-		{student && <button className="board-nav-item board-nav-shop" aria-current={view === 'shop' ? 'page' : undefined} onClick={() => { setOpen(false); navigate('/tienda') }}>
-			<Icon name="shop" /><span>Tienda</span>{hasNews && <i className="board-nav-dot" role="img" aria-label="Hay novedades en la tienda" />}
+		{student && <button className="board-nav-item board-nav-shop" data-tone="yellow" data-news={hasNews || undefined} aria-current={view === 'shop' ? 'page' : undefined} onClick={() => { setOpen(false); navigate('/tienda') }}>
+			{/* Hopping letters would be spelled out by screen readers; they read the hidden name instead. */}
+			<span className="board-nav-shop__label" aria-hidden={hasNews || undefined}>{hasNews ? [...'Tienda'].map((letter, index) => <span key={index} style={{ '--letter': index } as CSSProperties}>{letter}</span>) : 'Tienda'}</span>
+			{hasNews && <span className="xp-sr-only">Tienda. Hay novedades en la tienda</span>}
 		</button>}
-		<AccountMenu onNavigate={() => setOpen(false)} onTrash={!student ? () => chooseView('trash') : undefined} onLeaveLocal={onLeaveLocal} onError={setError} />
+		<AccountMenu current={view === 'profile'} onNavigate={() => setOpen(false)} onTrash={!student ? () => chooseView('trash') : undefined} onLeaveLocal={onLeaveLocal} onError={setError} />
 	</>
 	return <Dialog.Root open={open} onOpenChange={setOpen}><main className="board-manager" data-testid={testId}>
 		{mobile ? <Dialog.Portal><Dialog.Overlay className="board-sidebar-scrim" /><Dialog.Content className="board-sidebar board-sidebar-mobile" aria-describedby={undefined}>
@@ -162,14 +168,13 @@ function FolderMenuItem({ action, onSelect }: { action: FolderAction; onSelect: 
 	</>
 }
 
-function AccountMenu({ onNavigate, onTrash, onLeaveLocal, onError }: { onNavigate: () => void; onTrash?: () => void; onLeaveLocal?: () => void; onError: (error: string) => void }) {
+function AccountMenu({ current, onNavigate, onTrash, onLeaveLocal, onError }: { current: boolean; onNavigate: () => void; onTrash?: () => void; onLeaveLocal?: () => void; onError: (error: string) => void }) {
 	const { mode, user, logout } = usePortal()
 	const [animate, setAnimate] = useState(false)
 	const name = user?.name ?? 'Espacio local'
-	const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toLocaleUpperCase()
 	const go = (path: string) => { onNavigate(); navigate(path) }
-	return <DropdownMenu.Root><DropdownMenu.Trigger className="board-account-trigger" aria-label={`Cuenta de ${name}`} onPointerDown={() => setAnimate(true)} onKeyDown={() => setAnimate(false)}>
-		<span className="board-account-avatar" aria-hidden="true">{initials}</span><span className="board-account-name">{name}</span><Icon name="chevron" size={16} />
+	return <DropdownMenu.Root><DropdownMenu.Trigger className="board-account-trigger" data-tone="indigo" aria-current={current ? 'page' : undefined} aria-label={`Cuenta de ${name}`} onPointerDown={() => setAnimate(true)} onKeyDown={() => setAnimate(false)}>
+		<span className="board-account-name">{name}</span><Icon name="chevron" size={16} />
 	</DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu board-account-menu" data-animate={animate} onKeyDown={() => setAnimate(false)} side="top" align="start" sideOffset={8} collisionPadding={12}>
 		{mode === 'portal' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => go('/perfil')}><Icon name="user" size={19} />Mi perfil</DropdownMenu.Item>}
 		{user?.role === 'teacher' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => go('/alumnos')}><Icon name="users" size={19} />Alumnos</DropdownMenu.Item>}

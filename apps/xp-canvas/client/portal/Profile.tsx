@@ -3,7 +3,6 @@ import { Collapsible } from 'radix-ui'
 import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
-import { Icon } from '../components/Icon'
 import { navigate } from '../navigation'
 import { usePortal } from './PortalProvider'
 import { portalRequest } from './api'
@@ -29,12 +28,15 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 	}, [user?.id, user?.role])
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
-				{user?.role === 'student' && <div className="profile-points"><span>Mis puntos</span><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? <span className="xp-skeleton skeleton-points" /> : <span className="xp-reveal">{points.toLocaleString('es-MX')}</span>}</strong></div>}
+				{user?.role === 'student' && <div className="profile-points">
+					<p><span className="profile-coin" aria-hidden="true" /><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? <span className="xp-skeleton skeleton-points" /> : <span className="xp-reveal">{points.toLocaleString('es-MX')}</span>}</strong>{!pointsError && ' puntos'}</p>
+					<button className="portal-link" onClick={() => navigate('/tienda')}>Ir a la tienda</button>
+				</div>}
 				<Collapsible.Root className="profile-password">
-					<Collapsible.Trigger className="profile-settings-row"><Icon name="lock" size={20} /><span>Cambiar contraseña</span><Icon name="chevron" size={17} /></Collapsible.Trigger>
+					<Collapsible.Trigger className="profile-settings-row">Cambiar contraseña</Collapsible.Trigger>
 					<Collapsible.Content className="profile-password-content"><ChangePassword /></Collapsible.Content>
 				</Collapsible.Root>
-				{profile && <button className="profile-settings-row profile-replay" onClick={() => navigate('/bienvenida')}><Icon name="recent" size={20} /><span>Repetir la bienvenida</span><Icon name="chevron" size={17} /></button>}
+				{profile && <button className="profile-settings-row profile-replay" onClick={() => navigate('/bienvenida')}>Repetir la bienvenida</button>}
 			</div>
 	return <LibraryShell title="Mi perfil" view="profile" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} testId="portal-profile">
 		{profile ? <ProfilePass profile={profile} account={account} initiallyEditing={initiallyEditing} />

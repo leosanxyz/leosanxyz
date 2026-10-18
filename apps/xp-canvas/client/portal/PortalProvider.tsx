@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type FormE
 import type { PortalSession } from '../../shared/portal'
 import { portalRequest } from './api'
 import { RouteSkeleton } from '../components/Skeleton'
+import { XpLogo } from '../components/XpLogo'
 import '../components/ui.css'
 import './portal.css'
 
@@ -51,7 +52,7 @@ function Login() {
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude iniciar sesión.') }
 		finally { setBusy(false) }
 	}
-	return <main className="portal-entry"><section className="portal-entry-card">
+	return <main className="portal-entry"><XpLogo size={48} /><section className="portal-entry-card">
 		<h1>{user ? 'Elige tu contraseña' : 'Entra a tus clases'}</h1>
 		<form className="xp-form" onSubmit={submit}>
 			{!user && <label>Matrícula<input name="username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={32} required autoFocus /></label>}
@@ -62,5 +63,5 @@ function Login() {
 			<button className="xp-primary" disabled={busy}>{busy ? 'Un momento…' : user ? 'Guardar y continuar' : 'Entrar'}</button>
 		</form>
 		{user && <button className="portal-link" disabled={busy} onClick={() => { void logout().catch(() => setError('No pude cerrar la sesión.')) }}>Cerrar sesión</button>}
-	</section></main>
+	</section>{!user && <p className="portal-entry-help">¿Olvidaste tu contraseña? Pregúntale a Leo en clase.</p>}</main>
 }

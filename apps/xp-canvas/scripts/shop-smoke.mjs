@@ -93,10 +93,11 @@ try {
 	for (let i = 0; i < 50 && await points() < 500; i++) await new Promise((resolve) => setTimeout(resolve, 200))
 	assert.equal(await points(), 500)
 
-	// The dot shows until the student opens today's shop.
+	// The shop's label shines until the student opens today's shop.
 	await student.goto('/')
-	const dot = student.getByRole('img', { name: 'Hay novedades en la tienda' })
-	await dot.waitFor()
+	const news = student.getByRole('button', { name: 'Tienda. Hay novedades en la tienda', exact: true })
+	await news.waitFor()
+	assert.notEqual(await news.locator('.board-nav-shop__label > span').first().evaluate((letter) => getComputedStyle(letter).animationName), 'none', 'the letters hop and shine instead of a dot')
 	await student.getByRole('button', { name: /^Tienda/ }).click()
 	await student.waitForURL('**/tienda')
 	await student.getByTestId('portal-shop').waitFor()
@@ -180,7 +181,7 @@ try {
 	// The points are just the coin and the number, no pill around them.
 	assert.deepEqual(await student.locator('.shop-points').evaluate((pill) => { const style = getComputedStyle(pill); return { border: style.borderStyle, background: style.backgroundColor } }),
 		{ border: 'none', background: 'rgba(0, 0, 0, 0)' }, 'no capsule around the points')
-	assert.equal(await dot.count(), 0, 'opening the shop clears the dot')
+	assert.equal(await student.locator('.board-nav-shop[data-news]').count(), 0, 'opening the shop stops the shine')
 	assert.equal(await student.getByRole('button', { name: /^Tienda/ }).getAttribute('aria-current'), 'page')
 	await student.screenshot({ path: '/tmp/shop-desktop.png', fullPage: true })
 
@@ -623,5 +624,5 @@ try {
 	await mobile.getByTestId('shop-card-detail').waitFor({ state: 'detached' })
 	await mobile.screenshot({ path: '/tmp/shop-phone.png', fullPage: true })
 	assert.deepEqual(errors, [])
-	console.log('Shop smoke passed: the machine\'s daily cards in the hero strip with a tray during the quiz, six-hour cards for sale, dot, card reveals, daily gift, per-question review in the panel with a centred deck, hover focus and floating preview, resume, retry, a rain inside the panel and free spin, paid spin, purchase in the detail, instant reopen, a row that never scrolls vertically, blurred edges, corners that ease with the gather, a page that never scrolls sideways, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
+	console.log('Shop smoke passed: the machine\'s daily cards in the hero strip with a tray during the quiz, six-hour cards for sale, news shine, card reveals, daily gift, per-question review in the panel with a centred deck, hover focus and floating preview, resume, retry, a rain inside the panel and free spin, paid spin, purchase in the detail, instant reopen, a row that never scrolls vertically, blurred edges, corners that ease with the gather, a page that never scrolls sideways, exact balances, pass unlocks, teacher preview, phone layout and reduced motion.')
 } finally { await browser.close() }

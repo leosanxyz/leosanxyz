@@ -18,7 +18,7 @@ Rutas relativas a `apps/xp-canvas/`.
 | Tienda | `client/shop/`, `worker/shop.ts`, `shared/shop.ts` |
 | Demo de Esquiva | `client/esquiva/` |
 | Buzón | `client/mailbox/`, `shared/mailboxShape.ts` |
-| Imágenes y sonidos | `design/` |
+| Imágenes, sonidos y fuentes | `design/` |
 | Tipos y validadores compartidos | `shared/` |
 | API, rutas y permisos | `worker/worker.ts`; un módulo por tema en `worker/` |
 | Documento colaborativo | `worker/TldrawDurableObject.ts` |
@@ -47,7 +47,7 @@ Si el cambio afecta al portal, ejecuta también `npm run build:portal --workspac
 | [README.md](README.md) | Uso del canvas, herramientas, desarrollo local y pruebas del editor. |
 | [PORTAL.md](PORTAL.md) | Gestión de cuentas, entorno QA, pruebas del portal, publicación y transferencia de datos. |
 | [ONBOARDING.md](ONBOARDING.md) | Experiencia del pase y perfil, interacción, sonido y criterios de revisión. |
-| README de cada carpeta de `design/` | Procedencia y condiciones de uso de sus imágenes y sonidos. |
+| README de cada carpeta de `design/` | Procedencia y condiciones de uso de sus imágenes, sonidos y fuentes. |
 
 ## Límites que debes conservar
 

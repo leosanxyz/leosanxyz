@@ -209,8 +209,8 @@ export async function verifyProfileControls(page) {
 	}
 	assert(await page.locator('.profile-replay').evaluate((el) => {
 		const style = getComputedStyle(el)
-		return ['Top', 'Right', 'Bottom', 'Left'].every((side) => style[`border${side}Width`] === '1px' && style[`border${side}Color`] !== 'rgba(0, 0, 0, 0)')
-	}), 'replay button has a complete border')
+		return ['Top', 'Bottom'].every((side) => style[`border${side}Width`] === '1px' && style[`border${side}Color`] !== 'rgba(0, 0, 0, 0)') && style.borderLeftWidth === '0px'
+	}), 'replay row sits between hairlines')
 	await page.mouse.move(box.x + 25, box.y + 35)
 	await page.waitForFunction(() => Math.abs(new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.pass-carousel-card[data-selected="true"] .pass-card-tilt')).transform).m13) > .025)
 	await page.mouse.move(0, 0)
