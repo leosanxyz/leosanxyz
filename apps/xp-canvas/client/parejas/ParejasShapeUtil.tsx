@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type CSSProperties } from 'react'
 import { BaseBoxShapeUtil, HTMLContainer, useEditor } from 'tldraw'
-import { drawPair, PAREJAS_DURATION, pairLabel, parejasShapeProps, remainingParticipants, type Participant, type ParejasShape } from '../../shared/parejasShape'
+import { displayNames, drawPair, PAREJAS_DURATION, pairLabel, parejasShapeProps, remainingParticipants, type Participant, type ParejasShape } from '../../shared/parejasShape'
 import { Icon } from '../components/Icon'
 import { uuid } from '../uuid'
 import { useParejas } from './ParejasContext'
@@ -28,7 +28,7 @@ export class ParejasShapeUtil extends BaseBoxShapeUtil<ParejasShape> {
 	}
 	override canEdit() { return false }
 	override isAspectRatioLocked() { return true }
-	override getText(shape: ParejasShape) { return [shape.props.title, ...pairNames(shape).map(pairLabel)].filter(Boolean).join('\n') }
+	override getText(shape: ParejasShape) { return [shape.props.title, ...pairNames(shape, true).map(pairLabel)].filter(Boolean).join('\n') }
 	override getIndicatorPath(shape: ParejasShape) { const p = new Path2D(); p.roundRect(0, 0, shape.props.w, shape.props.h, 16 * shape.props.w / PAREJAS_WIDTH); return p }
 	override component(shape: ParejasShape) { return <Parejas shape={shape} /> }
 	override toSvg(shape: ParejasShape) {
@@ -37,7 +37,7 @@ export class ParejasShapeUtil extends BaseBoxShapeUtil<ParejasShape> {
 		const lines = pairNames(shape).map((names, i) => `${i + 1} · ${pairLabel(names)}`)
 		const top = title ? 92 : 64
 		return <g transform={`scale(${shape.props.w / PAREJAS_WIDTH})`}>
-			<FlatTombola drum={drum} pair={pair} />
+			<FlatTombola drum={drum} pair={pair} still />
 			<rect x={350} width={290} height={PAREJAS_HEIGHT} rx={16} fill="#fffdfa" stroke="#c9c5bc" />
 			<text x={372} y={40} fontSize={13} fill="#6b6861">Parejas</text>
 			{title && <text x={372} y={72} fontSize={22} fontWeight={600} fill="#24231f">{title}</text>}
@@ -50,9 +50,10 @@ export class ParejasShapeUtil extends BaseBoxShapeUtil<ParejasShape> {
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const initialOf = (name: string) => ([...name.trim()][0] ?? '?').toLocaleUpperCase('es')
 
-function pairNames(shape: ParejasShape) {
-	const byId = new Map(shape.props.participants.map((p) => [p.id, p.name]))
-	return shape.props.pairs.map((pair) => pair.map((id) => byId.get(id) ?? '¿?'))
+/** Nombres de cada pareja: cortos para mostrar, completos para buscar. */
+function pairNames(shape: ParejasShape, full = false) {
+	const names = full ? new Map(shape.props.participants.map((p) => [p.id, p.name])) : displayNames(shape.props.participants)
+	return shape.props.pairs.map((pair) => pair.map((id) => names.get(id) ?? '¿?'))
 }
 
 function toBalls(participants: Participant[], pairs: string[][], previous: string[]) {
@@ -138,15 +139,17 @@ function Parejas({ shape }: { shape: ParejasShape }) {
 				{ transform: `translate(${dx * 0.5}px, -14px)`, offset: .85 },
 				{ transform: 'none' },
 			], { duration: FALL * 1000, delay: ballStart(i) * 1000, fill: 'backwards' }))
-			const lid = ball.querySelector('.parejas-plano__tapa')
-			if (lid) animations.push(lid.animate([{ transform: 'none' }, { transform: 'translate(-4px, -9px) rotate(-28deg)' }], { duration: 420, delay: (openAt(root.querySelectorAll('.parejas-plano__bola').length) + i * 0.08) * 1000, easing: 'cubic-bezier(.3, .7, .3, 1)', fill: 'backwards' }))
+			// La tapa cerrada se pliega hacia la bisagra y aparece abatida, con el hueco a la vista.
+			const opens = (openAt(root.querySelectorAll('.parejas-plano__bola').length) + i * 0.08) * 1000
+			for (const lid of ball.querySelectorAll('.parejas-plano__tapa')) animations.push(lid.animate([{ transform: 'none' }, { transform: 'scaleY(0)' }], { duration: 180, delay: opens, easing: 'ease-in', fill: 'backwards' }))
+			for (const open of ball.querySelectorAll('.parejas-plano__abierta')) animations.push(open.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1.12)', offset: .7 }, { transform: 'none' }], { duration: 320, delay: opens + 150, easing: 'ease-out', fill: 'backwards' }))
 		})
 		for (const animation of animations) animation.currentTime = age
 		return () => animations.forEach((animation) => animation.cancel())
 	}, [draw?.at, failed])
 
 	const shown = listed ? pairs : pairs.slice(0, -1)
-	const byId = new Map(participants.map((p) => [p.id, p]))
+	const names = displayNames(participants)
 	const remaining = remainingParticipants(participants, pairs)
 	const left = remaining.length + (listed ? 0 : current.length)
 	// La pareja nueva entra a la lista con un brillo breve; la lista baja hasta ella.
@@ -179,7 +182,7 @@ function Parejas({ shape }: { shape: ParejasShape }) {
 				{failed && <svg ref={flat} className="parejas__plano" viewBox={`0 0 ${STAGE.width} ${STAGE.height}`} aria-hidden="true"><FlatTombola drum={balls.drum} pair={balls.pair} /></svg>}
 				<div ref={tray} key={draw?.at ?? 0} className="parejas__bandeja" style={failed ? { '--bandeja-x': `${FLAT.tray.x}px`, '--bandeja-y': `${FLAT.tray.y}px` } as CSSProperties : undefined}>
 					<i className="parejas__destello" />
-					{current.map((id, i) => <span key={id} className="parejas__nombre" style={{ '--dx': `${labels[i]?.[0] ?? 0}px`, '--dy': `${labels[i]?.[1] ?? -80}px` } as CSSProperties}>{byId.get(id)?.name ?? '¿?'}</span>)}
+					{current.map((id, i) => <span key={id} className="parejas__nombre" style={{ '--dx': `${labels[i]?.[0] ?? 0}px`, '--dy': `${labels[i]?.[1] ?? -80}px` } as CSSProperties}><span>{names.get(id) ?? '¿?'}</span></span>)}
 				</div>
 			</div>
 			<section className="parejas__panel">
@@ -190,7 +193,7 @@ function Parejas({ shape }: { shape: ParejasShape }) {
 				{title && <h2>{title}</h2>}
 				{shown.length > 0
 					? <ol ref={list} className="parejas__lista" data-denso={shown.length > 8}>{shown.map((pair, i) => <li key={pair.join()} data-ultima={i === shown.length - 1}>
-						<b>{i + 1} ·</b> {pairLabel(pair.map((id) => byId.get(id)?.name ?? '¿?'))}
+						<b>{i + 1} ·</b> {pairLabel(pair.map((id) => names.get(id) ?? '¿?'))}
 					</li>)}</ol>
 					: <p className="parejas__vacio">{!participants.length ? isTeacher ? 'Elige quién entra con el lápiz.' : 'Aún no hay participantes.' : animating ? 'La tómbola está girando…' : 'Aún no hay parejas.'}</p>}
 				<p className="parejas__estado">{animating ? 'Sorteando…' : left === 1 ? 'queda 1' : `quedan ${left}`}</p>
@@ -217,17 +220,35 @@ const FLAT_PILE = (() => {
 	return slots
 })()
 
+/** El color de la bola por dentro: más oscuro, para que se note el hueco. */
+const inside = (hex: string) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.6 + parseInt('8a3a2c'.slice(i - 1, i + 1), 16) * 0.4).toString(16).padStart(2, '0')).join('')}`
+
+/** Bola cerrada con la inicial al centro, como se ve dentro del tambor. */
 function FlatBall({ ball, r }: { ball: Ball; r: number }) {
-	// Al abrirse, la tapa se levanta y la inicial queda a la vista sobre la mitad de abajo.
 	return <>
-		<path className="parejas-plano__tapa" d={`M ${-r} 0 A ${r} ${r} 0 0 1 ${r} 0 Z`} fill={ball.color} />
-		<path d={`M ${-r} 0 A ${r} ${r} 0 0 0 ${r} 0 Z`} fill={ball.color} />
+		<circle r={r} fill={ball.color} />
 		<circle r={r * 0.58} fill="#fffdf7" />
 		<text dy=".36em" textAnchor="middle" fontSize={r * 0.82} fontWeight={900} fontFamily="system-ui, sans-serif" fill="#8a3a2c">{ball.initial}</text>
 	</>
 }
 
-function FlatTombola({ drum, pair }: { drum: Ball[]; pair: Ball[] }) {
+/**
+ * Bola de la bandeja: tapa y tazón. Cerrada es una esfera; al abrirse, la tapa se abate hacia atrás sobre su bisagra
+ * y de frente se ve su hueco, sobre el tazón con la inicial. `still` la dibuja cerrada, para exportar sin estilos.
+ */
+function FlatCapsule({ ball, r, still }: { ball: Ball; r: number; still?: boolean }) {
+	const dark = inside(ball.color)
+	return <>
+		{!still && <ellipse className="parejas-plano__abierta" cy={-r * 0.94} rx={r * 0.92} ry={r * 0.86} fill={dark} stroke={ball.color} strokeWidth={r * 0.2} />}
+		<path className={still ? undefined : 'parejas-plano__tapa'} d={`M ${-r} 0 A ${r} ${r} 0 0 1 ${r} 0 Z`} fill={ball.color} />
+		<path d={`M ${-r} 0 A ${r} ${r} 0 0 0 ${r} 0 Z`} fill={ball.color} />
+		{!still && <ellipse className="parejas-plano__abierta" rx={r * 0.9} ry={r * 0.26} fill={dark} />}
+		<ellipse cy={r * 0.5} rx={r * 0.52} ry={r * 0.34} fill="#fffdf7" />
+		<text y={r * 0.5} dy=".36em" textAnchor="middle" fontSize={r * 0.56} fontWeight={900} fontFamily="system-ui, sans-serif" fill="#8a3a2c">{ball.initial}</text>
+	</>
+}
+
+function FlatTombola({ drum, pair, still }: { drum: Ball[]; pair: Ball[]; still?: boolean }) {
 	const cups = FLAT.cups[Math.min(3, pair.length) - 1] ?? []
 	const outline = OCTAGON.map((p) => p.join(',')).join(' ')
 	return <>
@@ -245,9 +266,9 @@ function FlatTombola({ drum, pair }: { drum: Ball[]; pair: Ball[] }) {
 		<path d={`M ${FLAT.gate.x} ${FLAT.gate.y} L ${FLAT.rampEnd.x} ${FLAT.rampEnd.y}`} stroke="#e9694f" strokeWidth={18} strokeLinecap="round" />
 		<path d={`M ${FLAT.gate.x} ${FLAT.gate.y} L ${FLAT.rampEnd.x} ${FLAT.rampEnd.y}`} stroke="#ff8a6e" strokeWidth={11} strokeLinecap="round" />
 		<rect x={62} y={336} width={206} height={26} rx={12} fill="#ff8a6e" stroke="#e9694f" strokeWidth={3} />
-		{FLAT.cups[2].map((x) => <ellipse key={x} cx={x} cy={343} rx={15} ry={5} fill="#6b3b35" />)}
+		{FLAT.cups[2].map((x) => <ellipse key={x} cx={x} cy={343} rx={17} ry={5} fill="#6b3b35" />)}
 		{pair.map((ball, i) => <g key={ball.id} transform={`translate(${cups[i]} ${FLAT.cupY})`}>
-			<g className="parejas-plano__bola" data-x={FLAT.rampEnd.x - cups[i]} data-cup={cups[i]}><FlatBall ball={ball} r={15} /></g>
+			<g className="parejas-plano__bola" data-x={FLAT.rampEnd.x - cups[i]} data-cup={cups[i]}><FlatCapsule ball={ball} r={17} still={still} /></g>
 		</g>)}
 		<g className="parejas-plano__gira">
 			<line x1={HUB.x} y1={HUB.y} x2={HUB.x} y2={HUB.y - 58} stroke="#ffc54a" strokeWidth={8} strokeLinecap="round" />

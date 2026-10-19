@@ -9,8 +9,9 @@
 /* Los nombres suben sobre la bandeja; su posición sale de la escena 3D o del dibujo plano. */
 .parejas__bandeja { position: absolute; inset: 0; pointer-events: none; }
 .parejas__nombre { position: absolute; left: calc(var(--bandeja-x, 165px) + var(--dx)); top: calc(var(--bandeja-y, 349px) + var(--dy)); translate: -50% -50%; box-sizing: border-box; width: max-content; max-width: 140px; padding: 6px 12px;
-	border: 2px solid #e9694f; border-radius: 14px; background: #fffdfa; color: #24231f; font-size: 16px; font-weight: 700; line-height: 1.2; text-align: center; overflow-wrap: break-word;
-	display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; box-shadow: 0 6px 16px #5c2a1e26; }
+	border: 2px solid #e9694f; border-radius: 14px; background: #fffdfa; color: #24231f; font-size: 16px; font-weight: 700; line-height: 1.2; text-align: center; overflow-wrap: break-word; box-shadow: 0 6px 16px #5c2a1e26; }
+/* El recorte va en el texto, no en la etiqueta: Safari pinta un tercer renglón dentro del relleno si se recorta con padding. */
+.parejas__nombre > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-height: 2.4em; overflow: hidden; }
 .parejas__destello { position: absolute; left: var(--bandeja-x, 165px); top: var(--bandeja-y, 349px); width: 260px; height: 120px; margin: -60px 0 0 -130px; border-radius: 50%; opacity: 0;
 	background: radial-gradient(ellipse at center, #fffbe6 0%, #ffd66bb3 35%, #ffc54a00 70%); }
 
@@ -39,10 +40,9 @@
 	.parejas__icono:enabled:hover { background: #eeece6; color: #24231f; }
 }
 
-/* Tómbola plana, sin WebGL. El tambor y la manivela giran sobre el eje; la tapa de cada bola queda abierta. */
+/* Tómbola plana, sin WebGL. El tambor y la manivela giran sobre el eje; en la bandeja, la tapa de cada bola queda abatida. */
 .parejas-plano__gira { transform-box: view-box; transform-origin: 150px 168px; }
-.parejas-plano__tapa { transform: translate(-4px, -9px) rotate(-28deg); }
-.parejas-plano__bolita .parejas-plano__tapa { transform: none; }
+.parejas-plano__tapa { transform: scaleY(0); }
 
 /* Diálogo */
 .parejas-form fieldset { border: 0; padding: 0; margin: 0; }

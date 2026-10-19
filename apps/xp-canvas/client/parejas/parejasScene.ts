@@ -1,5 +1,5 @@
 import {
-	AmbientLight, BufferGeometry, CanvasTexture, CircleGeometry, CylinderGeometry, DirectionalLight, Group, HemisphereLight, Material, Mesh,
+	AmbientLight, BackSide, BufferGeometry, CanvasTexture, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group, HemisphereLight, Material, Mesh,
 	MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NoToneMapping, Object3D, PerspectiveCamera, PlaneGeometry, Scene, SphereGeometry,
 	SRGBColorSpace, Texture, TorusGeometry, Vector3, WebGLRenderer,
 } from 'three'
@@ -7,7 +7,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { parejasPose, RETIRE, SECONDS } from './parejasPose'
 
 // Misma paleta que el gachapon y el buzón.
-const COLORS = { body: '#ff8a6e', trim: '#e9694f', wood: '#d3a676', woodDark: '#8a5a3b', gold: '#ffc54a', ink: '#8a3a2c', cream: '#fff4e6', hole: '#6b3b35' }
+const COLORS = { body: '#ff8a6e', trim: '#e9694f', wood: '#d3a676', woodDark: '#8a5a3b', gold: '#ffc54a', ink: '#8a3a2c', hole: '#6b3b35' }
 const BALL = 0.17
 const DRUM = { y: 0.5, radius: 0.8, half: 0.78 }
 const APOTHEM = DRUM.radius * Math.cos(Math.PI / 8)
@@ -17,6 +17,10 @@ const TRAY = { y: -1.34, z: 1.85 }
 const CUPS = [[0], [-0.5, 0.5], [-0.5, 0.5, 0]]
 /** Las bolas sorteadas crecen al bajar, para que se lean desde lejos. */
 const GROW = 0.4
+/** Altura del centro de la bola sobre la bandeja, en radios: asoma lo bastante para leer la inicial. */
+const SEAT = 0.75
+/** La tapa se abate hacia atrás sobre su bisagra, unos 112 grados. */
+const LID_ANGLE = 1.95
 
 export type Ball = { id: string; initial: string; color: string; order: number }
 export type ParejasBalls = { drum: Ball[]; pair: Ball[]; previous: Ball[] }
@@ -125,24 +129,35 @@ export function createParejasScene(canvas: HTMLCanvasElement, width: number, hei
 
 	add(tombola, groundShadow(), 0.1, -1.645, 0.65)
 
-	// Bolas: dos mitades con la inicial pintada, para poder abrirse.
+	// Bolas: dos medias esferas huecas que juntas no dejan costura. La tapa gira sobre una bisagra en su borde trasero;
+	// el tazón, con la inicial por fuera, se queda en su hueco.
 	const halves = [half(0), half(1)]
-	const capGeometry = new CircleGeometry(BALL * 0.97, 32), capInside = matte(COLORS.cream)
-	type BallMesh = { group: Group; top: Group; material: MeshPhysicalMaterial; rest: Vector3 | null; spin: number[] }
+	// El canto de cada mitad queda justo por dentro de la esfera: cerrada no deja costura y abierta se ve el grosor.
+	const rimGeometry = new TorusGeometry(BALL - 0.013, 0.012, 8, 40)
+	type BallMesh = { group: Group; hinge: Group; materials: Material[]; rest: Vector3 | null; spin: number[] }
 	const balls = new Map<string, BallMesh>()
 	const ballsGroup = add(tombola, new Group())
 	const ballKey = (ball: Ball) => `${ball.id}|${ball.initial}|${ball.color}`
 	const makeBall = (ball: Ball, index: number): BallMesh => {
-		const material = new MeshPhysicalMaterial({ map: ballTexture(ball.color, ball.initial), roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 })
-		const group = add(ballsGroup, new Group()), top = add(group, new Group())
-		add(top, mesh(halves[0], material))
-		add(top, mesh(capGeometry, capInside)).rotation.x = Math.PI / 2
-		add(group, mesh(halves[1], material))
-		add(group, mesh(capGeometry, capInside)).rotation.x = -Math.PI / 2
+		const outside = new MeshPhysicalMaterial({ map: ballTexture(ball.color, ball.initial), roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 })
+		// Por dentro, el mismo color más oscuro y mate, para que se note el hueco.
+		const inside = new MeshStandardMaterial({ color: new Color(ball.color).lerp(new Color(COLORS.ink), 0.55), roughness: 0.65, side: BackSide })
+		const rim = matte(`#${new Color(ball.color).lerp(new Color('#ffffff'), 0.35).getHexString()}`)
+		const group = add(ballsGroup, new Group()), hinge = add(group, new Group(), 0, 0, -BALL)
+		for (const material of [outside, inside]) {
+			add(hinge, mesh(halves[0], material), 0, 0, BALL)
+			add(group, mesh(halves[1], material))
+		}
+		add(hinge, mesh(rimGeometry, rim), 0, 0, BALL).rotation.x = Math.PI / 2
+		add(group, mesh(rimGeometry, rim)).rotation.x = Math.PI / 2
 		// Ladeadas un poco al azar, pero con la inicial hacia el frente.
-		return { group, top, material, rest: null, spin: [index * 0.37 % 0.8 - 0.4, index * 1.3 % 1.2 - 0.6, index * 0.53 % 0.6 - 0.3] }
+		return { group, hinge, materials: [outside, inside, rim], rest: null, spin: [index * 0.37 % 0.8 - 0.4, index * 1.3 % 1.2 - 0.6, index * 0.53 % 0.6 - 0.3] }
 	}
 	let current: ParejasBalls = { drum: [], pair: [], previous: [] }
+	const openLid = (b: BallMesh, open: number) => {
+		b.hinge.position.y = open * 0.025
+		b.hinge.rotation.x = -open * LID_ANGLE
+	}
 
 	let last = 0
 	const point = new Vector3(), target = new Vector3()
@@ -182,8 +197,7 @@ export function createParejasScene(canvas: HTMLCanvasElement, width: number, hei
 				b.group.position.set(b.rest.x, DRUM.y + dy * Math.cos(swirl) - b.rest.z * Math.sin(swirl) + hop, dy * Math.sin(swirl) + b.rest.z * Math.cos(swirl))
 				b.group.rotation.set(b.spin[0] + pose.crank * (i % 2 ? 1 : -1), b.spin[1], b.spin[2] + rock * 3)
 				b.group.scale.setScalar(1)
-				b.top.position.set(0, 0, 0)
-				b.top.rotation.set(0, 0, 0)
+				openLid(b, 0)
 				b.group.visible = true
 			})
 
@@ -197,15 +211,14 @@ export function createParejasScene(canvas: HTMLCanvasElement, width: number, hei
 				else if (t < 0.7) target.copy(gate).lerp(rampEnd, easeIn((t - 0.2) / 0.5))
 				else {
 					const u = (t - 0.7) / 0.3
-					target.set(cup * u, rampEnd.y + (TRAY.y + BALL * (1 + GROW) * 0.6 - rampEnd.y) * u + Math.sin(Math.PI * u) * 0.2, rampEnd.z + (TRAY.z - rampEnd.z) * u)
+					target.set(cup * u, rampEnd.y + (TRAY.y + BALL * (1 + GROW) * SEAT - rampEnd.y) * u + Math.sin(Math.PI * u) * 0.2, rampEnd.z + (TRAY.z - rampEnd.z) * u)
 				}
 				const grow = 1 + GROW * t
 				b.group.position.copy(target)
 				b.group.rotation.set((1 - t) * Math.PI * 6, 0, -cup * (1 - t) * 4)
 				b.group.scale.set(grow * (1 + p.squash * 0.12), grow * (1 - p.squash * 0.16), grow * (1 + p.squash * 0.12))
-				// La tapa sube y se inclina hacia atrás; de dentro sale el nombre.
-				b.top.position.set(0, p.open * 0.2, -p.open * 0.1)
-				b.top.rotation.set(p.open * 0.95, 0, cup * p.open * 0.5)
+				// La tapa se abate hacia atrás; del tazón sale el nombre.
+				openLid(b, p.open)
 				b.group.visible = true
 			})
 
@@ -214,11 +227,10 @@ export function createParejasScene(canvas: HTMLCanvasElement, width: number, hei
 				const b = balls.get(ballKey(ball))
 				if (!b || pair.some((other) => other.id === ball.id)) return
 				const s = (1 - pose.retire) * (1 + GROW)
-				b.group.position.set(CUPS[Math.min(3, previous.length) - 1][i] ?? 0, TRAY.y + BALL * (1 + GROW) * 0.6 - pose.retire * 0.12, TRAY.z)
+				b.group.position.set(CUPS[Math.min(3, previous.length) - 1][i] ?? 0, TRAY.y + BALL * (1 + GROW) * SEAT - pose.retire * 0.12, TRAY.z)
 				b.group.rotation.set(0, 0, 0)
 				b.group.scale.setScalar(s)
-				b.top.position.set(0, 0.2 * (1 - pose.retire), -0.1 * (1 - pose.retire))
-				b.top.rotation.set(0.95, 0, 0)
+				openLid(b, 1)
 				b.group.visible = true
 			})
 
@@ -230,8 +242,10 @@ export function createParejasScene(canvas: HTMLCanvasElement, width: number, hei
 			const all = [...next.drum, ...next.pair, ...next.previous]
 			const keep = new Set(all.map(ballKey))
 			for (const [key, ball] of balls) if (!keep.has(key)) {
-				ball.material.map?.dispose()
-				ball.material.dispose()
+				for (const material of ball.materials) {
+					if ('map' in material && material.map instanceof Texture) material.map.dispose()
+					material.dispose()
+				}
 				ballsGroup.remove(ball.group)
 				balls.delete(key)
 			}
@@ -280,21 +294,28 @@ function canvasTexture(width: number, height: number, draw: (context: CanvasRend
 	return texture
 }
 
-/** Bola de tómbola: color de cápsula con un círculo blanco y la inicial, al frente y atrás. */
+/**
+ * Bola de tómbola: color de cápsula con un óvalo blanco y la inicial, al frente y atrás. Van bajo el ecuador,
+ * en el tazón, para seguir a la vista cuando la tapa se abre. Se ensanchan porque ahí la esfera se estrecha.
+ */
 function ballTexture(color: string, initial: string) {
 	return canvasTexture(512, 256, (context) => {
 		context.fillStyle = color
 		context.fillRect(0, 0, 512, 256)
-		context.font = '900 92px system-ui, sans-serif'
+		context.font = '900 72px system-ui, sans-serif'
 		context.textAlign = 'center'
 		context.textBaseline = 'middle'
 		for (const x of [128, 384]) {
 			context.fillStyle = '#fffdf7'
 			context.beginPath()
-			context.ellipse(x, 128, 74, 66, 0, 0, Math.PI * 2)
+			context.ellipse(x, 172, 84, 40, 0, 0, Math.PI * 2)
 			context.fill()
+			context.save()
+			context.translate(x, 176)
+			context.scale(1.2, 1)
 			context.fillStyle = COLORS.ink
-			context.fillText(initial, x, 134)
+			context.fillText(initial, 0, 0)
+			context.restore()
 		}
 	})
 }
