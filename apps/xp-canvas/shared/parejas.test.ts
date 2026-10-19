@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { drawPair, pairLabel, parejasShapeProps, remainingParticipants } from './parejasShape'
+import { displayNames, drawPair, pairLabel, parejasShapeProps, remainingParticipants } from './parejasShape'
 
 const people = ['ana', 'beto', 'caro', 'dani', 'eva'].map((id) => ({ id, name: id }))
 const sequence = (...values: number[]) => () => values.shift() ?? 0
@@ -22,6 +22,12 @@ describe('parejas', () => {
 		expect(pairLabel(['Ana', 'Beto'])).toBe('Ana y Beto')
 		expect(pairLabel(['Ana', 'Beto', 'Caro'])).toBe('Ana, Beto y Caro')
 		expect(pairLabel(['Ana'])).toBe('Ana')
+	})
+
+	it('shows first names, and adds the next word only where they repeat', () => {
+		const names = displayNames(['Diego Martin del Campo Martinez', 'Diego Vargas Balderas', 'Miguel Alejandro Hernández Chávez', 'Luis Fernando Cortinas Álvarez', 'Ana Ruiz', 'ana ruiz soto', 'Leo']
+			.map((name, i) => ({ id: String(i), name })))
+		expect([...names.values()]).toEqual(['Diego Martin', 'Diego Vargas', 'Miguel', 'Luis', 'Ana Ruiz', 'ana ruiz soto', 'Leo'])
 	})
 
 	it('rejects someone in two pairs', () => {
