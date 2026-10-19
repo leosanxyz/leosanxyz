@@ -18,6 +18,7 @@ Rutas relativas a `apps/xp-canvas/`.
 | Tienda | `client/shop/`, `worker/shop.ts`, `shared/shop.ts` |
 | Demo de Esquiva | `client/esquiva/` |
 | Buzón | `client/mailbox/`, `shared/mailboxShape.ts` |
+| Parejas | `client/parejas/`, `shared/parejasShape.ts` |
 | Imágenes, sonidos y fuentes | `design/` |
 | Tipos y validadores compartidos | `shared/` |
 | API, rutas y permisos | `worker/worker.ts`; un módulo por tema en `worker/` |

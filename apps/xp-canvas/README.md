@@ -91,6 +91,16 @@ Las cartas se guardan en el Durable Object del canvas, no en el documento: nadie
 
 El buzón se dibuja en 3D con three.js, con la paleta del gachapon, y three.js se descarga solo en canvases que muestran un buzón. Sin WebGL aparece el buzón plano en SVG. El maestro oye cada carta que llega y cada carta que saca; el alumno oye solo la suya. Los sonidos se sintetizan en el navegador. Con movimiento reducido no hay doblez, vuelo ni rebote. Al copiar o importar un canvas, sus buzones empiezan cerrados y vacíos. Queda pendiente probar el teclado y el audio en un iPad físico.
 
+## Parejas
+
+En el portal, pulsa **Parejas** en la cabecera para crear una tómbola que sortea parejas, por ejemplo para que cada alumno pruebe el juego de otro. Elige a los alumnos con acceso al canvas, filtra por grupo o pulsa **Marcar conectados** para marcar a quienes tienen el canvas abierto. En **Otros nombres** puedes añadir, uno por línea, a quien no está en la lista, como Leo. El título es opcional. El lápiz de la figura vuelve a abrir estos ajustes; al guardar se conservan las parejas cuyos integrantes siguen dentro.
+
+**Sortear pareja** saca dos bolas al azar. Si quedan exactamente tres, caen juntas para que nadie se quede solo. Si alguien se añade cuando ya no quedaba nadie, el botón cambia a **Unir a la última pareja**. **Reiniciar** devuelve a todos a la tómbola. Para separar grupos, como Minecraft y Roblox, usa una tómbola por grupo.
+
+Todos los presentes ven la misma animación: la manivela da tres vueltas, las bolas se revuelven dentro del tambor, caen por la rampa a la bandeja, se abren y muestran los nombres. Al final la pareja entra numerada a la lista. Quien abre el canvas a la mitad ve la etapa que toca. Los alumnos solo miran; no tienen botones ni necesitan permiso de interacción.
+
+La tómbola se dibuja en 3D con three.js, con la paleta del gachapon y del buzón, y three.js se descarga solo en canvases que muestran una. Sin WebGL aparece una tómbola plana en SVG con el mismo recorrido. El trinquete, la caída de cada bola y una campanita se sintetizan en el navegador y suenan para todos los que tienen la pestaña visible. Con movimiento reducido no hay giro ni caída: las bolas aparecen abiertas y la lista se actualiza. Queda pendiente probar el rendimiento y el audio en un iPad físico.
+
 ## Demo de Esquiva
 
 La figura `esquiva` muestra la clase de calidad: un piloto automático juega el nivel «Caos» de Esquiva y seis versiones pulen un momento del juego cada una. Al elegir una versión, el cambio se ve en ese instante y se sincroniza con todos los que ven el canvas, igual que mantener presionado el reloj para ver el punto de partida. Solo el maestro ve los controles. El sonido es local: suena únicamente en el dispositivo donde se activa la bocina. La simulación se detiene cuando la figura sale de la vista.
