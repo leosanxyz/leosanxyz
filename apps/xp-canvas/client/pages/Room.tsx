@@ -58,6 +58,9 @@ import { MailboxContext, sentKey } from '../mailbox/MailboxContext'
 import { MailboxDialog } from '../mailbox/MailboxDialog'
 import { LetterSheet } from '../mailbox/LetterSheet'
 import type { MailboxReply, MailboxShape } from '../../shared/mailboxShape'
+import { ParejasContext } from '../parejas/ParejasContext'
+import { ParejasDialog } from '../parejas/ParejasDialog'
+import type { ParejasShape } from '../../shared/parejasShape'
 
 const ResourceLibrary = lazy(() => import('../resources/ResourceLibrary'))
 const EmojiPicker = lazy(() => import('../emojis/EmojiPicker'))
@@ -154,6 +157,7 @@ function CanvasRoom({
 	const [gachaponDialog, setGachaponDialog] = useState<GachaponShape | 'new' | null>(null)
 	const [questionDialog, setQuestionDialog] = useState<QuestionShape | 'new' | null>(null)
 	const [mailboxDialog, setMailboxDialog] = useState<MailboxShape | 'new' | null>(null)
+	const [parejasDialog, setParejasDialog] = useState<ParejasShape | 'new' | null>(null)
 	const [letterFor, setLetterFor] = useState<MailboxShape | null>(null)
 	const [letterAuthors, setLetterAuthors] = useState<Record<string, string>>({})
 	const [sentLetters, setSentLetters] = useState<Record<string, number>>({})
@@ -321,6 +325,7 @@ function CanvasRoom({
 		<GachaponContext.Provider value={{ userId: user?.id, isTeacher: isEditor, canUse: questions.canAnswer, pending: questions.pending, results: questions.gachaResults, spin: questions.spinGachapon, edit: setGachaponDialog }}>
 		<QuestionContext.Provider value={{ feedback: questions.feedback, isTeacher: isEditor, canAnswer: questions.canAnswer, pending: questions.pending, answer: questions.answer, edit: setQuestionDialog }}>
 		<MailboxContext.Provider value={{ isTeacher: isEditor, enabled: mode === 'portal' && syncConnected, authors: letterAuthors, sent: sentLetters, write: setLetterFor, draw: drawLetter, edit: setMailboxDialog }}>
+		<ParejasContext.Provider value={{ isTeacher: isEditor, edit: setParejasDialog }}>
 		<div className="canvas-room" data-stage-reveal={stageReveal}>
 			<header className="canvas-header">
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
@@ -329,6 +334,7 @@ function CanvasRoom({
 					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setGachaponDialog('new')}>Gachapon</button>}
 					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
 					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setMailboxDialog('new')}>Buzón</button>}
+					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setParejasDialog('new')}>Parejas</button>}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
 						<>
@@ -431,6 +437,7 @@ function CanvasRoom({
 			{questions.error && <div className="canvas-notice" role="alert">{questions.error}</div>}
 			{questionDialog && editor && <QuestionDialog editor={editor} shape={questionDialog === 'new' ? null : questionDialog} onClose={() => setQuestionDialog(null)} />}
 			{mailboxDialog && editor && <MailboxDialog editor={editor} shape={mailboxDialog === 'new' ? null : mailboxDialog} onClose={() => setMailboxDialog(null)} />}
+			{parejasDialog && editor && <ParejasDialog editor={editor} roomId={roomId} shape={parejasDialog === 'new' ? null : parejasDialog} onClose={() => setParejasDialog(null)} />}
 			{letterFor && editor && <LetterSheet editor={editor} roomId={roomId} shape={letterFor} name={user?.name ?? 'Leo'} isTeacher={isEditor} onClose={closeLetter}
 				onSent={() => setSentLetters((current) => ({ ...current, [sentKey(letterFor)]: (current[sentKey(letterFor)] ?? 0) + 1 }))} />}
 			{notice && <div className="canvas-notice">{notice}</div>}
@@ -440,6 +447,7 @@ function CanvasRoom({
 				void boardRequest<Board>(`boards/${roomId}`, 'PATCH', { name: rename }).then((updated) => { onBoardChange(updated); setRename(null) }).catch((cause) => setNotice(cause instanceof Error ? cause.message : 'No pude renombrar el canvas.')).finally(() => setRenaming(false))
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
+		</ParejasContext.Provider>
 		</MailboxContext.Provider>
 		</QuestionContext.Provider>
 		</GachaponContext.Provider>
