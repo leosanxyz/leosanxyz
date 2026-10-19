@@ -62,3 +62,22 @@ export function drawPair<P>(remaining: P[], random: () => number) {
 export function pairLabel(names: string[]) {
 	return names.length < 2 ? names[0] ?? '' : `${names.slice(0, -1).join(', ')} y ${names.at(-1)}`
 }
+
+/**
+ * Nombre corto de cada participante, para que quepa en una etiqueta: el primer nombre. Si alguien más
+ * de la tómbola lo comparte, también la siguiente palabra; si aún coinciden, el nombre completo.
+ */
+export function displayNames(participants: Participant[]) {
+	const words = participants.map((p) => p.name.trim().split(/\s+/))
+	const key = (name: string[], count: number) => name.slice(0, count).join(' ').toLocaleLowerCase('es')
+	const repeated = (count: number) => {
+		const seen = new Map<string, number>()
+		for (const name of words) seen.set(key(name, count), (seen.get(key(name, count)) ?? 0) + 1)
+		return (name: string[]) => seen.get(key(name, count))! > 1
+	}
+	const first = repeated(1), second = repeated(2)
+	return new Map(participants.map((p, i) => {
+		const name = words[i]
+		return [p.id, !first(name) ? name[0] : !second(name) ? name.slice(0, 2).join(' ') : p.name.trim()]
+	}))
+}
