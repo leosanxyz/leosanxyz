@@ -5,9 +5,10 @@ import { gachaponShapeProps, gachaponShapeMigrations } from '../shared/gachaponS
 import { resourceShapeProps } from '../shared/resourceShape'
 import { esquivaShapeProps } from '../shared/esquivaShape'
 import { mailboxShapeProps } from '../shared/mailboxShape'
+import { parejasShapeProps } from '../shared/parejasShape'
 
 export const canvasSchema = createTLSchema({
-	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps }, mailbox: { props: mailboxShapeProps } },
+	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps }, mailbox: { props: mailboxShapeProps }, parejas: { props: parejasShapeProps } },
 })
 
 /** Imports contain document records, never another user's camera or session state. */
