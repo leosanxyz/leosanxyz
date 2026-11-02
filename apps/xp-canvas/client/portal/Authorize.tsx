@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Skeleton } from '../components/Skeleton'
 import { XpLogo } from '../components/XpLogo'
 import { navigate } from '../navigation'
 import { usePortal } from './PortalProvider'
@@ -42,8 +43,7 @@ export default function Authorize() {
 			<p>Tu agente ya puede dibujar en tus canvases. Vuelve a Codex para seguir.</p>
 		</> : <>
 			<h1>Conectar tu agente</h1>
-			{client === null && !error && <p><span className="xp-skeleton skeleton-line" /></p>}
-			{client !== null && <>
+			{(client !== null || !error) && <Skeleton data={client} sample="Codex">{(client) => <>
 				<p><strong>{client}</strong> quiere usar tu cuenta de XP Canvas, <strong>{user?.name}</strong>.</p>
 				<ul className="portal-authorize-list">
 					<li>Podrá ver y crear tus canvases personales, y leer y dibujar diagramas en ellos.</li>
@@ -51,7 +51,7 @@ export default function Authorize() {
 					<li>Leo puede ver tus canvases. Puedes desconectar al agente cuando quieras desde Mi perfil.</li>
 				</ul>
 				{returnsTo && <p className="portal-hint">Al permitir, el acceso se enviará a <strong>{returnsTo}</strong>. Si no reconoces ese sitio, pulsa Cancelar.</p>}
-			</>}
+			</>}</Skeleton>}
 			{error && <p role="alert" className="xp-error">{error}</p>}
 			<div className="xp-dialog-actions">
 				{client !== null ? <>

@@ -5,7 +5,7 @@ import { PAREJAS_MAX, type Participant, type ParejasShape } from '../../shared/p
 import type { BoardGrant, Roster } from '../../shared/portal'
 import { portalRequest } from '../portal/api'
 import { Modal } from '../components/Modal'
-import { SkeletonLines } from '../components/Skeleton'
+import { SampleChecklist, Skeleton } from '../components/Skeleton'
 import { PAREJAS_HEIGHT, PAREJAS_WIDTH } from './ParejasShapeUtil'
 
 /** Quien no está en el roster entra con un nombre suelto; su id sale del nombre. */
@@ -58,12 +58,12 @@ export function ParejasDialog({ editor, roomId, shape, onClose }: { editor: Edit
 	}
 	return <Modal title={shape ? 'Editar parejas' : 'Nuevas parejas'} onClose={onClose}><form className="xp-form parejas-form" onSubmit={(event) => { event.preventDefault(); save() }}>
 		<label>Título<input maxLength={60} value={title} placeholder="Minecraft" onChange={(event) => setTitle(event.target.value)} /></label>
-		<fieldset><legend>Participantes · {participants.length}</legend>{roster ? <>
-			<label className="xp-reveal">Grupo<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="">Todos los grupos de este canvas</option>{roster.groups.filter((g) => students.some((s) => s.groupId === g.id)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+		<fieldset><legend>Participantes · {participants.length}</legend>{roster || !error ? <Skeleton loading={!roster} label="Cargando alumnos">{roster ? <>
+			<label>Grupo<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="">Todos los grupos de este canvas</option>{roster.groups.filter((g) => students.some((s) => s.groupId === g.id)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
 			<button type="button" className="parejas-form__marcar" disabled={!visible.length} onClick={markConnected}>Marcar conectados</button>
-			<div className="parejas-alumnos xp-reveal">{visible.map((student) => <label key={student.id}><input type="checkbox" checked={chosen.includes(student.id)} onChange={() => toggle(student.id)} />{student.name}{shape?.props.pairs.some((pair) => pair.includes(student.id)) && <small>Ya tiene pareja</small>}</label>)}</div>
+			<div className="parejas-alumnos">{visible.map((student) => <label key={student.id}><input type="checkbox" checked={chosen.includes(student.id)} onChange={() => toggle(student.id)} />{student.name}{shape?.props.pairs.some((pair) => pair.includes(student.id)) && <small>Ya tiene pareja</small>}</label>)}</div>
 			{!students.length && <p>Comparte este canvas con un grupo o alumno para poder seleccionarlo.</p>}
-		</> : error ? <p role="alert">{error}</p> : <SkeletonLines />}</fieldset>
+		</> : <SampleChecklist className="parejas-alumnos" />}</Skeleton> : <p role="alert">{error}</p>}</fieldset>
 		<label>Otros nombres<textarea rows={3} value={others} placeholder={'Un nombre por línea\nLeo'} onChange={(event) => setOthers(event.target.value)} /></label>
 		{tooMany && <p className="xp-error" role="alert">Caben hasta {PAREJAS_MAX} participantes por tómbola.</p>}
 		<p>Sortea de dos en dos; si quedan tres, caen juntos. Usa una tómbola por grupo cuando quieras separar, por ejemplo Minecraft y Roblox.</p>

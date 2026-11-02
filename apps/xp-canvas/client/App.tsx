@@ -5,7 +5,7 @@ import BoardManager from './pages/BoardManager'
 import { PortalProvider, usePortal } from './portal/PortalProvider'
 import { StudentBoards } from './portal/StudentBoards'
 import { PassGate, ReplayOnboarding } from './portal/pass/PassGate'
-import { RouteSkeleton } from './components/Skeleton'
+import { RouteSkeleton, SkeletonProvider } from './components/Skeleton'
 
 const DemoOnboarding = import.meta.env.DEV ? lazy(() => import('./portal/pass/Onboarding').then((m) => ({ default: m.DemoOnboarding }))) : null
 const ReviewOnboarding = import.meta.env.DEV ? lazy(() => import('./portal/pass/ReviewOnboarding')) : null
@@ -22,6 +22,10 @@ const Profile = lazy(loadProfile)
 const Shop = lazy(loadShop)
 
 export function App() {
+	return <SkeletonProvider><Pages /></SkeletonProvider>
+}
+
+function Pages() {
 	const path = usePathname()
 	if (path === '/bienvenida/demo' && DemoOnboarding) return <Suspense fallback={<div>Preparando el pase…</div>}><DemoOnboarding /></Suspense>
 	// One boundary for every section: once a page is on screen, moving to another keeps it there until the next is ready.

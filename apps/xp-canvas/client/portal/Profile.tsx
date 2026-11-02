@@ -7,7 +7,7 @@ import { navigate } from '../navigation'
 import { usePortal } from './PortalProvider'
 import { portalRequest } from './api'
 import { PassPending, usePass } from './pass/PassGate'
-import { PanelSkeleton } from '../components/Skeleton'
+import { PanelSkeleton, Skeleton } from '../components/Skeleton'
 import { ProfilePass } from './pass/ProfilePass'
 import { AgentList } from './AgentList'
 import './profile.css'
@@ -30,7 +30,7 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 	const account = <div className="profile-account">
 				<div className="profile-identity"><h2>{user?.name}</h2><p aria-label={user?.role === 'student' ? 'Matrícula' : 'Usuario'}>{user?.username}</p></div>
 				{user?.role === 'student' && <div className="profile-points">
-					<p><span className="profile-coin" aria-hidden="true" /><strong data-testid="profile-points">{pointsError ? 'No disponibles' : points === null ? <span className="xp-skeleton skeleton-points" /> : <span className="xp-reveal">{points.toLocaleString('es-MX')}</span>}</strong>{!pointsError && ' puntos'}</p>
+					<Skeleton data={points} sample={1250} error={pointsError ? pointsLine('No disponibles', false) : undefined}>{(points) => pointsLine(points.toLocaleString('es-MX'))}</Skeleton>
 					<button className="portal-link" onClick={() => navigate('/tienda')}>Ir a la tienda</button>
 				</div>}
 				<Collapsible.Root className="profile-password">
@@ -50,6 +50,8 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 			: <div className="portal-profile portal-profile-grid" data-has-pass="false">{account}</div>}
 	</LibraryShell>
 }
+
+const pointsLine = (value: string, unit = true) => <p><span className="profile-coin" aria-hidden="true" /><strong data-testid="profile-points">{value}</strong>{unit && ' puntos'}</p>
 
 function ChangePassword() {
 	const { user, refresh } = usePortal()

@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { SkeletonBox } from 'skullet/react'
 import type { Board } from '../../shared/boards'
 import { Icon } from '../components/Icon'
-import { shimmerPhase } from '../components/Skeleton'
 
 const STAGGER_MS = 60
 
@@ -46,14 +46,13 @@ export function useRevealOrder() {
 }
 
 /**
- * Card preview. While the thumbnail downloads, the preview keeps the skeleton shimmer; then the image
+ * Card preview. While the thumbnail downloads, the preview keeps a skeleton block; then the image
  * crossfades over it, in card order. An image already complete when it mounts shows at once.
  */
 export function BoardPreview({ board, index, order }: { board: Board; index: number; order: RevealOrder }) {
 	const image = useRef<HTMLImageElement>(null)
 	const reveal = useRef<ReturnType<RevealOrder['add']>>(null)
 	const [shown, setShown] = useState(false)
-	const [style] = useState(() => ({ '--skeleton-phase': shimmerPhase() }) as CSSProperties)
 	const src = board.thumbnailAt ? `/api/boards/${board.id}/thumbnail?v=${board.thumbnailAt}` : null
 	useLayoutEffect(() => {
 		if (!src) return
@@ -64,7 +63,8 @@ export function BoardPreview({ board, index, order }: { board: Board; index: num
 		return () => { entry.remove(); reveal.current = null }
 	}, [order, index, src])
 	if (!src) return <div className="board-card-preview"><Icon name="boards" size={44} /></div>
-	return <div className="board-card-preview" data-loading={!shown || undefined} style={style}>
+	return <div className="board-card-preview" data-loading={!shown || undefined}>
+		<SkeletonBox className="board-card-placeholder" width="100%" height="100%" radius={0} />
 		<img ref={image} src={src} alt="" loading="lazy" decoding="async" draggable={false}
 			onLoad={() => reveal.current?.loaded()} onError={() => reveal.current?.loaded()} />
 	</div>

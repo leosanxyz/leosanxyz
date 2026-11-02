@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AgentGrant } from '../../shared/portal'
 import { portalRequest } from './api'
+import { SAMPLE_AGENTS, Skeleton } from '../components/Skeleton'
 
 const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
 const timeFormat = new Intl.RelativeTimeFormat('es-MX', { numeric: 'auto' })
@@ -26,13 +27,13 @@ export function AgentList({ studentId }: { studentId?: string }) {
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude desconectar al agente.') }
 		finally { setBusy(false) }
 	}
-	if (!agents) return error ? <p role="alert" className="xp-error">{error}</p> : <p><span className="xp-skeleton skeleton-line" /></p>
-	return <div className="agent-list" data-testid="agent-list">
+	if (!agents && error) return <p role="alert" className="xp-error">{error}</p>
+	return <Skeleton data={agents} sample={SAMPLE_AGENTS} label="Cargando agentes">{(agents) => <div className="agent-list" data-testid="agent-list">
 		{agents.length ? <ul>{agents.map((agent) => <li key={agent.id}>
 			<div><strong>{agent.client}</strong><p>Conectado el {dateFormat.format(agent.createdAt)}{agent.lastUsedAt ? ` · usado ${ago(agent.lastUsedAt)}` : ''}</p></div>
 			{!studentId && <button className="portal-button" disabled={busy} onClick={() => void revoke(agent)}>Desconectar</button>}
 		</li>)}</ul> : <p className="portal-hint">{studentId ? 'No tiene agentes conectados.' : 'Todavía no conectas ningún agente. La primera vez que tu Codex use XP Canvas, te pedirá permiso aquí.'}</p>}
 		{studentId && agents.length > 0 && <button className="portal-button" disabled={busy} onClick={() => void revoke()}>Revocar {agents.length === 1 ? 'su agente' : `sus ${agents.length} agentes`}</button>}
 		{error && <p role="alert" className="xp-error">{error}</p>}
-	</div>
+	</div>}</Skeleton>
 }

@@ -58,62 +58,30 @@ summary {
 	font: inherit;
 }
 
-/* Loading shows the shape of what is coming with a slow shimmer, never a status message. */
-.xp-skeleton {
-	--skeleton: #eceff3;
-	--skeleton-shine: #f4f6f8;
-	display: block;
-	flex-shrink: 0;
-	border-radius: 8px;
-	background: linear-gradient(100deg, var(--skeleton) 30%, var(--skeleton-shine) 50%, var(--skeleton) 70%) 0 0 / 300% 100%;
-	animation: xp-skeleton-in 300ms ease-out both, xp-skeleton-shimmer 1800ms ease-in-out var(--skeleton-phase, 0ms) infinite;
-}
+/* Skullet draws the skeletons; these give the blocks of the page shapes their size. */
+.skeleton-page { position: fixed; inset: 0; }
+.skeleton-overlay { position: absolute; inset: 0; pointer-events: none; }
 
-/* A skeleton that replaces another one, and the copy that fades out over the content, skip the entrance. */
-[data-skeleton-quiet] .xp-skeleton,
-.skeleton-ghost .xp-skeleton {
-	animation-name: none, xp-skeleton-shimmer;
-}
-
-/* The skeleton leaves by fading out over the content that replaced it. */
+/* A page shape leaves by fading out over the content that replaced it. */
 .skeleton-ghost { z-index: 10000; pointer-events: none; }
+
+/* Skullet hides text with an inherited fill color; what a skeleton shows as itself takes its own back. */
+[skullet-own] { -webkit-text-fill-color: currentColor; }
 .skeleton-ghost[data-leaving] { animation: xp-skeleton-out 450ms ease both; }
 @keyframes xp-skeleton-out { to { opacity: 0; } }
 
-.board-sidebar .xp-skeleton, .canvas-header .xp-skeleton { --skeleton: #eceff3; --skeleton-shine: #f4f6f8; }
-
-@keyframes xp-skeleton-in { from { opacity: 0; } }
-@keyframes xp-skeleton-shimmer { to { background-position: -150% 0; } }
-
-@media (prefers-reduced-motion: reduce) {
-	.xp-skeleton, [data-skeleton-quiet] .xp-skeleton, .skeleton-ghost .xp-skeleton { animation: none; }
-}
-
-.skeleton-heading { width: 104px; height: 20px; margin: 12px 0; }
-.skeleton-icon { width: 22px; height: 22px; border-radius: 6px; }
-.skeleton-label { width: min(120px, 70%); height: 14px; }
-.skeleton-date { width: 48px; height: 10px; }
-.skeleton-points { width: 72px; height: 28px; }
-.skeleton-avatar { width: 36px; height: 36px; border-radius: 50%; }
-.skeleton-title { width: min(280px, 60%); height: 30px; }
 .skeleton-trigger { display: none; width: 44px; height: 44px; border-radius: 12px; }
 .skeleton-panel { height: 320px; border-radius: 18px; }
-.skeleton-fill { width: 100%; height: 100%; border-radius: 0; }
 .skeleton-button { width: 44px; height: 44px; border-radius: 12px; }
-.canvas-identity .skeleton-label { width: 140px; height: 18px; }
 .skeleton-action { width: 88px; height: 36px; border-radius: 10px; }
-.skeleton-upload { height: 44px; border-radius: 12px; }
 .skeleton-tile { aspect-ratio: 1; border-radius: 14px; }
-.skeleton-lines { display: grid; gap: 12px; padding: 4px 0; }
-.skeleton-line { height: 16px; }
-.skeleton-line:last-child { width: 60%; }
 
 @media (max-width: 650px) {
 	.skeleton-trigger { display: block; }
 }
 
-/* Content without a skeleton of its own fades in; lists also rise a little and arrive in sequence.
-   Opacity uses a gentle `ease` so the fade is visible; the rise uses a strong ease-out. */
+/* Content without a skeleton of its own fades in. Opacity uses a gentle `ease` so the fade is visible;
+   the rise uses a strong ease-out. */
 :root { --reveal-fade: 600ms ease; --reveal-rise: 6px; }
 
 @keyframes xp-reveal { from { opacity: 0; } }
@@ -121,8 +89,7 @@ summary {
 
 .xp-reveal,
 .canvas-room[data-stage-reveal] :is(.canvas-stage, .canvas-header-settings) > *,
-.board-navigation[data-reveal] :is(.board-folder-row, [data-with-folders]),
-.board-grid[data-reveal] + .board-empty {
+.board-navigation[data-reveal] :is(.board-folder-row, [data-with-folders]) {
 	animation: xp-reveal var(--reveal-fade) both;
 }
 
@@ -131,9 +98,7 @@ summary {
 	animation: xp-reveal 280ms ease both;
 }
 
-/* The first cards arrive under their skeletons' crossfade; only the ones past them fade in. */
-.board-grid[data-reveal] > :nth-child(n + 5),
-.portal-students[data-reveal] > *,
+/* Entry cards rise a little as they fade in. */
 .portal-entry-card {
 	animation: xp-reveal var(--reveal-fade) both, xp-reveal-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
