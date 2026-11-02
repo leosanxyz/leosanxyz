@@ -22,6 +22,9 @@ export interface BoardLibrary {
 	folders: BoardFolder[]
 }
 
+/** A trashed personal canvas stays open to the teacher, who grades it; nobody else opens it until it is restored. */
+export const boardOpenFor = (board: Board, role?: string) => !board.trashedAt || role === 'teacher' && Boolean(board.ownerId)
+
 export const isBoardId = (id: string) => id === 'principal' || /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)
 
 export function folderDescendants(folders: BoardFolder[], id: string): Set<string> {

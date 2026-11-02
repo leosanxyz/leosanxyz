@@ -150,7 +150,7 @@ export class BoardCatalog extends DurableObject<Env> {
 				if (request.method === 'POST' && !id && collection === 'personal-boards') {
 					if (typeof data.ownerId !== 'string' || !data.ownerId) throw new CatalogError(400, 'Falta el dueño del canvas.')
 					const owned = this.list<Board>('board').filter((board) => board.ownerId === data.ownerId && !board.trashedAt).length
-					if (owned >= PERSONAL_BOARD_LIMIT) throw new CatalogError(409, `Ya tienes ${PERSONAL_BOARD_LIMIT} canvases. Pídele a Leo que borre los que ya no uses.`)
+					if (owned >= PERSONAL_BOARD_LIMIT) throw new CatalogError(409, `Ya tienes ${PERSONAL_BOARD_LIMIT} canvas. Manda a la papelera los que ya no uses.`)
 					const now = Date.now()
 					const board: Board = { id: crypto.randomUUID(), name: this.name(data.name ?? 'Sin título'), folderId: null, favorite: false, createdAt: now, updatedAt: now, thumbnailAt: null, trashedAt: null, ownerId: data.ownerId }
 					this.write('board', board)
@@ -178,6 +178,10 @@ export class BoardCatalog extends DurableObject<Env> {
 					}
 					if ('trashed' in data) {
 						if (typeof data.trashed !== 'boolean') throw new CatalogError(400, 'Estado inválido.')
+						// Trashed personal canvases do not count toward the limit, so restoring one must fit under it.
+						if (!data.trashed && board.trashedAt && board.ownerId && this.list<Board>('board').filter((other) => other.ownerId === board.ownerId && !other.trashedAt).length >= PERSONAL_BOARD_LIMIT) {
+							throw new CatalogError(409, `Ya hay ${PERSONAL_BOARD_LIMIT} canvas propios fuera de la papelera. Manda uno a la papelera antes de restaurar este.`)
+						}
 						board.trashedAt = data.trashed ? Date.now() : null
 					}
 					if (data.touch === true) board.updatedAt = Date.now()

@@ -1,7 +1,7 @@
 import { type IRequest } from 'itty-router'
-import { type Board, isBoardId } from '../shared/boards'
+import { type Board, boardOpenFor, isBoardId } from '../shared/boards'
 import { type CanvasEnv, isSameOrigin, requestCanEdit } from './access'
-import { portalEnabled } from './portalAuth'
+import { getPortalSession, portalEnabled } from './portalAuth'
 
 export function catalog(env: CanvasEnv) {
 	return env.BOARD_CATALOG.get(env.BOARD_CATALOG.idFromName('library'))
@@ -40,14 +40,16 @@ export function patchAffectsAccess(body: string | undefined) {
 
 export async function handleBoardRequest(request: IRequest, env: CanvasEnv) {
 	const board = await readBoard(env, request.params.boardId)
-	if (!board || board.trashedAt) return Response.json({ error: 'Este canvas no está disponible.' }, { status: 404 })
+	const role = portalEnabled(env) ? (await getPortalSession(request, env))?.user.role : undefined
+	if (!board || !boardOpenFor(board, role)) return Response.json({ error: 'Este canvas no está disponible.' }, { status: 404 })
 	return Response.json(board, { headers: { 'cache-control': 'no-store' } })
 }
 
 export async function handleThumbnail(request: IRequest, env: CanvasEnv) {
 	const id = request.params.boardId
 	const board = await readBoard(env, id)
-	if (!board || board.trashedAt) return new Response(null, { status: 404 })
+	// A trashed personal canvas keeps its preview for the owner's trash and the teacher's view of the student.
+	if (!board || board.trashedAt && !board.ownerId) return new Response(null, { status: 404 })
 	const key = `boards/${id}/thumbnail.png`
 	if (request.method === 'GET') {
 		const image = await env.TLDRAW_BUCKET.get(key)

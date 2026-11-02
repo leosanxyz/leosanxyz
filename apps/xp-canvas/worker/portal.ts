@@ -1,7 +1,7 @@
 import type { CanvasEnv } from './access'
 import { isSameOrigin } from './access'
 import { catalog, readBoard } from './boards'
-import type { BoardLibrary } from '../shared/boards'
+import type { Board, BoardLibrary } from '../shared/boards'
 import { studentLibrary } from './studentLibrary'
 import { isBoardId } from '../shared/boards'
 import type { BoardGrant, Student } from '../shared/portal'
@@ -11,7 +11,7 @@ import { readPass } from './studentPass'
 import { body, json, PortalError } from './portalHttp'
 import { handleShopRequest } from './shop'
 import { listAgentGrants, revokeAgentGrants } from './oauth'
-import { createPersonalBoard } from './mcp'
+import { createPersonalBoard, ToolError } from './mcp'
 import {
 	allowedBoardIds, canReadBoard, clearPortalCookie, constantMatch, createPortalSession,
 	getPortalSession, hashPassword, loginAllowed, normalizeUsername, passwordProblem,
@@ -114,9 +114,25 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			}
 		}
 		if (path === '/api/portal/points' && method === 'GET') return json({ points: await readPoints(env, session.user.id) })
-		if (session.user.role === 'student' && (path === '/api/portal/canvases' || path.startsWith('/api/portal/agents'))) {
+		if (session.user.role === 'student' && (path === '/api/portal/canvases' || path.startsWith('/api/portal/canvases/') || path.startsWith('/api/portal/agents'))) {
 			if (!session.passCompleted) throw new PortalError(403, 'Termina tu bienvenida antes de continuar.')
-			if (path === '/api/portal/canvases' && method === 'POST') return json(await createPersonalBoard(env, session.user.id, (await body(request)).name), 201)
+			if (path === '/api/portal/canvases' && method === 'POST') {
+				// The catalog's refusals (the 20-canvas limit, a bad name) reach the student as they are.
+				try { return json(await createPersonalBoard(env, session.user.id, (await body(request)).name), 201) }
+				catch (cause) { throw cause instanceof ToolError ? new PortalError(409, cause.message) : cause }
+			}
+			const own = /^\/api\/portal\/canvases\/([a-f0-9-]{36})$/.exec(path)
+			if (own && method === 'PATCH') {
+				// A student only moves their own canvases in and out of the trash. Class canvases look missing.
+				const data = await body(request), board = await readBoard(env, own[1])
+				if (!board || board.ownerId !== session.user.id) throw new PortalError(404, 'Este canvas no está disponible.')
+				if (typeof data.trashed !== 'boolean' || Object.keys(data).length !== 1) throw new PortalError(400, 'Solo puedes mandar tu canvas a la papelera o restaurarlo.')
+				const response = await catalog(env).fetch(`http://catalog/api/boards/${board.id}`, { method: 'PATCH', body: JSON.stringify({ trashed: data.trashed }) })
+				const result = await response.json<Board & { error?: string }>()
+				if (!response.ok) throw new PortalError(response.status, result.error ?? 'No pude actualizar el canvas.')
+				await env.TLDRAW_DURABLE_OBJECT.get(env.TLDRAW_DURABLE_OBJECT.idFromName(board.id)).revalidatePortalSessions()
+				return json(result)
+			}
 			if (path === '/api/portal/agents' && method === 'GET') return json({ agents: await listAgentGrants(env, session.user.id) })
 			const agent = /^\/api\/portal\/agents\/([a-f0-9-]{36})$/.exec(path)
 			if (agent && method === 'DELETE') { await revokeAgentGrants(env, session.user.id, agent[1]); return json({ ok: true }) }
@@ -132,7 +148,8 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
 				catalog(env).fetch('http://catalog/api/library?scope=personal').then((response) => response.json<BoardLibrary>()),
 			])
-			const canvases = personal.boards.filter((board) => !board.trashedAt).sort((a, b) => b.updatedAt - a.updatedAt)
+			// Trashed personal canvases stay listed: Leo grades them and can restore them.
+			const canvases = personal.boards.sort((a, b) => b.updatedAt - a.updatedAt)
 			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results, canvases })
 		}
 		if (path === '/api/portal/groups' && method === 'POST') {
@@ -255,7 +272,8 @@ export async function portalGate(request: Request, env: CanvasEnv): Promise<Resp
 	if (path === '/api/library') {
 		const [data, allowed, own] = await Promise.all([library(env), allowedBoardIds(session, env), catalog(env).fetch(`http://catalog/api/library?owner=${encodeURIComponent(session.user.id)}`).then((response) => response.json<BoardLibrary>())])
 		const classes = studentLibrary(data, allowed)
-		return json({ ...classes, boards: [...classes.boards, ...own.boards.filter((board) => !board.trashedAt)] })
+		// The student's own trashed canvases come along for their trash; class canvases never do.
+		return json({ ...classes, boards: [...classes.boards, ...own.boards] })
 	}
 	const board = /^\/api\/(?:boards|connect)\/([^/]+)(?:\/thumbnail)?$/.exec(path)
 	if (board && isBoardId(board[1]) && await canReadBoard(session, board[1], env)) return undefined

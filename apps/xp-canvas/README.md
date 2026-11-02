@@ -103,7 +103,7 @@ La tómbola se dibuja en 3D con three.js, con la paleta del gachapon y del buzó
 
 ## Canvases personales y agentes
 
-Cada alumno tiene **Mis canvas** en su barra lateral, junto a **Clases**. Ahí crea canvases propios y dibuja con las herramientas normales; no hay Recursos, emojis ni subida de archivos. En los canvases de clase sigue siendo espectador.
+Cada alumno tiene **Mis canvas** en su barra lateral, junto a **Clases**. Puede mandar sus canvases propios a la papelera y restaurarlos; los de clase no. Ahí crea canvases propios y dibuja con las herramientas normales; no hay Recursos, emojis ni subida de archivos. En los canvases de clase sigue siendo espectador.
 
 Su agente (Codex u otro cliente MCP) se conecta a `https://xp.leosan.xyz/mcp`. La primera vez se abre `/autorizar`: el alumno entra con su cuenta y pulsa **Permitir**. Con Codex basta `codex mcp add xp-canvas --url https://xp.leosan.xyz/mcp`; si el servidor ya está en su configuración, `codex mcp login xp-canvas` o `/mcp login xp-canvas` dentro de Codex. El agente puede listar y crear canvases personales, dibujar diagramas de flujo con los símbolos de Lógica, escribir una nota junto a un diagrama (por ejemplo, el plan del alumno) y leerlos con los cambios hechos a mano. Lo que el juego debe hacer lo dicta el alumno; el agente solo dibuja por su cuenta lo que el juego ya hace según el código, en violeta y con un título que empieza con «Así funciona hoy:», para comparar. En **Mi perfil**, **Agentes conectados** muestra los agentes y permite desconectarlos.
 

@@ -132,7 +132,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			<span className="board-nav-shop__label" aria-hidden={hasNews || undefined}>{hasNews ? [...'Tienda'].map((letter, index) => <span key={index} style={{ '--letter': index } as CSSProperties}>{letter}</span>) : 'Tienda'}</span>
 			{hasNews && <span className="xp-sr-only">Tienda. Hay novedades en la tienda</span>}
 		</button>}
-		<AccountMenu current={view === 'profile'} onNavigate={() => setOpen(false)} onTrash={!student ? () => chooseView('trash') : undefined} onLeaveLocal={onLeaveLocal} onError={setError} />
+		<AccountMenu current={view === 'profile'} onNavigate={() => setOpen(false)} onTrash={() => chooseView('trash')} onLeaveLocal={onLeaveLocal} onError={setError} />
 	</>
 	return <Dialog.Root open={open} onOpenChange={setOpen}><main className="board-manager" data-testid={testId}>
 		{mobile ? <Dialog.Portal><Dialog.Overlay className="board-sidebar-scrim" /><Dialog.Content className="board-sidebar board-sidebar-mobile" aria-describedby={undefined}>

@@ -190,6 +190,37 @@ assert.equal((await ana(`/api/boards/${created.id}`, 'PATCH', { name: 'No' })).s
 assert.equal((await ana(`/api/boards/${created.id}/interactions`, 'POST', { action: 'gachapon', shapeId: 'shape:x', revision: 'r1', cost: 0 })).status, 403)
 assert.equal((await ana(`/api/boards/${created.id}/interactions`)).status, 200)
 
+// --- Students trash their own canvases; class canvases and other students' never ---
+const spare = (await ana('/api/portal/canvases', 'POST', { name: 'Para la papelera' })).data
+assert.equal((await ana(`/api/portal/canvases/${classBoard.id}`, 'PATCH', { trashed: true })).status, 404)
+assert.equal((await ana('/api/portal/canvases/principal', 'PATCH', { trashed: true })).status, 403, 'a class canvas id is refused before any lookup')
+assert.equal((await luis(`/api/portal/canvases/${spare.id}`, 'PATCH', { trashed: true })).status, 404)
+assert.equal((await ana(`/api/portal/canvases/${spare.id}`, 'PATCH', { trashed: true, name: 'Otro nombre' })).status, 400)
+assert.equal((await ana(`/api/boards/${classBoard.id}`, 'PATCH', { trashed: true })).status, 403)
+assert.equal((await ana(`/api/portal/canvases/${spare.id}`, 'PATCH', { trashed: true }, { origin: 'https://hostile.test' })).status, 403)
+assert.equal((await ana(`/api/portal/canvases/${spare.id}`, 'PATCH', { trashed: true })).status, 200)
+assert.ok((await ana('/api/library')).data.boards.find((board) => board.id === spare.id).trashedAt, 'the student sees it in their trash')
+assert.equal((await ana(`/api/boards/${spare.id}`)).status, 404, 'the student restores it before opening it')
+assert.equal((await teacher(`/api/boards/${spare.id}`)).status, 200, 'the teacher still opens it to grade it')
+assert.equal((await teacher(`/api/boards/${spare.id}/thumbnail`)).status !== 403, true)
+assert.ok((await teacher('/api/portal/roster')).data.canvases.find((board) => board.id === spare.id).trashedAt, 'the teacher sees it marked')
+assert.ok(!(await tool('listar_canvases', {})).structuredContent.canvases.some((canvas) => canvas.id === spare.id), 'the agent does not see trashed canvases')
+assert.equal((await tool('leer_canvas', { canvas: spare.id })).isError, true)
+assert.equal((await tool('dibujar_diagrama', { ...chart, canvas: spare.id })).isError, true)
+assert.ok(!toolNames.some((name) => /borrar|eliminar|papelera/.test(name)), 'the agent has no tool to delete')
+// Trashed canvases do not count toward the 20; restoring one cannot go over it.
+const active = (await ana('/api/library')).data.boards.filter((board) => board.ownerId === anaId && !board.trashedAt).length
+for (let index = active; index < 20; index++) assert.equal((await ana('/api/portal/canvases', 'POST', { name: `Relleno ${index}` })).status, 201)
+assert.equal((await ana('/api/portal/canvases', 'POST', { name: 'Uno de más' })).status, 409)
+const restoreOver = await ana(`/api/portal/canvases/${spare.id}`, 'PATCH', { trashed: false })
+assert.equal(restoreOver.status, 409)
+assert.match(restoreOver.data.error, /papelera/)
+const filler = (await ana('/api/library')).data.boards.find((board) => board.name === 'Relleno 19')
+assert.equal((await ana(`/api/portal/canvases/${filler.id}`, 'PATCH', { trashed: true })).status, 200)
+assert.equal((await ana(`/api/portal/canvases/${spare.id}`, 'PATCH', { trashed: false })).status, 200)
+assert.equal((await ana(`/api/boards/${spare.id}`)).status, 200)
+assert.equal((await teacher(`/api/boards/${filler.id}`, 'PATCH', { trashed: false })).status, 409, 'the teacher restore respects the limit too')
+
 // --- Owner edits over the WebSocket; class canvases stay read-only --------------------------------
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
 try {
