@@ -52,9 +52,12 @@ export async function handleThumbnail(request: IRequest, env: CanvasEnv) {
 	if (request.method === 'GET') {
 		const image = await env.TLDRAW_BUCKET.get(key)
 		if (!image) return new Response(null, { status: 404 })
-		return new Response(image.body, { headers: { 'content-type': 'image/png', 'cache-control': portalEnabled(env) ? 'private, no-store' : 'public, max-age=60', 'x-content-type-options': 'nosniff' } })
+		// Agent-drawn canvases may carry a server-made SVG until a browser saves the PNG preview.
+		const svg = image.httpMetadata?.contentType === 'image/svg+xml'
+		return new Response(image.body, { headers: { 'content-type': svg ? 'image/svg+xml' : 'image/png', 'cache-control': portalEnabled(env) ? 'private, no-store' : 'public, max-age=60', 'x-content-type-options': 'nosniff', ...(svg ? { 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'" } : {}) } })
 	}
-	if (!isSameOrigin(request) || !(await requestCanEdit(request, env))) return new Response(null, { status: 403 })
+	// portalGate already let through only the teacher or the owner of a personal canvas.
+	if (!isSameOrigin(request) || !(await requestCanEdit(request, env) || board.ownerId && portalEnabled(env))) return new Response(null, { status: 403 })
 	const size = Number(request.headers.get('content-length'))
 	if (!size || size > 512 * 1024 || request.headers.get('content-type') !== 'image/png') return new Response(null, { status: 400 })
 	const bytes = new Uint8Array(await request.arrayBuffer())

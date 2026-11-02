@@ -4,6 +4,10 @@ import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { useBoardView } from '../boards/useBoardView'
 import { BoardCardsSkeleton, revealDelay, useReveal } from '../components/Skeleton'
 import { navigate } from '../navigation'
+import { useState, type FormEvent } from 'react'
+import { Modal } from '../components/Modal'
+import type { Board } from '../../shared/boards'
+import { portalRequest } from './api'
 
 const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
 
@@ -13,9 +17,12 @@ export function StudentBoards() {
 	const reveal = useReveal(Boolean(library))
 	const thumbnails = useRevealOrder()
 	const selectedFolder = library?.folders.find((folder) => folder.id === view)
-	const activeView = selectedFolder?.id ?? (view === 'recent' ? 'recent' : 'all')
-	const boards = (library?.boards ?? []).filter((board) => !selectedFolder || board.folderId === selectedFolder.id).sort((a, b) => b.updatedAt - a.updatedAt)
-	return <LibraryShell title={selectedFolder?.name ?? (view === 'recent' ? 'Recientes' : 'Mis clases')} view={activeView} folders={library?.folders ?? []} onViewChange={setView} testId="student-boards">
+	const activeView = selectedFolder?.id ?? (view === 'recent' || view === 'mine' ? view : 'all')
+	// Personal canvases live in their own section; class folders and "Todas" show only classes.
+	const boards = (library?.boards ?? []).filter((board) => activeView === 'recent' || (activeView === 'mine' ? Boolean(board.ownerId) : !board.ownerId && (!selectedFolder || board.folderId === selectedFolder.id))).sort((a, b) => b.updatedAt - a.updatedAt)
+	const [creating, setCreating] = useState(false)
+	return <LibraryShell title={selectedFolder?.name ?? (activeView === 'recent' ? 'Recientes' : activeView === 'mine' ? 'Mis canvases' : 'Mis clases')} view={activeView} folders={library?.folders ?? []} onViewChange={setView} testId="student-boards"
+		actions={activeView === 'mine' ? <button className="xp-primary" disabled={!library} onClick={() => setCreating(true)}>Nuevo canvas</button> : undefined}>
 		{error && <p role="alert" className="xp-error board-error">{error} <button className="portal-link" onClick={() => void reload()}>Reintentar</button></p>}
 		<div className="board-grid board-grid--student" aria-busy={!library} data-reveal={reveal}>
 			{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} style={revealDelay(reveal, index)}>
@@ -26,6 +33,22 @@ export function StudentBoards() {
 			</article>)}
 			{!library && !error && <BoardCardsSkeleton />}
 		</div>
-		{library && !boards.length && <p className="board-empty">{selectedFolder ? 'No hay canvases en esta carpeta.' : 'Todavía no tienes clases compartidas.'}</p>}
+		{library && !boards.length && <p className="board-empty">{selectedFolder ? 'No hay canvases en esta carpeta.' : activeView === 'mine' ? 'Todavía no tienes canvases propios. Crea uno o pídele a tu agente que lo haga.' : 'Todavía no tienes clases compartidas.'}</p>}
+		{creating && <NewCanvas onClose={() => setCreating(false)} />}
 	</LibraryShell>
+}
+
+function NewCanvas({ onClose }: { onClose: () => void }) {
+	const [name, setName] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
+	async function submit(event: FormEvent) {
+		event.preventDefault(); if (busy) return
+		setBusy(true); setError('')
+		try { navigate(`/board/${(await portalRequest<Board>('canvases', 'POST', { name })).id}`) }
+		catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude crear el canvas.'); setBusy(false) }
+	}
+	return <Modal title="Nuevo canvas" onClose={() => { if (!busy) onClose() }}><form className="xp-form" onSubmit={submit}>
+		<label>Nombre<input value={name} onChange={(event) => setName(event.target.value)} maxLength={120} placeholder="Por ejemplo, mi mod de zombies" required autoFocus /></label>
+		{error && <p className="xp-error" role="alert">{error}</p>}
+		<div className="xp-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Cancelar</button><button className="xp-primary" disabled={busy || !name.trim()}>{busy ? 'Creando…' : 'Crear'}</button></div>
+	</form></Modal>
 }

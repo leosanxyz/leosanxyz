@@ -118,6 +118,7 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 			<button className="board-nav-item" data-tone="red" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><span>{student ? 'Todas' : 'Todos'}</span></button>
 			<button className="board-nav-item" data-tone="green" aria-current={view === 'recent' ? 'page' : undefined} onClick={() => chooseView('recent')}><span>Recientes</span></button>
 			{!student && <button className="board-nav-item" data-tone="yellow" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><span>Favoritos</span></button>}
+			{student && <button className="board-nav-item" data-tone="indigo" aria-current={view === 'mine' ? 'page' : undefined} onClick={() => chooseView('mine')}><span>Mis canvases</span></button>}
 			{(folders.length > 0 || !student) && <div className="board-folder-heading" data-with-folders={student || undefined}>Carpetas
 				{onNewFolder && <button className="xp-icon-button" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => { setOpen(false); onNewFolder() }}><Icon name="plus" size={18} /></button>}
 			</div>}

@@ -1,5 +1,6 @@
 import type { CanvasEnv } from './access'
 import type { PortalUser } from '../shared/portal'
+import { readBoard } from './boards'
 import { scrypt } from 'node:crypto'
 
 const encoder = new TextEncoder()
@@ -110,8 +111,10 @@ export async function canReadBoard(session: AuthSession | null, boardId: string,
 	if (!session || session.user.mustChangePassword) return false
 	if (session.user.role === 'teacher') return true
 	if (!session.passCompleted) return false
-	return Boolean(await portalDb(env).prepare(`SELECT 1 FROM board_grants WHERE board_id = ? AND ((kind = 'user' AND subject_id = ?) OR (kind = 'group' AND subject_id = ?)) LIMIT 1`)
-		.bind(boardId, session.user.id, session.groupId ?? '').first())
+	if (await portalDb(env).prepare(`SELECT 1 FROM board_grants WHERE board_id = ? AND ((kind = 'user' AND subject_id = ?) OR (kind = 'group' AND subject_id = ?)) LIMIT 1`)
+		.bind(boardId, session.user.id, session.groupId ?? '').first()) return true
+	// A student's personal canvas is readable by its owner (and the teacher, above).
+	return (await readBoard(env, boardId))?.ownerId === session.user.id
 }
 export async function loginAllowed(request: Request, username: string, env: CanvasEnv) {
 	const db = portalDb(env), now = Date.now(), window = Math.floor(now / LOGIN_WINDOW) * LOGIN_WINDOW

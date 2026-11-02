@@ -73,8 +73,13 @@ const TLDRAW_ASSET_URLS = {
 
 const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null }
 const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null, SharePanel: null }
+const OWNER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, UserPresenceEditor: null, SharePanel: null }
 
 const CANVAS_OPTIONS = { camera: { wheelBehavior: 'zoom' as const } }
+// In a personal canvas the student draws, but files go to the teacher's library, so there is no image tool.
+const OWNER_OVERRIDES: TLUiOverrides = {
+	tools: (_editor, tools) => Object.fromEntries(Object.entries(tools).filter(([id]) => id !== 'asset')),
+}
 const VIEWER_OVERRIDES: TLUiOverrides = {
 	tools: (_editor, tools) => ({ hand: tools.hand, select: { ...tools.select, readonlyOk: true } }),
 	actions: (_editor, actions) => Object.fromEntries(Object.entries(actions).filter(([id]) => id !== 'toggle-grid' && id !== 'select-all')),
@@ -115,13 +120,16 @@ export function Room({ roomId }: { roomId: string }) {
 
 	if (error) return <div className="board-welcome"><p role="alert">{error}</p><button className="xp-primary" onClick={() => navigate('/')}>Mis canvases</button></div>
 	if (access === 'checking' || !board) return <CanvasSkeleton />
+	// A student writes only in their own canvases; the server enforces the same rule on the WebSocket.
+	const role = access === 'viewer' && mode === 'portal' && board.ownerId && board.ownerId === user?.id ? 'owner' : access
 
 	return (
 		<CanvasRoom
-			key={`${roomId}:${access}`}
+			key={`${roomId}:${role}`}
 			board={board}
 			onBoardChange={setBoard}
-			isEditor={access === 'editor'}
+			isEditor={role === 'editor'}
+			canEdit={role !== 'viewer'}
 			authRequired={authRequired}
 			onAccessChange={onAccessChange}
 		/>
@@ -132,12 +140,14 @@ function CanvasRoom({
 	board,
 	onBoardChange,
 	isEditor,
+	canEdit,
 	authRequired,
 	onAccessChange,
 }: {
 	board: Board
 	onBoardChange: (board: Board) => void
 	isEditor: boolean
+	canEdit: boolean
 	authRequired: boolean
 	onAccessChange: (isEditor: boolean) => void
 }) {
@@ -196,7 +206,7 @@ function CanvasRoom({
 	const portalUser = useMemo(() => user ? UserRecordType.create({ id: createUserId(user.id), name: user.name, color: user.role === 'teacher' ? '#078aa3' : '#7555cc' }) : null, [user?.id, user?.name, user?.role])
 	// tldraw stores the current user as a document record. The server discards that write from
 	// read-only sessions and tldraw retries it immediately, so viewers keep their identity in presence only.
-	const users = useMemo(() => isEditor ? portalUser ? { currentUser: atom('portal user', portalUser) } : undefined : { currentUser: atom<TLUser | null>('viewer', null) }, [isEditor, portalUser])
+	const users = useMemo(() => canEdit ? portalUser ? { currentUser: atom('portal user', portalUser) } : undefined : { currentUser: atom<TLUser | null>('viewer', null) }, [canEdit, portalUser])
 	const getUserPresence = useCallback((store: TLStore, fallback: TLUser) => getCanvasUserPresence(store, portalUser ?? fallback), [portalUser])
 	const store = useSync({ uri: syncUri, assets, shapeUtils: CANVAS_SHAPE_UTILS, users, getUserPresence, onCustomMessageReceived: questions.receive })
 	useEffect(() => { setSyncConnected(store.status === 'synced-remote' && store.connectionStatus === 'online') }, [store])
@@ -235,9 +245,9 @@ function CanvasRoom({
 	}, [editor])
 
 	useEffect(() => {
-		if (!editor || !isEditor) return
+		if (!editor || !canEdit) return
 		return installThumbnail(editor, roomId)
-	}, [editor, isEditor, roomId])
+	}, [editor, canEdit, roomId])
 	useEffect(() => {
 		if (!editor || !isEditor) return
 		return restoreVideoPosters(editor)
@@ -249,13 +259,13 @@ function CanvasRoom({
 	}, [editor, isEditor, quickShape])
 
 	useEffect(() => {
-		if (!editor || isEditor) return
+		if (!editor || canEdit) return
 		editor.cancel().selectNone().setCurrentTool(questions.canAnswer ? 'select' : 'hand')
 		return react('student navigation tools', () => {
 			const tool = editor.getCurrentToolId()
 			if (tool !== 'hand' && !(questions.canAnswer && tool === 'select')) editor.setCurrentTool('hand')
 		})
-	}, [editor, isEditor, questions.canAnswer])
+	}, [editor, canEdit, questions.canAnswer])
 
 	useEffect(() => {
 		if (!import.meta.env.DEV || !editor) return
@@ -299,12 +309,16 @@ function CanvasRoom({
 			setUserPreferences({ ...preferences, ...(user ? { id: user.id } : {}), name, locale: 'es', inputMode: 'mouse' })
 		}
 		setEditor(nextEditor)
-		if (!isEditor) {
+		if (!canEdit) {
 			nextEditor.updateInstanceState({ isReadonly: true, isGridMode: false })
 			nextEditor.setCurrentTool('hand')
 			return
 		}
-		if (isEditor) nextEditor.registerExternalContentHandler('files', async ({ files, point }) => {
+		if (!isEditor) {
+			nextEditor.registerExternalContentHandler('files', async () => { setNotice('En tus canvases no se pueden subir archivos.') })
+			return
+		}
+		nextEditor.registerExternalContentHandler('files', async ({ files, point }) => {
 			if (files.length > 20) { setNotice('Sube hasta 20 archivos a la vez.'); return }
 			const center = point ?? nextEditor.getViewportPageBounds().center
 			for (const [index, file] of files.entries()) {
@@ -317,7 +331,7 @@ function CanvasRoom({
 				} catch (cause) { setNotice(cause instanceof Error ? cause.message : 'No pude guardar el archivo.') }
 			}
 		})
-	}, [isEditor, authRequired, user?.id, user?.name])
+	}, [isEditor, canEdit, authRequired, user?.id, user?.name])
 
 	if (mode === 'portal' && store.status === 'error') return <div className="board-welcome"><h1>No pude abrir este canvas</h1><p>Tu sesión o tus permisos pueden haber cambiado.</p><button className="xp-primary" onClick={() => navigate('/')}>Mis clases</button></div>
 
@@ -328,13 +342,13 @@ function CanvasRoom({
 		<ParejasContext.Provider value={{ isTeacher: isEditor, edit: setParejasDialog }}>
 		<div className="canvas-room" data-stage-reveal={stageReveal}>
 			<header className="canvas-header">
-				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate('/')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
+				<div className="canvas-identity"><button className="xp-icon-button" aria-label="Mis canvases" onClick={() => navigate(!board.ownerId ? '/' : user?.role === 'teacher' ? `/alumnos/${board.ownerId}` : '/?view=mine')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button><div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
 				<nav className="canvas-actions" aria-label="Acciones del canvas">
-					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setGachaponDialog('new')}>Gachapon</button>}
-					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
-					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setMailboxDialog('new')}>Buzón</button>}
-					{isEditor && mode === 'portal' && <button type="button" className="header-question" disabled={!editor} onClick={() => setParejasDialog('new')}>Parejas</button>}
+					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setGachaponDialog('new')}>Gachapon</button>}
+					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
+					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setMailboxDialog('new')}>Buzón</button>}
+					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setParejasDialog('new')}>Parejas</button>}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
 						<>
@@ -384,7 +398,8 @@ function CanvasRoom({
 				<main ref={stageRef} className="canvas-stage">
 					<IpadToolbarProvider
 						value={{
-							isEditor,
+							isEditor: canEdit,
+							teacherTools: isEditor,
 							headerTarget,
 							quickShape,
 							onQuickShapeChange: setQuickShape,
@@ -399,10 +414,10 @@ function CanvasRoom({
 						<Tldraw
 							store={store}
 							assetUrls={TLDRAW_ASSET_URLS}
-							components={mode === 'portal' ? (isEditor ? TEACHER_COMPONENTS : STUDENT_COMPONENTS) : XP_CANVAS_COMPONENTS}
+							components={mode === 'portal' ? (isEditor ? TEACHER_COMPONENTS : canEdit ? OWNER_COMPONENTS : STUDENT_COMPONENTS) : XP_CANVAS_COMPONENTS}
 							options={CANVAS_OPTIONS}
-							overrides={isEditor ? undefined : VIEWER_OVERRIDES}
-							initialState={isEditor ? 'select' : 'hand'}
+							overrides={isEditor ? undefined : canEdit ? OWNER_OVERRIDES : VIEWER_OVERRIDES}
+							initialState={canEdit ? 'select' : 'hand'}
 							shapeUtils={CANVAS_SHAPE_UTILS}
 							tools={CANVAS_TOOLS}
 							licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY || undefined}

@@ -3,6 +3,8 @@ import { type Board, type BoardFolder, folderDescendants, isBoardId } from '../s
 import type { ResourceFolder, ResourceFolders } from '../shared/resources'
 import type { RoomSnapshot } from '@tldraw/sync-core'
 
+export const PERSONAL_BOARD_LIMIT = 20
+
 type CatalogKind = 'board' | 'folder' | 'resource-folder' | 'resource-placement'
 interface ResourcePlacement { id: string; resourceId: string; folderId: string | null }
 
@@ -99,7 +101,12 @@ export class BoardCatalog extends DurableObject<Env> {
 			if (request.method === 'POST' && collection === 'boards' && id && parts[3] === 'copy' && parts.length === 4) return await this.copyBoard(id)
 			if (request.method === 'DELETE' && collection === 'folders' && id && parts.length === 3) return this.deleteFolder(id)
 			if (request.method === 'GET') {
-				if (collection === 'library') return Response.json({ boards: this.list<Board>('board'), folders: this.list<BoardFolder>('folder') })
+				if (collection === 'library') {
+					// Personal canvases stay out of the teacher's library; they are reached through each student.
+					const owner = url.searchParams.get('owner'), scope = url.searchParams.get('scope')
+					const boards = this.list<Board>('board').filter((board) => scope === 'all' ? true : scope === 'personal' ? Boolean(board.ownerId) : owner ? board.ownerId === owner : !board.ownerId)
+					return Response.json({ boards, folders: owner || scope === 'personal' ? [] : this.list<BoardFolder>('folder') })
+				}
 				if (collection === 'resource-folders') return Response.json({
 					folders: this.list<ResourceFolder>('resource-folder'),
 					placements: Object.fromEntries(this.list<ResourcePlacement>('resource-placement').map((placement) => [placement.resourceId, placement.folderId])),
@@ -139,6 +146,15 @@ export class BoardCatalog extends DurableObject<Env> {
 					const placement: ResourcePlacement = { id: `resource:${id}`, resourceId: id, folderId: this.folder(data.folderId, 'resource-folder') }
 					this.write('resource-placement', placement)
 					return Response.json({ folderId: placement.folderId })
+				}
+				if (request.method === 'POST' && !id && collection === 'personal-boards') {
+					if (typeof data.ownerId !== 'string' || !data.ownerId) throw new CatalogError(400, 'Falta el dueño del canvas.')
+					const owned = this.list<Board>('board').filter((board) => board.ownerId === data.ownerId && !board.trashedAt).length
+					if (owned >= PERSONAL_BOARD_LIMIT) throw new CatalogError(409, `Ya tienes ${PERSONAL_BOARD_LIMIT} canvases. Pídele a Leo que borre los que ya no uses.`)
+					const now = Date.now()
+					const board: Board = { id: crypto.randomUUID(), name: this.name(data.name ?? 'Sin título'), folderId: null, favorite: false, createdAt: now, updatedAt: now, thumbnailAt: null, trashedAt: null, ownerId: data.ownerId }
+					this.write('board', board)
+					return Response.json(board, { status: 201 })
 				}
 				if (request.method === 'POST' && !id && collection === 'boards') {
 					const now = Date.now()

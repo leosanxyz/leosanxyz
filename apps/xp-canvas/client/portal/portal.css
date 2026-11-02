@@ -66,3 +66,11 @@
 @media (hover: hover) and (pointer: fine) { .connected-students__dice:hover:not(:disabled) { background: #f1f3f5; } }
 @media (prefers-reduced-motion: reduce) { .connected-students__dice:active:not(:disabled) { transform: none; } }
 .portal-entry-help { width: min(100vw - 48px, 400px); margin: -24px 0 0; color: var(--xp-text-2); font-size: 14px; }
+.student-canvases .portal-link { padding: 0; font-size: inherit; }
+.student-agents { margin-top: 40px; max-width: 560px; }
+.student-agents h2 { font-size: 18px; font-weight: 500; margin: 0 0 12px; }
+.agent-list ul { list-style: none; margin: 0 0 16px; padding: 0; }
+.agent-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--xp-line); }
+.agent-list li p { margin: 4px 0 0; font-size: 13px; color: var(--xp-text-2); }
+.portal-authorize-list { margin: 0 0 24px; padding-left: 20px; line-height: 1.55; color: var(--xp-text-2); }
+.portal-authorize-list li + li { margin-top: 8px; }
