@@ -2,7 +2,7 @@ import { BoardPreview, useRevealOrder } from '../boards/BoardPreview'
 import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { useBoardView } from '../boards/useBoardView'
-import { BoardCardsSkeleton, revealDelay, useReveal } from '../components/Skeleton'
+import { SAMPLE_BOARDS, Skeleton } from '../components/Skeleton'
 import { navigate } from '../navigation'
 import { useState, type FormEvent } from 'react'
 import { Modal } from '../components/Modal'
@@ -14,7 +14,6 @@ const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'sh
 export function StudentBoards() {
 	const { library, error, reload } = useBoardLibrary()
 	const [view, setView] = useBoardView()
-	const reveal = useReveal(Boolean(library))
 	const thumbnails = useRevealOrder()
 	const selectedFolder = library?.folders.find((folder) => folder.id === view)
 	const activeView = selectedFolder?.id ?? (view === 'recent' || view === 'mine' ? view : 'all')
@@ -24,15 +23,14 @@ export function StudentBoards() {
 	return <LibraryShell title={selectedFolder?.name ?? (activeView === 'recent' ? 'Recientes' : activeView === 'mine' ? 'Mis canvases' : 'Mis clases')} view={activeView} folders={library?.folders ?? []} onViewChange={setView} testId="student-boards"
 		actions={activeView === 'mine' ? <button className="xp-primary" disabled={!library} onClick={() => setCreating(true)}>Nuevo canvas</button> : undefined}>
 		{error && <p role="alert" className="xp-error board-error">{error} <button className="portal-link" onClick={() => void reload()}>Reintentar</button></p>}
-		<div className="board-grid board-grid--student" aria-busy={!library} data-reveal={reveal}>
-			{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} style={revealDelay(reveal, index)}>
+		{(library || !error) && <Skeleton data={library && boards} sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid board-grid--student">
+			{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id}>
 				<button className="board-card-open" onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
 					<BoardPreview board={board} index={index} order={thumbnails} />
 					<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
 				</button>
 			</article>)}
-			{!library && !error && <BoardCardsSkeleton />}
-		</div>
+		</div>}</Skeleton>}
 		{library && !boards.length && <p className="board-empty">{selectedFolder ? 'No hay canvases en esta carpeta.' : activeView === 'mine' ? 'Todavía no tienes canvases propios. Crea uno o pídele a tu agente que lo haga.' : 'Todavía no tienes clases compartidas.'}</p>}
 		{creating && <NewCanvas onClose={() => setCreating(false)} />}
 	</LibraryShell>

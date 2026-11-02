@@ -10,7 +10,7 @@ import { useBoardView } from '../boards/useBoardView'
 import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
-import { BoardCardsSkeleton, LibrarySkeleton, revealDelay, useReveal } from '../components/Skeleton'
+import { LibrarySkeleton, SAMPLE_BOARDS, Skeleton } from '../components/Skeleton'
 import { navigate } from '../navigation'
 import '../boards/boards.css'
 import { usePortal } from '../portal/PortalProvider'
@@ -41,7 +41,6 @@ export default function BoardManager() {
 	const [query, setQuery] = useState('')
 	const [renamingFolder, setRenamingFolder] = useState<string | null>(null)
 	const [notice, setNotice] = useState<Notice | null>(null)
-	const revealCards = useReveal(!loading)
 	const thumbnails = useRevealOrder()
 
 	useEffect(() => {
@@ -199,14 +198,14 @@ export default function BoardManager() {
 					<button className="xp-icon-button board-new" aria-label="Nuevo canvas" title="Nuevo canvas" disabled={busy} onClick={() => void createBoard()}><Icon name="plus" /></button>
 		</>}>
 			{error && <p className="xp-error board-error" role="alert">{error}</p>}
-			<div className="board-grid" aria-busy={loading} data-reveal={revealCards}>
-				{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} style={revealDelay(revealCards, index)} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
+			<Skeleton data={loading && !boards.length ? null : boards} sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid">
+				{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
 					<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
 						<BoardPreview board={board} index={index} order={thumbnails} />
 						<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
 					</button>
 					{board.favorite && <span className="board-card-favorite" aria-label="Favorito"><Icon name="star" size={16} /></span>}
-					<DropdownMenu.Root><DropdownMenu.Trigger className="xp-icon-button board-card-menu" aria-label={`Opciones de ${board.name}`}><Icon name="more" size={20} /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu" align="end">
+					<DropdownMenu.Root><DropdownMenu.Trigger className="xp-icon-button board-card-menu" skullet-ignore="" aria-label={`Opciones de ${board.name}`}><Icon name="more" size={20} /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="xp-menu" align="end">
 						{board.trashedAt ? <DropdownMenu.Item className="xp-menu-item" onSelect={() => void updateBoard(board, { trashed: false })}>Restaurar</DropdownMenu.Item> : <>
 							{mode === 'portal' && <DropdownMenu.Item className="xp-menu-item" onSelect={() => setSharing(board)}>Compartir con alumnos</DropdownMenu.Item>}
 							<DropdownMenu.Item className="xp-menu-item" onSelect={() => setDialog({ kind: 'rename-board', id: board.id, name: board.name, folderId: board.folderId })}>Renombrar</DropdownMenu.Item>
@@ -217,8 +216,7 @@ export default function BoardManager() {
 						</>}
 					</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
 				</article>)}
-				{loading && !boards.length && <BoardCardsSkeleton />}
-			</div>
+			</div>}</Skeleton>
 			{!loading && !boards.length && <p className="board-empty">{search ? 'Ningún canvas coincide con la búsqueda.' : view === 'trash' ? 'La papelera está vacía.' : selectedFolder ? 'No hay canvases en esta carpeta.' : 'No hay canvases aquí.'}</p>}
 		{notice && <div className="board-toast" role="status" key={notice.key}><span>{notice.text}</span><button onClick={() => void undoNotice()}>Deshacer</button></div>}
 		{sharing && <BoardAccessDialog board={sharing} onClose={() => setSharing(null)} />}

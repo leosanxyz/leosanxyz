@@ -53,14 +53,10 @@
 .board-card-open:focus-visible { outline: 2px solid var(--xp-ink); outline-offset: 4px; }
 .board-card-preview { position: relative; aspect-ratio: 1.55; display: grid; place-items: center; border: 1px solid var(--xp-line); background: #fff; color: var(--xp-muted); overflow: hidden; transition: border-color 150ms ease; }
 .board-card-preview img { position: relative; width: 100%; height: 100%; object-fit: contain; transition: opacity 400ms ease; }
-/* While a thumbnail downloads the preview shimmers like its skeleton, then the image crossfades over it. */
-.board-card-preview::before { content: ''; position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease;
-	background: linear-gradient(100deg, #eceff3 30%, #f4f6f8 50%, #eceff3 70%) 0 0 / 300% 100%;
-	/* Paused rather than removed when the image arrives, so the highlight does not jump while it fades. */
-	animation: xp-skeleton-shimmer 1800ms ease-in-out var(--skeleton-phase, 0ms) infinite paused; }
-.board-card-preview[data-loading]::before { opacity: 1; animation-play-state: running; }
+/* While a thumbnail downloads the preview shows a skeleton block, then the image crossfades over it. */
+.board-card-placeholder { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease; }
+.board-card-preview[data-loading] .board-card-placeholder { opacity: 1; }
 .board-card-preview[data-loading] img { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .board-card-preview::before { animation: none; } }
 .board-card-caption { padding: 12px 76px 0 0; display: grid; gap: 4px; }
 .board-card-caption strong { font-weight: 400; font-size: 16px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .board-card-caption time { font-size: 13px; color: var(--xp-muted); }

@@ -6,7 +6,7 @@ import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
 import { navigate } from '../navigation'
 import { portalRequest } from './api'
-import { SkeletonLines, revealDelay, useReveal } from '../components/Skeleton'
+import { SAMPLE_ROSTER, Skeleton } from '../components/Skeleton'
 import { ago } from './AgentList'
 import type { Board } from '../../shared/boards'
 
@@ -52,7 +52,6 @@ export default function Students() {
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude actualizar la cuenta.') }
 		finally { setBusy(false) }
 	}
-	const reveal = useReveal(Boolean(roster))
 	const canvases = new Map<string, Board[]>()
 	for (const board of roster?.canvases ?? []) canvases.set(board.ownerId!, [...canvases.get(board.ownerId!) ?? [], board])
 	const lastEdit = (id: string) => canvases.get(id)?.[0]?.updatedAt ?? 0
@@ -63,10 +62,9 @@ export default function Students() {
 		<div className="portal-admin-tools"><label>Buscar <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre o matrícula" /></label><label>Grupo <select value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}><option value="">Todos los grupos</option>{roster?.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label><label>Orden <select value={order} onChange={(event) => setOrder(event.target.value as 'name' | 'activity')}><option value="name">Nombre</option><option value="activity">Canvas editado hace menos</option></select></label></div>
 		{!dialog && error && <p role="alert" className="xp-error">{error} <button className="portal-link" onClick={() => { void load().then(() => setError('')).catch(() => setError('No pude cargar la lista de alumnos.')) }}>Reintentar</button></p>}
 		{notice && <p role="status">{notice}</p>}
-		<section className="portal-students" aria-label="Lista de alumnos" aria-busy={!roster} data-reveal={reveal}>
-			{students.map((student, index) => <article className="portal-student" data-disabled={student.disabled} key={student.id} style={revealDelay(reveal, index)}><div><strong>{student.name}</strong><p>{student.username} · {roster?.groups.find((group) => group.id === student.groupId)?.name ?? 'Sin grupo'}</p><p className="student-points">{student.points.toLocaleString('es-MX')} puntos</p><StudentCanvasLinks studentId={student.id} boards={canvases.get(student.id) ?? []} /><p>{student.disabled ? 'Cuenta deshabilitada' : student.mustChangePassword ? 'Pendiente de cambiar contraseña' : 'Cuenta activa'}</p></div><button className="portal-button" onClick={() => open(student)} aria-label={`Administrar ${student.name}`}>Administrar</button></article>)}
-			{!roster && <SkeletonLines count={4} />}
-		</section>
+		<Skeleton data={roster && students} sample={SAMPLE_ROSTER.students} label="Cargando alumnos">{(students) => <section className="portal-students" aria-label="Lista de alumnos">
+			{students.map((student) => <article className="portal-student" data-disabled={student.disabled} key={student.id}><div><strong>{student.name}</strong><p>{student.username} · {roster?.groups.find((group) => group.id === student.groupId)?.name ?? 'Sin grupo'}</p><p className="student-points">{student.points.toLocaleString('es-MX')} puntos</p><StudentCanvasLinks studentId={student.id} boards={canvases.get(student.id) ?? []} /><p>{student.disabled ? 'Cuenta deshabilitada' : student.mustChangePassword ? 'Pendiente de cambiar contraseña' : 'Cuenta activa'}</p></div><button className="portal-button" onClick={() => open(student)} aria-label={`Administrar ${student.name}`}>Administrar</button></article>)}
+		</section>}</Skeleton>
 		{roster && !students.length && <p>No hay alumnos en esta lista.</p>}
 		{dialog && <Modal title={dialog === 'group' ? 'Nuevo grupo' : dialog === 'import' ? 'Añadir alumnos' : `Cuenta de ${dialog.name}`} onClose={() => { if (!busy) setDialog(null) }}><form className="xp-form" onSubmit={submit}>
 			{dialog === 'import' ? <><p className="portal-hint">Una línea por alumno, hasta 100 a la vez. Separa matrícula y nombre con punto y coma. Las cuentas existentes no se sobrescriben.</p><label>Lista de alumnos<textarea value={text} onChange={(event) => setText(event.target.value)} placeholder={'A01234567; Ana López\nA01234568; Luis Pérez'} required autoFocus /></label></> : <label>Nombre<input value={text} onChange={(event) => setText(event.target.value)} maxLength={120} required autoFocus /></label>}

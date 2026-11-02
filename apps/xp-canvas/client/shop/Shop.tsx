@@ -12,7 +12,7 @@ import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
 import { Icon } from '../components/Icon'
-import { useSkeleton } from '../components/Skeleton'
+import { PageSkeleton } from '../components/Skeleton'
 import { GachaponReveal } from '../gachapon/GachaponReveal'
 import { loadCelebrate, loadPop, playCelebrate, playCoin, playPop } from '../gachapon/gachaponSounds'
 import { navigate } from '../navigation'
@@ -753,23 +753,22 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 }
 
 function ShopSkeleton({ hold }: { hold: Promise<void> }) {
-	// It stays in front until the shop is ready to fade in.
-	const skeleton = useSkeleton<HTMLDivElement>(0, hold)
 	// Same sections and sizes as the shop, so its content crossfades into place without moving.
-	return <div className="shop-skeleton" role="status" aria-label="Abriendo la tienda" {...skeleton}>
+	// It stays in front until the shop is ready to fade in.
+	return <PageSkeleton className="shop-skeleton" hold={hold} label="Abriendo la tienda">
 		<section className="shop-hero">
-			<div className="shop-machine-frame"><span className="xp-skeleton shop-skeleton__machine" /></div>
+			<div className="shop-machine-frame"><span className="shop-skeleton__machine" skullet-block="" /></div>
 			<div className="shop-skeleton__panel">
-				<div className="shop-skeleton__pool">{Array.from({ length: 6 }, (_, i) => <span key={i} className="xp-skeleton shop-skeleton__card" />)}</div>
-				<span className="xp-skeleton shop-skeleton__line" />
-				<span className="xp-skeleton shop-skeleton__button" />
+				<div className="shop-skeleton__pool">{Array.from({ length: 6 }, (_, i) => <span key={i} className="shop-skeleton__card" skullet-block="" />)}</div>
+				<span className="shop-skeleton__line" skullet-block="" />
+				<span className="shop-skeleton__button" skullet-block="" />
 			</div>
 		</section>
 		<section className="shop-cards">
-			<div className="shop-cards__heading"><span className="xp-skeleton shop-skeleton__heading" /></div>
+			<div className="shop-cards__heading"><h2>Cartas en venta</h2></div>
 			<div className="shop-scroller"><ul className="shop-row" style={{ '--card-w': `${CARD.row}px` } as CSSProperties}>
-				{Array.from({ length: 6 }, (_, i) => <li key={i}><span className="xp-skeleton shop-skeleton__sale" /></li>)}
+				{Array.from({ length: 6 }, (_, i) => <li key={i}><span className="shop-skeleton__sale" skullet-block="" /></li>)}
 			</ul></div>
 		</section>
-	</div>
+	</PageSkeleton>
 }
