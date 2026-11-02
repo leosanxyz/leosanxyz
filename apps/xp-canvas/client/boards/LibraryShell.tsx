@@ -112,18 +112,21 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 	const sidebar = <>
 		<SidebarIndicator current={`${view}:${folders.length}`} />
 		<div className="board-sidebar-heading"><XpLogo size={36} />
-			{mobile && <Dialog.Close className="xp-icon-button" aria-label="Cerrar carpetas"><Icon name="close" /></Dialog.Close>}
+			{mobile && <Dialog.Close className="xp-icon-button" aria-label={student ? 'Cerrar menú' : 'Cerrar carpetas'}><Icon name="close" /></Dialog.Close>}
 		</div>
-		<nav className="board-navigation" aria-label={student ? 'Clases' : 'Canvases'} data-reveal={revealFolders}>
-			<button className="board-nav-item" data-tone="red" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><span>{student ? 'Todas' : 'Todos'}</span></button>
+		{/* A student has two sections and no folders: their classes in one flat list, and their own canvases. */}
+		{student ? <nav className="board-navigation" aria-label="Secciones">
+			<button className="board-nav-item" data-tone="red" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')}><span>Clases</span></button>
+			<button className="board-nav-item" data-tone="indigo" aria-current={view === 'mine' ? 'page' : undefined} onClick={() => chooseView('mine')}><span>Mis canvas</span></button>
+		</nav> : <nav className="board-navigation" aria-label="Canvases" data-reveal={revealFolders}>
+			<button className="board-nav-item" data-tone="red" aria-current={view === 'all' ? 'page' : undefined} onClick={() => chooseView('all')} {...dropZone(null)}><span>Todos</span></button>
 			<button className="board-nav-item" data-tone="green" aria-current={view === 'recent' ? 'page' : undefined} onClick={() => chooseView('recent')}><span>Recientes</span></button>
-			{!student && <button className="board-nav-item" data-tone="yellow" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><span>Favoritos</span></button>}
-			{student && <button className="board-nav-item" data-tone="indigo" aria-current={view === 'mine' ? 'page' : undefined} onClick={() => chooseView('mine')}><span>Mis canvases</span></button>}
-			{(folders.length > 0 || !student) && <div className="board-folder-heading" data-with-folders={student || undefined}>Carpetas
+			<button className="board-nav-item" data-tone="yellow" aria-current={view === 'favorites' ? 'page' : undefined} onClick={() => chooseView('favorites')}><span>Favoritos</span></button>
+			<div className="board-folder-heading">Carpetas
 				{onNewFolder && <button className="xp-icon-button" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => { setOpen(false); onNewFolder() }}><Icon name="plus" size={18} /></button>}
-			</div>}
+			</div>
 			{folderTree(null)}
-		</nav>
+		</nav>}
 		{student && <button className="board-nav-item board-nav-shop" data-tone="yellow" data-news={hasNews || undefined} aria-current={view === 'shop' ? 'page' : undefined} onClick={() => { setOpen(false); navigate('/tienda') }}>
 			{/* Hopping letters would be spelled out by screen readers; they read the hidden name instead. */}
 			<span className="board-nav-shop__label" aria-hidden={hasNews || undefined}>{hasNews ? [...'Tienda'].map((letter, index) => <span key={index} style={{ '--letter': index } as CSSProperties}>{letter}</span>) : 'Tienda'}</span>
@@ -133,11 +136,11 @@ export function LibraryShell({ title, view, folders, onViewChange, children, act
 	</>
 	return <Dialog.Root open={open} onOpenChange={setOpen}><main className="board-manager" data-testid={testId}>
 		{mobile ? <Dialog.Portal><Dialog.Overlay className="board-sidebar-scrim" /><Dialog.Content className="board-sidebar board-sidebar-mobile" aria-describedby={undefined}>
-			<Dialog.Title className="xp-sr-only">Carpetas de canvases</Dialog.Title>{sidebar}
-		</Dialog.Content></Dialog.Portal> : <aside className="board-sidebar" aria-label="Carpetas de canvases">{sidebar}</aside>}
+			<Dialog.Title className="xp-sr-only">{student ? 'Menú' : 'Carpetas de canvases'}</Dialog.Title>{sidebar}
+		</Dialog.Content></Dialog.Portal> : <aside className="board-sidebar" aria-label={student ? 'Menú' : 'Carpetas de canvases'}>{sidebar}</aside>}
 		<section className="board-main" data-reveal={enter}>
 			<header className="board-header">
-				{mobile && <Dialog.Trigger className="xp-icon-button board-sidebar-trigger" aria-label="Mostrar carpetas" aria-describedby={hasNews ? newsId : undefined}><Icon name="menu" />{hasNews && <i className="board-nav-dot" id={newsId} role="img" aria-label="Hay novedades en la tienda" />}</Dialog.Trigger>}
+				{mobile && <Dialog.Trigger className="xp-icon-button board-sidebar-trigger" aria-label={student ? 'Mostrar menú' : 'Mostrar carpetas'} aria-describedby={hasNews ? newsId : undefined}><Icon name="menu" />{hasNews && <i className="board-nav-dot" id={newsId} role="img" aria-label="Hay novedades en la tienda" />}</Dialog.Trigger>}
 				{onBack && <button className="xp-icon-button" aria-label="Volver" title="Volver" onClick={onBack}><Icon name="arrowLeft" /></button>}
 				<h1>{title}</h1>
 				{actions && <div className="board-header-actions">{actions}</div>}

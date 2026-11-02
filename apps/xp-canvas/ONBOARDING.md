@@ -6,7 +6,7 @@ Este documento describe la experiencia y los criterios de interacción. El model
 
 - `/bienvenida/revision` permite al profesor recorrer las bienvenidas preparadas en una base local de revisión. El selector cambia el perfil de prueba sin entrar en la cuenta del alumno. Las interacciones de esta vista no modifican su pase. Solo existe en desarrollo y exige una sesión del profesor.
 - `/bienvenida/demo` tiene tres perfiles ficticios y no requiere iniciar sesión. Solo existe en desarrollo. Sus cambios se guardan en la sesión de ese navegador y se borran con Repetir.
-- La cuenta de un alumno pasa por el cambio obligatorio de contraseña y después por su bienvenida. Puede retomar un borrador. Al terminar llega a Mis clases y puede abrir Mi perfil para ver o descargar su pase, cambiar la contraseña, personalizarlo directamente o repetir la bienvenida.
+- La cuenta de un alumno pasa por el cambio obligatorio de contraseña y después por su bienvenida. Puede retomar un borrador. Al terminar llega a Clases y puede abrir Mi perfil para ver o descargar su pase, cambiar la contraseña, personalizarlo directamente o repetir la bienvenida.
 
 Para preparar la revisión, usa el [entorno aislado del portal](PORTAL.md#desarrollo-y-pruebas).
 

@@ -16,13 +16,12 @@ export function StudentBoards() {
 	const [view, setView] = useBoardView()
 	const reveal = useReveal(Boolean(library))
 	const thumbnails = useRevealOrder()
-	const selectedFolder = library?.folders.find((folder) => folder.id === view)
-	const activeView = selectedFolder?.id ?? (view === 'recent' || view === 'mine' ? view : 'all')
-	// Personal canvases live in their own section; class folders and "Todas" show only classes.
-	const boards = (library?.boards ?? []).filter((board) => activeView === 'recent' || (activeView === 'mine' ? Boolean(board.ownerId) : !board.ownerId && (!selectedFolder || board.folderId === selectedFolder.id))).sort((a, b) => b.updatedAt - a.updatedAt)
+	// Two sections and no folders. Old links to "Recientes" or a folder land in Clases.
+	const mine = view === 'mine'
+	const boards = (library?.boards ?? []).filter((board) => mine ? Boolean(board.ownerId) : !board.ownerId).sort((a, b) => b.updatedAt - a.updatedAt)
 	const [creating, setCreating] = useState(false)
-	return <LibraryShell title={selectedFolder?.name ?? (activeView === 'recent' ? 'Recientes' : activeView === 'mine' ? 'Mis canvases' : 'Mis clases')} view={activeView} folders={library?.folders ?? []} onViewChange={setView} testId="student-boards"
-		actions={activeView === 'mine' ? <button className="xp-primary" disabled={!library} onClick={() => setCreating(true)}>Nuevo canvas</button> : undefined}>
+	return <LibraryShell title={mine ? 'Mis canvas' : 'Clases'} view={mine ? 'mine' : 'all'} folders={[]} onViewChange={setView} testId="student-boards"
+		actions={mine ? <button className="xp-primary" disabled={!library} onClick={() => setCreating(true)}>Nuevo canvas</button> : undefined}>
 		{error && <p role="alert" className="xp-error board-error">{error} <button className="portal-link" onClick={() => void reload()}>Reintentar</button></p>}
 		<div className="board-grid board-grid--student" aria-busy={!library} data-reveal={reveal}>
 			{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} style={revealDelay(reveal, index)}>
@@ -33,7 +32,7 @@ export function StudentBoards() {
 			</article>)}
 			{!library && !error && <BoardCardsSkeleton />}
 		</div>
-		{library && !boards.length && <p className="board-empty">{selectedFolder ? 'No hay canvases en esta carpeta.' : activeView === 'mine' ? 'Todavía no tienes canvases propios. Crea uno o pídele a tu agente que lo haga.' : 'Todavía no tienes clases compartidas.'}</p>}
+		{library && !boards.length && <p className="board-empty">{mine ? 'Todavía no tienes canvas propios. Crea uno o pídele a tu agente que lo haga.' : 'Todavía no tienes clases.'}</p>}
 		{creating && <NewCanvas onClose={() => setCreating(false)} />}
 	</LibraryShell>
 }
