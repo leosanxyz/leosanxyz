@@ -51,6 +51,6 @@ function Routes() {
 	const student = /^\/alumnos\/([a-f0-9-]{36})\/?$/.exec(path)
 	if (student && mode === 'portal' && user?.role === 'teacher') return <StudentCanvases key={student[1]} studentId={student[1]} />
 	const match = /^\/board\/([^/]+)\/?$/.exec(path)
-	if (!match || !isBoardId(match[1])) return <div className="board-welcome"><h1>Este canvas no existe</h1><button className="xp-primary" onClick={() => navigate('/')}>Mis canvases</button></div>
+	if (!match || !isBoardId(match[1])) return <div className="board-welcome"><h1>Este canvas no existe</h1><button className="xp-primary" onClick={() => navigate('/')}>{user?.role === 'student' ? 'Clases' : 'Mis canvases'}</button></div>
 	return <Room key={match[1]} roomId={match[1]} />
 }

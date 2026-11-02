@@ -596,7 +596,7 @@ try {
 	const mobile = await phone.newPage()
 	mobile.on('pageerror', (error) => errors.push(error.message))
 	await mobile.goto('/')
-	const drawer = mobile.getByRole('button', { name: 'Mostrar carpetas', exact: true })
+	const drawer = mobile.getByRole('button', { name: 'Mostrar menú', exact: true })
 	await drawer.getByRole('img', { name: 'Hay novedades en la tienda' }).waitFor()
 	assert.equal(await drawer.getAttribute('aria-describedby'), await drawer.locator('.board-nav-dot').getAttribute('id'), 'the dot describes the drawer button')
 	await mobile.goto('/tienda')
