@@ -18,20 +18,20 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 h1 { font-size: 15px; font-weight: 600; margin: 0; }
 p { margin: 0; color: var(--muted); font-size: 13px; }
 button { flex: none; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 13px; cursor: pointer; }
-.stage { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 560px; background: #f8fafc; }
-.stage svg { display: block; width: 100%; height: auto; min-width: 320px; }
-ul { margin: 10px 0 0; padding-left: 18px; font-size: 14px; }
-li + li { margin-top: 4px; }
+.stage { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #f8fafc; }
+/* The whole diagram always fits: the script sizes the SVG to the width and height available. */
+.stage svg { display: block; width: 100%; }
+#pending { margin-top: 8px; }
 .empty { padding: 24px; text-align: center; }
 </style></head>
 <body><main>
 <header><div><h1 id="title">XP Canvas</h1><p id="subtitle"></p></div><button id="open" hidden>Abrir en XP Canvas</button></header>
 <div class="stage" id="stage"><p class="empty">Esperando el diagrama…</p></div>
-<ul id="gaps" hidden></ul>
+<p id="pending" hidden></p>
 </main>
 <script>
 (() => {
-	let nextId = 1, link = null
+	let nextId = 1, link = null, maxHeight = null
 	const pending = new Map()
 	const send = (message) => window.parent.postMessage({ jsonrpc: '2.0', ...message }, '*')
 	const request = (method, params) => new Promise((resolve, reject) => { const id = nextId++; pending.set(id, { resolve, reject }); send({ id, method, params }) })
@@ -49,13 +49,35 @@ li + li { margin-top: 4px; }
 		if (typeof svg === 'string' && svg.startsWith('<svg')) {
 			// The server builds this SVG and escapes every text; it carries no scripts or links.
 			const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement
+			parsed.removeAttribute('width'); parsed.removeAttribute('height')
+			parsed.setAttribute('preserveAspectRatio', 'xMidYMid meet')
 			$('stage').replaceChildren(document.importNode(parsed, true))
 		} else $('stage').innerHTML = '<p class="empty">Este canvas todavía no tiene diagramas.</p>'
-		const gaps = (data.huecos || (data.diagramas || []).flatMap((d) => d.huecos || [])).map((gap) => gap.mensaje)
-		$('gaps').hidden = !gaps.length
-		$('gaps').replaceChildren(...gaps.map((text) => { const li = document.createElement('li'); li.textContent = text; return li }))
+		// The agent asks about each gap one at a time; the view only says how many are left.
+		const gaps = (data.huecos || (data.diagramas || []).flatMap((d) => d.huecos || [])).length
+		$('pending').hidden = !gaps
+		$('pending').textContent = gaps === 1 ? 'Falta 1 cosa por decidir.' : 'Faltan ' + gaps + ' cosas por decidir.'
+		fit()
+	}
+	// Scale the drawing to the card: full width unless that makes it taller than the host allows.
+	function fit() {
+		const svg = $('stage').querySelector('svg')
+		if (svg) {
+			const box = svg.viewBox.baseVal, width = $('stage').clientWidth || 600
+			const chrome = document.documentElement.scrollHeight - $('stage').offsetHeight
+			const limit = Math.max(220, (maxHeight || (window.openai && window.openai.maxHeight) || 520) - chrome - 4)
+			const height = Math.min(width * box.height / box.width, limit)
+			svg.style.height = Math.round(height) + 'px'
+		}
 		requestAnimationFrame(sizeChanged)
 	}
+	function readHost(context) {
+		const size = context && context.containerDimensions
+		if (size && typeof size.maxHeight === 'number') maxHeight = size.maxHeight
+		else if (size && typeof size.height === 'number') maxHeight = size.height
+		fit()
+	}
+	window.addEventListener('resize', fit)
 	$('open').addEventListener('click', () => {
 		if (!link) return
 		if (window.openai && window.openai.openExternal) window.openai.openExternal({ href: link })
@@ -71,12 +93,13 @@ li + li { margin-top: 4px; }
 			return
 		}
 		if (message.method === 'ui/notifications/tool-result') show(message.params)
+		if (message.method === 'ui/notifications/host-context-changed') readHost(message.params)
 	})
 	// Apps SDK hosts (ChatGPT) also expose the result directly.
 	if (window.openai && window.openai.toolOutput) show({ structuredContent: window.openai.toolOutput, _meta: window.openai.toolResponseMetadata })
 	window.addEventListener('openai:set_globals', () => { if (window.openai && window.openai.toolOutput) show({ structuredContent: window.openai.toolOutput, _meta: window.openai.toolResponseMetadata }) })
 	request('ui/initialize', { protocolVersion: '2026-01-26', appInfo: { name: 'xp-canvas-diagrama', version: '1.0.0' }, appCapabilities: {} })
-		.then(() => send({ method: 'ui/notifications/initialized', params: {} }))
+		.then((result) => { readHost(result && result.hostContext); send({ method: 'ui/notifications/initialized', params: {} }) })
 		.catch(() => {})
 })()
 </script></body></html>`

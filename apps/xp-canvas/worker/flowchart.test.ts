@@ -209,3 +209,42 @@ describe('notes', () => {
 		expect(() => parseNote({ titulo: 'x', texto: Array(61).fill('a').join('\n') })).toThrow('60')
 	})
 })
+
+describe('frame fit', () => {
+	const margins = (store: ReturnType<typeof emptyStore>, frameId: string) => {
+		const frame = store.records.get(frameId) as never as { props: { w: number; h: number } }
+		const nodes = shapes(store).filter((shape) => shape.parentId === frameId && shape.type === 'geo')
+		const left = Math.min(...nodes.map((shape) => shape.x)), right = frame.props.w - Math.max(...nodes.map((shape) => shape.x + (shape.props as { w: number }).w))
+		const top = Math.min(...nodes.map((shape) => shape.y)), bottom = frame.props.h - Math.max(...nodes.map((shape) => shape.y + (shape.props as { h: number }).h))
+		return { left, right, top, bottom }
+	}
+	const mundo = parseFlowchart({
+		titulo: 'Cuando entro al mundo',
+		nodos: [{ id: 'i', tipo: 'inicio', texto: 'Entras al mundo' }, { id: 'd', tipo: 'decision', texto: '¿Es tu primera vez?' }, { id: 'm', tipo: 'proceso', texto: 'Aparece un mensaje con las teclas' }, { id: 'j', tipo: 'proceso', texto: 'Juegas' }],
+		flechas: [{ de: 'i', a: 'd' }, { de: 'd', a: 'm', etiqueta: 'SÍ' }, { de: 'm', a: 'j' }],
+	})
+	it('gives a one-column diagram the same margin on both sides', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, mundo, validate)
+		const m = margins(store, frameId)
+		expect(m.left).toBe(m.right)
+		expect(m.top).toBe(m.bottom)
+	})
+	it('grows to the right for a NO branch and shrinks back without a gap on the left', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, mundo, validate)
+		const narrow = (store.records.get(frameId) as never as { props: { w: number } }).props.w
+		writeFlowchart(store, parseFlowchart({ ...mundo, nodos: [...mundo.nodos, { id: 'n', tipo: 'proceso', texto: 'Apareces donde te quedaste' }], flechas: [...mundo.flechas, { de: 'd', a: 'n', etiqueta: 'NO' }] }), validate)
+		const wide = margins(store, frameId)
+		expect(wide.left).toBe(wide.right)
+		expect((store.records.get(frameId) as never as { props: { w: number } }).props.w).toBeGreaterThan(narrow)
+		writeFlowchart(store, mundo, validate)
+		expect((store.records.get(frameId) as never as { props: { w: number } }).props.w).toBe(narrow)
+	})
+	it('centers a narrow drawing under a long title', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, parseFlowchart({ ...mundo, titulo: 'Así funciona hoy: Cuando entro al mundo por primera vez en el servidor' }), validate)
+		const m = margins(store, frameId)
+		expect(Math.abs(m.left - m.right)).toBeLessThanOrEqual(1)
+	})
+})

@@ -229,6 +229,10 @@ export function layoutFlowchart({ nodos, flechas }: Pick<Flowchart, 'nodos' | 'f
 		const { w, h } = sizes.get(node.id)!, r = row.get(node.id)!, c = col.get(node.id)!
 		placements.set(node.id, { x: Math.round(c * colWidth + (colWidth - w) / 2), y: Math.round(rowTop[r] + (rowHeight[r] - h) / 2), w, h, row: r, col: c })
 	}
+	// Columns center their nodes, so the widest column may not start at 0. Start the drawing at the
+	// top-left corner: the frame then gets the same margin on every side.
+	const left = Math.min(...[...placements.values()].map((place) => place.x)), top = Math.min(...[...placements.values()].map((place) => place.y))
+	for (const place of placements.values()) { place.x -= left; place.y -= top }
 	return { placements, back }
 }
 
@@ -342,10 +346,13 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 
 	const { placements, back } = layoutFlowchart(chart)
 	const bounds = [...placements.values()].reduce((acc, p) => ({ w: Math.max(acc.w, p.x + p.w), h: Math.max(acc.h, p.y + p.h) }), { w: 0, h: 0 })
+	// A title wider than the drawing widens the frame; the drawing stays centered under it.
+	const centering = Math.max(0, Math.round((titleWidth(chart.titulo) - bounds.w - FRAME_PAD * 2) / 2))
+	if (centering) { for (const place of placements.values()) place.x += centering; bounds.w += centering * 2 }
 
 	const today = isTodayTitle(chart.titulo)
 	if (!frame) {
-		const w = Math.max(bounds.w + FRAME_PAD * 2, titleWidth(chart.titulo)), h = bounds.h + FRAME_PAD * 2
+		const w = bounds.w + FRAME_PAD * 2, h = bounds.h + FRAME_PAD * 2
 		// What the game does today goes right next to the diagram the student dictated, to compare them.
 		const pair = today ? frames.find((shape) => shape.parentId === pageId && frameKey((shape.props as { name: string }).name) === frameKey(todayCounterpart(chart.titulo))) : undefined
 		let spot: { x: number; y: number }
@@ -441,8 +448,8 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 		writes.push({ ...record, x, y, meta: { ...record.meta, xpPos: { x, y } } } as TLRecord)
 	}
 
-	// The frame grows to hold the diagram and anything the student added inside it.
-	let maxX = Math.max(bounds.w + FRAME_PAD * 2, titleWidth(chart.titulo)), maxY = bounds.h + FRAME_PAD * 2
+	// The frame fits the diagram and anything the student added inside it, with the same margin on both sides.
+	let maxX = bounds.w + FRAME_PAD * 2, maxY = bounds.h + FRAME_PAD * 2
 	for (const record of [...records.values(), ...writes]) {
 		if (!isShape(record) || record.parentId !== frameId || deletes.has(record.id) || record.type === 'arrow') continue
 		const latest = writes.find((write) => write.id === record.id) as AnyShape | undefined ?? record
@@ -450,7 +457,7 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 		maxX = Math.max(maxX, latest.x + size.w + FRAME_PAD); maxY = Math.max(maxY, latest.y + size.h + FRAME_PAD)
 	}
 	const frameProps = frame.props as { w: number; h: number; name: string }
-	writes.unshift({ ...frame, props: { ...frameProps, name: chart.titulo, w: Math.max(created ? 0 : frameProps.w, Math.round(maxX)), h: Math.max(created ? 0 : frameProps.h, Math.round(maxY)) }, meta: { ...frame.meta, xpDiagram: true, ...(today ? { xpToday: true } : {}) } } as TLRecord)
+	writes.unshift({ ...frame, props: { ...frameProps, name: chart.titulo, w: Math.round(maxX), h: Math.round(maxY) }, meta: { ...frame.meta, xpDiagram: true, ...(today ? { xpToday: true } : {}) } } as TLRecord)
 
 	for (const record of writes) validate(record)
 	for (const id of deletes) store.delete(id)
