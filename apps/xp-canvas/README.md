@@ -101,6 +101,14 @@ Todos los presentes ven la misma animación: la manivela da tres vueltas, las bo
 
 La tómbola se dibuja en 3D con three.js, con la paleta del gachapon y del buzón, y three.js se descarga solo en canvases que muestran una. Sin WebGL aparece una tómbola plana en SVG con el mismo recorrido. El trinquete, la caída de cada bola y una campanita se sintetizan en el navegador y suenan para todos los que tienen la pestaña visible. Con movimiento reducido no hay giro ni caída: las bolas aparecen abiertas y la lista se actualiza. Queda pendiente probar el rendimiento y el audio en un iPad físico.
 
+## Canvases personales y agentes
+
+Cada alumno tiene **Mis canvases** en su barra lateral. Ahí crea canvases propios y dibuja con las herramientas normales; no hay Recursos, emojis ni subida de archivos. En los canvases de clase sigue siendo espectador.
+
+Su agente (Codex u otro cliente MCP) se conecta a `https://xp.leosan.xyz/mcp`. La primera vez se abre `/autorizar`: el alumno entra con su cuenta y pulsa **Permitir**. Con Codex basta `codex mcp add xp-canvas --url https://xp.leosan.xyz/mcp`; si el servidor ya está en su configuración, `codex mcp login xp-canvas` o `/mcp login xp-canvas` dentro de Codex. El agente puede listar y crear canvases personales, dibujar diagramas de flujo con los símbolos de Lógica y leerlos con los cambios hechos a mano. En **Mi perfil**, **Agentes conectados** muestra los agentes y permite desconectarlos.
+
+Los diagramas quedan en un marco con su título, hechos de figuras normales de tldraw: el alumno puede moverlas, cambiarles el texto o añadir flechas, y el agente lo verá la siguiente vez que lea el canvas. En los clientes que muestran MCP Apps, el diagrama aparece también dentro del chat. Codex CLI no las muestra; la app de escritorio sí, según su documentación. El funcionamiento está en [Canvases personales y agentes](../../ARCHITECTURE.md#canvases-personales-y-agentes).
+
 ## Demo de Esquiva
 
 La figura `esquiva` muestra la clase de calidad: un piloto automático juega el nivel «Caos» de Esquiva y seis versiones pulen un momento del juego cada una. Al elegir una versión, el cambio se ve en ese instante y se sincroniza con todos los que ven el canvas, igual que mantener presionado el reloj para ver el punto de partida. Solo el maestro ve los controles. El sonido es local: suena únicamente en el dispositivo donde se activa la bocina. La simulación se detiene cuando la figura sale de la vista.

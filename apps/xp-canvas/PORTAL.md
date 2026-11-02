@@ -10,7 +10,9 @@ La matrícula es el usuario y la contraseña inicial. El primer acceso exige ele
 
 Conocer una matrícula permite usar la cuenta mientras conserve la contraseña inicial. La primera persona que la cambie puede quedarse con ella hasta que el profesor la restablezca. Este acceso no acredita identidad ni asistencia y no debe usarse para calificaciones o información sensible.
 
-Desde el menú de cada canvas, Compartir con alumnos concede acceso a grupos o alumnos individuales. Dar de alta una cuenta no comparte canvases. Los alumnos solo pueden observar; la implementación de los permisos está en [Worker y persistencia](../../ARCHITECTURE.md#worker-y-persistencia).
+Desde el menú de cada canvas, Compartir con alumnos concede acceso a grupos o alumnos individuales. Dar de alta una cuenta no comparte canvases. Los alumnos solo pueden observar los canvases de clase; la implementación de los permisos está en [Worker y persistencia](../../ARCHITECTURE.md#worker-y-persistencia).
+
+Cada alumno puede crear canvases propios en **Mis canvases** y dibujar en ellos, directamente o con su agente. Desde Alumnos, cada tarjeta abre el último canvas personal del alumno y enlaza a su página con todos sus canvases y sus agentes conectados, donde puedes revocarlos. El funcionamiento está en [Canvases personales y agentes](../../ARCHITECTURE.md#canvases-personales-y-agentes).
 
 El menú de cuenta del profesor incluye Alumnos, Ver la tienda y Papelera. Desde Alumnos puede cambiar el grupo, deshabilitar una cuenta o restablecer su contraseña a la matrícula. Restablecerla no borra su pase. Lo que una persona ya vio o descargó no puede retirarse de su dispositivo.
 
@@ -40,10 +42,13 @@ npm run test:xp-canvas
 BASE_URL=http://127.0.0.1:5177 npm run smoke:onboarding-api --workspace=apps/xp-canvas
 BASE_URL=http://127.0.0.1:5177 npm run smoke:portal --workspace=apps/xp-canvas
 BASE_URL=http://127.0.0.1:5177 npm run smoke:shop --workspace=apps/xp-canvas
+BASE_URL=http://127.0.0.1:5177 npm run smoke:mcp --workspace=apps/xp-canvas
 npm run build:portal --workspace=apps/xp-canvas
 ```
 
-Los smokes crean cuentas y documentos ficticios. Comprueban el acceso inicial, bienvenida, perfil, descarga, guardado, grupos, biblioteca y archivos privados, lectura en tiempo real, identidad, revocación, límites de intentos y origen de escrituras. El de la tienda gana puntos con preguntas y comprueba las cartas diarias de la máquina, las cartas en venta de cada rotación de seis horas, el aviso de novedades, girar cartas, el regalo diario, el repaso, las tiradas, la compra y el saldo exacto. No los ejecutes contra datos de clases. La revisión de interacción del pase está en [Verificación](ONBOARDING.md#verificación).
+Los smokes crean cuentas y documentos ficticios. Comprueban el acceso inicial, bienvenida, perfil, descarga, guardado, grupos, biblioteca y archivos privados, lectura en tiempo real, identidad, revocación, límites de intentos y origen de escrituras. El de la tienda gana puntos con preguntas y comprueba las cartas diarias de la máquina, las cartas en venta de cada rotación de seis horas, el aviso de novedades, girar cartas, el regalo diario, el repaso, las tiradas, la compra y el saldo exacto. El de MCP recorre OAuth con PKCE, las cuatro herramientas, los huecos, el aislamiento entre alumnos, la escritura del dueño por WebSocket, la lectura de los canvases de clase, la rotación de tokens y la revocación. No los ejecutes contra datos de clases. Cada smoke inicia sesión como profesor varias veces y el límite es de 12 intentos por cuenta cada 15 minutos; si ejecutas todos seguidos, usa una carpeta de estado nueva.
+
+Para probar un agente real contra el QA sin tocar tu configuración, añade el servidor solo en la línea de comandos: `codex -c 'mcp_servers.xp-qa.url="http://127.0.0.1:5177/mcp"' mcp login xp-qa`, acepta en el navegador con una cuenta de alumno y usa el mismo `-c` con `codex exec`. Al terminar, `codex -c '…' mcp logout xp-qa`. La revisión de interacción del pase está en [Verificación](ONBOARDING.md#verificación).
 
 ## Publicación y comprobaciones
 
@@ -56,7 +61,7 @@ npx wrangler deploy --dry-run --config dist/xp_canvas_portal/wrangler.json
 npx wrangler deploy --config dist/xp_canvas_portal/wrangler.json
 ```
 
-La función de puntos necesita `0003_points.sql`; el gachapon requiere además `0004_gachapon.sql` y `0005_gachapon_cost.sql`, y la tienda, `0006_shop.sql` en el entorno de destino. Aplicarla en QA local no la aplica en producción; la migración remota requiere autorización específica y debe preceder al despliegue de esa función.
+La función de puntos necesita `0003_points.sql`; el gachapon requiere además `0004_gachapon.sql` y `0005_gachapon_cost.sql`; la tienda, `0006_shop.sql`, y los agentes MCP, `0007_agents.sql` en el entorno de destino. `/mcp` y `/.well-known/*` deben estar en `run_worker_first` de `wrangler.portal.toml`; sin eso, los sirve la SPA. Aplicarla en QA local no la aplica en producción; la migración remota requiere autorización específica y debe preceder al despliegue de esa función.
 
 Antes del último comando, comprueba que los bindings del dry-run coincidan con los [recursos de producción](../../ARCHITECTURE.md#worker-y-persistencia) y revisa cualquier migración pendiente. No apliques migraciones remotas como efecto secundario de publicar código ni subas la carpeta `dist` completa.
 
