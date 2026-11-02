@@ -190,7 +190,7 @@ try {
 	assert.equal((await student.request.get(`/api/boards/${board.id}/export`)).status(), 404)
 	assert.equal((await student.request.post('/api/boards/import', { data: {} })).status(), 403)
 	await viewer.getByRole('button', { name: 'Cuenta de Ana Prueba', exact: true }).click()
-	assert.deepEqual(await viewer.getByRole('menuitem').allTextContents(), ['Mi perfil', 'Cerrar sesión'])
+	assert.deepEqual(await viewer.getByRole('menuitem').allTextContents(), ['Mi perfil', 'Papelera', 'Cerrar sesión'])
 	await viewer.getByRole('menuitem', { name: 'Mi perfil', exact: true }).click()
 	await viewer.getByRole('heading', { name: 'Mi perfil', exact: true }).waitFor()
 	assert.equal(await viewer.getByLabel('Contraseña actual', { exact: true }).count(), 0)

@@ -710,3 +710,8 @@ summary {
 .canvas-grid-toggle svg {
 	pointer-events: none;
 }
+
+/* A student's trashed canvas, opened by the teacher to grade it. */
+.canvas-trashed { flex-shrink: 0; padding: 3px 10px; border: 1px solid var(--xp-line); border-radius: 999px; color: var(--xp-text-2); font-size: 13px; white-space: nowrap; }
+.board-card[data-trashed] .board-card-open { opacity: .62; }
+.board-card-restore { margin-top: 8px; }

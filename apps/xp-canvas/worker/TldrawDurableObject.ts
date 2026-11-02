@@ -15,6 +15,7 @@ import { canvasSchema as schema, emptyMailboxes } from './boardSnapshot'
 import { canReadBoard, portalEnabled, PORTAL_IDENTITY_HEADER, sessionByHash } from './portalAuth'
 import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
+import { boardOpenFor } from '../shared/boards'
 import type { PortalUser } from '../shared/portal'
 import { savePointAward, type PointAward } from './points'
 import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
@@ -165,7 +166,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		if (!portalEnabled(this.env)) return denied(403, 'Interacción no disponible.')
 		const session = await sessionByHash(tokenHash, this.env)
 		const board = await readBoard(this.env, roomId)
-		if (!session || !board || board.trashedAt || !await canReadBoard(session, roomId, this.env)) return denied(403, 'No tienes acceso a este canvas.')
+		if (!session || !board || !boardOpenFor(board, session.user.role) || !await canReadBoard(session, roomId, this.env)) return denied(403, 'No tienes acceso a este canvas.')
 		const room = this.getOrCreateRoom(), user = session.user
 		if (!command) { this.broadcastQuestionPermissions(); return { status: 200, body: this.questionPermissions(user) } }
 		// Points, cards and letters belong to class. A student could otherwise build a free gachapon in their own canvas.
@@ -383,7 +384,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		await Promise.all(sockets.map(async (ws) => {
 			const attachment = getAttachment(ws), identity = attachment?.portal
 			let allowed = false
-			if (identity && board && !board.trashedAt && identity.roomId === board.id) {
+			if (identity && board && boardOpenFor(board, identity.user.role) && identity.roomId === board.id) {
 				try {
 					allowed = await canReadBoard(await sessionByHash(identity.tokenHash, this.env), identity.roomId, this.env)
 				} catch { /* Fail closed if authorization is unavailable. */ }
@@ -430,7 +431,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 			const tokenHash = request.headers.get(PORTAL_IDENTITY_HEADER) ?? ''
 			const session = await sessionByHash(tokenHash, this.env)
 			const board = await readBoard(this.env, request.params.roomId)
-			if (!session || !board || board.trashedAt || !await canReadBoard(session, board.id, this.env)) return error(403, 'Access denied')
+			if (!session || !board || !boardOpenFor(board, session.user.role) || !await canReadBoard(session, board.id, this.env)) return error(403, 'Access denied')
 			portal = { tokenHash, roomId: board.id, user: session.user, ownerId: board.ownerId }
 		}
 		// Initialize before accepting this socket so it is not mistaken for a half-restored

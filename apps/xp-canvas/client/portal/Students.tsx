@@ -79,8 +79,8 @@ export default function Students() {
 /** The latest personal canvas opens in one click; the rest are on the student's page. */
 function StudentCanvasLinks({ studentId, boards }: { studentId: string; boards: Board[] }) {
 	if (!boards.length) return null
-	const [latest] = boards
+	const latest = boards.find((board) => !board.trashedAt) ?? boards[0], trashed = boards.filter((board) => board.trashedAt).length
 	return <p className="student-canvases">
-		<button className="portal-link" onClick={() => navigate(`/board/${latest.id}`)}>{latest.name}</button> · {ago(latest.updatedAt)} · <button className="portal-link" onClick={() => navigate(`/alumnos/${studentId}`)}>{boards.length === 1 ? 'Ver su canvas y agentes' : `Ver sus ${boards.length} canvases`}</button>
+		<button className="portal-link" onClick={() => navigate(`/board/${latest.id}`)}>{latest.name}</button> · {latest.trashedAt ? 'en la papelera' : ago(latest.updatedAt)} · <button className="portal-link" onClick={() => navigate(`/alumnos/${studentId}`)}>{boards.length === 1 ? 'Ver su canvas y agentes' : `Ver sus ${boards.length} canvases`}</button>{trashed > 0 && latest.trashedAt === null && ` · ${trashed} en la papelera`}
 	</p>
 }

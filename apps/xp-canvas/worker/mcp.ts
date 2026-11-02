@@ -113,7 +113,7 @@ La respuesta trae los huecos que encontró el servidor (una decisión sin NO, un
 	},
 ]
 
-class ToolError extends Error {}
+export class ToolError extends Error {}
 
 const rpc = (id: unknown, result: unknown) => Response.json({ jsonrpc: '2.0', id, result }, { headers: { 'cache-control': 'no-store' } })
 const rpcError = (id: unknown, code: number, message: string, status = 200) => Response.json({ jsonrpc: '2.0', id: id ?? null, error: { code, message } }, { status, headers: { 'cache-control': 'no-store' } })
