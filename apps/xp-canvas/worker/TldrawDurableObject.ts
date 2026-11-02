@@ -21,7 +21,7 @@ import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
 import type { RewardSkin } from '../shared/pass'
 import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
 import type { InteractionState, QuestionCommand, QuestionFeedback } from '../shared/questionShape'
-import { readFlowcharts, writeFlowchart, type Flowchart } from './flowchart'
+import { readFlowcharts, readNotes, writeFlowchart, writeNote, type Flowchart, type NoteInput } from './flowchart'
 import { renderFlowchartSvg } from './flowchartSvg'
 import { LETTERS_PER_ROUND, LETTERS_PER_STUDENT, type MailboxCommand, type MailboxReply } from '../shared/mailboxShape'
 
@@ -356,7 +356,13 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 
 	readFlowcharts() {
 		const records = this.documentRecords()
-		return { diagrams: readFlowcharts(records), svg: renderFlowchartSvg(records) }
+		return { diagrams: readFlowcharts(records), notes: readNotes(records), svg: renderFlowchartSvg(records) }
+	}
+
+	/** Agent note (MCP). The Worker already checked that the agent's student owns this canvas. */
+	writeNote(note: NoteInput) {
+		const result = this.getOrCreateRoom().storage.transaction((store) => writeNote(store, note, (record) => { schema.types[record.typeName].validate(record) })).result
+		return { ...result, canvasSvg: renderFlowchartSvg(this.documentRecords()) }
 	}
 
 	private documentRecords() {

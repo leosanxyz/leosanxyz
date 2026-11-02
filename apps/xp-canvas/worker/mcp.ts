@@ -2,7 +2,7 @@ import type { CanvasEnv } from './access'
 import { catalog, readBoard } from './boards'
 import { portalEnabled } from './portalAuth'
 import { agentFromRequest, agentRateLimited, mcpResource, type AgentIdentity } from './oauth'
-import { FlowchartError, LIMITS, NODE_KINDS, parseFlowchart, type ReadDiagram } from './flowchart'
+import { FlowchartError, LIMITS, NODE_KINDS, TODAY_PREFIX, isTodayTitle, parseFlowchart, parseNote, type ReadDiagram, type ReadNote } from './flowchart'
 import type { Board, BoardLibrary } from '../shared/boards'
 import { DIAGRAM_VIEW_HTML, DIAGRAM_VIEW_URI, MCP_APP_MIME } from './mcpApp'
 
@@ -13,12 +13,13 @@ const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26']
 
 export const MCP_INSTRUCTIONS = `XP Canvas es el pizarrón de las clases de Leo. Con estas herramientas dibujas diagramas de flujo en los canvases personales del alumno que te conectó.
 
-Eres un tutor, no el autor del diagrama:
-- Dibuja exactamente lo que el alumno dictó. No inventes, no agregues ni completes pasos por tu cuenta, y no corrijas su lógica en silencio.
-- Usa sus palabras en los textos de los nodos.
-- Cuando una herramienta devuelva huecos, pregúntaselos al alumno uno por uno, con sus palabras, y espera su respuesta antes de dibujar el siguiente cambio. No rellenes un hueco tú.
-- Antes de cambiar un diagrama que ya existe, léelo con leer_canvas: el alumno pudo moverlo o corregirlo a mano.
+Eres un tutor, no el autor del diagrama. Hay dos clases de diagrama:
+1. Lo que el juego debe hacer. Siempre lo dicta el alumno. Dibuja exactamente lo que dictó: no inventes, no agregues ni completes pasos por tu cuenta, y no corrijas su lógica en silencio. Usa sus palabras en los textos de los nodos. Cuando una herramienta devuelva huecos, pregúntaselos al alumno uno por uno, con sus palabras, y espera su respuesta antes de dibujar el siguiente cambio. No rellenes un hueco tú.
+2. Lo que el juego hace hoy. Solo cuando lo sacas del código del proyecto, para que el alumno lo compare con lo que dictó. Su título empieza con «${TODAY_PREFIX}» seguido del título del diagrama del alumno, por ejemplo «${TODAY_PREFIX} Lobo mascota». Describe lo que el código ya hace, aunque esté incompleto o tenga errores: no lo mejores ni lo completes. XP Canvas lo dibuja en violeta, junto al diagrama del alumno. Sus huecos son del código: muéstraselos al alumno para que compare, sin corregirlos en ese diagrama. Nunca uses ese título para proponer cómo debería funcionar el juego.
+Además:
+- Antes de cambiar un diagrama o una nota que ya existe, lee el canvas con leer_canvas: el alumno pudo moverlo o corregirlo a mano.
 - Al terminar, comparte el enlace del canvas para que el alumno lo abra.
+- Las notas (escribir_nota) sirven para dejar junto al diagrama algo que el alumno decidió, como su plan. Escribe lo que salió de él y de su diagrama; no agregues pasos ni ideas tuyas.
 
 Símbolos de la clase de Lógica:
 - inicio y fin son óvalos que solo marcan dónde empieza y dónde termina («Inicio», «Fin» o el evento que lo dispara).
@@ -69,14 +70,14 @@ const TOOLS = [
 	{
 		name: 'dibujar_diagrama',
 		title: 'Dibujar diagrama de flujo',
-		description: `Dibuja un diagrama de flujo en un canvas personal, dentro de un marco con su título. Dibuja exactamente lo que dictó el alumno: no inventes ni agregues pasos. El servidor lo acomoda de arriba abajo (SÍ sigue hacia abajo, NO sale a la derecha) y lo deja como figuras normales que el alumno puede mover.
+		description: `Dibuja un diagrama de flujo en un canvas personal, dentro de un marco con su título. Dibuja exactamente lo que dictó el alumno: no inventes ni agregues pasos. Única excepción: un diagrama de lo que el juego ya hace según el código del proyecto, con un título que empiece con «${TODAY_PREFIX}» y el título del diagrama del alumno; se dibuja en violeta junto a ese diagrama. Lo que el juego debería hacer siempre lo dicta el alumno. El servidor lo acomoda de arriba abajo (SÍ sigue hacia abajo, NO sale a la derecha) y lo deja como figuras normales que el alumno puede mover.
 Si ya existe un diagrama con el mismo título en ese canvas, lo reemplaza: manda el diagrama completo, con los mismos ids que devolvió leer_canvas. Los nodos que el alumno movió a mano se quedan donde los puso.
 La respuesta trae los huecos que encontró el servidor (una decisión sin NO, un paso sin salida, un ciclo que nunca termina…). Pregúntaselos al alumno uno por uno; no los rellenes tú.`,
 		inputSchema: {
 			type: 'object',
 			properties: {
 				canvas: canvasParam,
-				titulo: { type: 'string', maxLength: LIMITS.title, description: 'Qué describe el diagrama, por ejemplo "Cuando un zombie me pega".' },
+				titulo: { type: 'string', maxLength: LIMITS.title, description: `Qué describe el diagrama, por ejemplo "Cuando un zombie me pega". Para lo que el juego hace hoy según el código: "${TODAY_PREFIX} Cuando un zombie me pega".` },
 				nodos: { type: 'array', items: nodeSchema, minItems: 1, maxItems: LIMITS.nodes },
 				flechas: { type: 'array', items: edgeSchema, maxItems: LIMITS.edges },
 			},
@@ -87,9 +88,25 @@ La respuesta trae los huecos que encontró el servidor (una decisión sin NO, un
 		_meta: diagramView,
 	},
 	{
+		name: 'escribir_nota',
+		title: 'Escribir nota',
+		description: 'Escribe una nota de texto en un canvas personal, al lado del diagrama que tiene el mismo título y dentro de su marco, para que se muevan juntos. Si no hay un diagrama con ese título, la pone en un lugar libre. Con el mismo título se actualiza la nota. Sirve para dejar junto al diagrama algo que el alumno decidió, como su plan; escribe lo que salió del alumno y de su diagrama, sin agregar ideas tuyas.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				canvas: canvasParam,
+				titulo: { type: 'string', maxLength: LIMITS.title, description: 'El título del diagrama al que acompaña, por ejemplo "Lobo mascota".' },
+				texto: { type: 'string', maxLength: LIMITS.note, description: `Texto de la nota, hasta ${LIMITS.noteLines} líneas. Usa saltos de línea para separar los pasos.` },
+			},
+			required: ['canvas', 'titulo', 'texto'],
+			additionalProperties: false,
+		},
+		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
 		name: 'leer_canvas',
 		title: 'Leer canvas',
-		description: 'Lee los diagramas de flujo de un canvas personal, con los cambios que el alumno haya hecho a mano, y devuelve sus nodos, flechas y huecos. Lo que no forma parte de un diagrama (texto, trazos, flechas sueltas) aparece aparte en "otros". Úsalo antes de cambiar un diagrama.',
+		description: 'Lee los diagramas de flujo de un canvas personal, con los cambios que el alumno haya hecho a mano, y devuelve sus nodos, flechas y huecos, además de las notas. Cada diagrama dice si es "dictado" por el alumno o "asi_funciona_hoy" (lo que el juego ya hace). Lo que no forma parte de un diagrama (texto, trazos, flechas sueltas) aparece aparte en "otros". Úsalo antes de cambiar un diagrama o una nota.',
 		inputSchema: { type: 'object', properties: { canvas: canvasParam }, required: ['canvas'], additionalProperties: false },
 		annotations: { readOnlyHint: true, openWorldHint: false },
 		_meta: diagramView,
@@ -186,7 +203,8 @@ function room(env: CanvasEnv, boardId: string) { return env.TLDRAW_DURABLE_OBJEC
 
 function describe(diagram: ReadDiagram) {
 	const name = new Map(diagram.nodos.map((node) => [node.id, node.texto]))
-	const lines = [`«${diagram.titulo}»${diagram.enMarco ? '' : ' (figuras sueltas, fuera de un marco)'}: ${diagram.nodos.length} nodos y ${diagram.flechas.length} flechas.`]
+	const kind = diagram.tipo === 'asi_funciona_hoy' ? ' (lo que el juego hace hoy, según el código)' : diagram.enMarco ? '' : ' (figuras sueltas, fuera de un marco)'
+	const lines = [`«${diagram.titulo}»${kind}: ${diagram.nodos.length} nodos y ${diagram.flechas.length} flechas.`]
 	for (const node of diagram.nodos) lines.push(`- [${node.id}] ${node.tipo}: ${node.texto}`)
 	for (const edge of diagram.flechas) lines.push(`- ${name.get(edge.de)} → ${name.get(edge.a)}${edge.etiqueta ? ` (${edge.etiqueta})` : ''}`)
 	if (diagram.huecos.length) lines.push('Huecos para preguntar al alumno, uno por uno:', ...diagram.huecos.map((gap) => `- ${gap.mensaje}`))
@@ -205,6 +223,18 @@ async function callTool(name: string, args: Record<string, unknown>, agent: Agen
 		const board = summary(request, await createPersonalBoard(env, agent.user.id, args.nombre))
 		return { content: [{ type: 'text', text: `Creé el canvas «${board.nombre}» (id ${board.id}): ${board.enlace}` }], structuredContent: { canvas: board } }
 	}
+	if (name === 'escribir_nota') {
+		const board = await ownBoard(env, agent, args.canvas)
+		const note = parseNote(args)
+		const result = await room(env, board.id).writeNote(note)
+		await catalog(env).fetch(`http://catalog/api/boards/${board.id}`, { method: 'PATCH', body: JSON.stringify({ touch: true }) })
+		if (result.canvasSvg) await saveSvgThumbnail(env, board, result.canvasSvg)
+		const where = result.nextTo ? `junto al diagrama «${result.nextTo}»` : 'en un lugar libre del canvas (no hay un diagrama con ese título)'
+		return {
+			content: [{ type: 'text', text: `${result.created ? 'Escribí' : 'Actualicé'} la nota «${note.titulo}» ${where}: ${boardUrl(request, board.id)}${result.movedByHand ? '\nEl alumno la había movido; la dejé donde estaba.' : ''}` }],
+			structuredContent: { canvas: summary(request, board), titulo: note.titulo, creada: result.created, juntoA: result.nextTo },
+		}
+	}
 	if (name === 'dibujar_diagrama') {
 		const board = await ownBoard(env, agent, args.canvas)
 		const chart = parseFlowchart(args)
@@ -213,19 +243,23 @@ async function callTool(name: string, args: Record<string, unknown>, agent: Agen
 		if (result.canvasSvg) await saveSvgThumbnail(env, board, result.canvasSvg)
 		const diagram = result.diagram as ReadDiagram | null
 		const huecos = diagram?.huecos ?? []
-		const intro = `${result.created ? 'Dibujé' : 'Actualicé'} «${chart.titulo}» en «${board.name}»: ${boardUrl(request, board.id)}${result.kept ? `\nRespeté la posición de ${result.kept} ${result.kept === 1 ? 'nodo que el alumno movió' : 'nodos que el alumno movió'} a mano.` : ''}`
-		const gaps = huecos.length ? `\nHuecos para preguntar al alumno, uno por uno (no los rellenes tú):\n${huecos.map((gap) => `- ${gap.mensaje}`).join('\n')}` : '\nSin huecos.'
+		const intro = `${result.created ? 'Dibujé' : 'Actualicé'} «${chart.titulo}»${isTodayTitle(chart.titulo) ? ' (lo que el juego hace hoy, en violeta)' : ''} en «${board.name}»: ${boardUrl(request, board.id)}${result.kept ? `\nRespeté la posición de ${result.kept} ${result.kept === 1 ? 'nodo que el alumno movió' : 'nodos que el alumno movió'} a mano.` : ''}`
+		const today = isTodayTitle(chart.titulo)
+		const gaps = !huecos.length ? '\nSin huecos.' : today
+			? `\nHuecos en lo que el juego hace hoy. No los corrijas en este diagrama: ayúdale al alumno a compararlos con el suyo, uno por uno:\n${huecos.map((gap) => `- ${gap.mensaje}`).join('\n')}`
+			: `\nHuecos para preguntar al alumno, uno por uno (no los rellenes tú):\n${huecos.map((gap) => `- ${gap.mensaje}`).join('\n')}`
 		return {
 			content: [{ type: 'text', text: intro + gaps }],
-			structuredContent: { canvas: summary(request, board), titulo: chart.titulo, creado: result.created, nodosMovidosAMano: result.kept, huecos, indicacion: huecos.length ? 'Pregunta los huecos al alumno uno por uno, con sus palabras. No los rellenes tú.' : 'Comparte el enlace con el alumno.' },
+			structuredContent: { canvas: summary(request, board), titulo: chart.titulo, creado: result.created, nodosMovidosAMano: result.kept, huecos, indicacion: today ? 'Este diagrama describe lo que el juego hace hoy según el código. Ayuda al alumno a compararlo con el que dictó; no lo corrijas ni lo completes.' : huecos.length ? 'Pregunta los huecos al alumno uno por uno, con sus palabras. No los rellenes tú.' : 'Comparte el enlace con el alumno.' },
 			// Only the chat view reads this; models get the text and structured content.
 			...(result.svg ? { _meta: { 'xp-canvas/svg': result.svg } } : {}),
 		}
 	}
 	const board = await ownBoard(env, agent, args.canvas)
-	const { diagrams, svg } = await room(env, board.id).readFlowcharts() as { diagrams: ReadDiagram[]; svg: string | null }
-	const text = diagrams.length ? diagrams.map(describe).join('\n\n') : 'El canvas está vacío.'
-	return { content: [{ type: 'text', text: `Canvas «${board.name}» (${boardUrl(request, board.id)})\n\n${text}` }], structuredContent: { canvas: summary(request, board), diagramas: diagrams }, ...(svg ? { _meta: { 'xp-canvas/svg': svg } } : {}) }
+	const { diagrams, notes, svg } = await room(env, board.id).readFlowcharts() as { diagrams: ReadDiagram[]; notes: ReadNote[]; svg: string | null }
+	const parts = [...diagrams.map(describe), ...notes.map((note) => `Nota «${note.titulo}»${note.juntoA ? ` junto al diagrama «${note.juntoA}»` : ''}:\n${note.texto}`)]
+	const text = parts.length ? parts.join('\n\n') : 'El canvas está vacío.'
+	return { content: [{ type: 'text', text: `Canvas «${board.name}» (${boardUrl(request, board.id)})\n\n${text}` }], structuredContent: { canvas: summary(request, board), diagramas: diagrams, notas: notes }, ...(svg ? { _meta: { 'xp-canvas/svg': svg } } : {}) }
 }
 
 /**

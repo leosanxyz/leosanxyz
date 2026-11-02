@@ -99,11 +99,11 @@ const tool = async (name, args, accessToken = tokens.access_token) => (await mcp
 
 const init = await mcp(tokens.access_token, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'smoke', version: '1' } })
 assert.equal(init.body.result.protocolVersion, '2025-06-18')
-assert.match(init.body.result.instructions, /exactamente lo que el alumno dictó/)
+assert.match(init.body.result.instructions, /Dibuja exactamente lo que dictó/)
 assert.equal((await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${tokens.access_token}` }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) })).status, 202)
 assert.equal((await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://hostile.test', authorization: `Bearer ${tokens.access_token}` }, body: '{}' })).status, 403)
 const toolNames = (await mcp(tokens.access_token, 'tools/list')).body.result.tools.map((entry) => entry.name)
-assert.deepEqual(toolNames, ['listar_canvases', 'crear_canvas', 'dibujar_diagrama', 'leer_canvas'])
+assert.deepEqual(toolNames, ['listar_canvases', 'crear_canvas', 'dibujar_diagrama', 'escribir_nota', 'leer_canvas'])
 // MCP Apps: the drawing tools point to a ui:// view that hosts with UI render in the chat.
 const tools = (await mcp(tokens.access_token, 'tools/list')).body.result.tools
 assert.equal(tools.find((entry) => entry.name === 'dibujar_diagrama')._meta.ui.resourceUri, 'ui://xp-canvas/diagrama.html')
@@ -143,8 +143,21 @@ assert.equal(updated.structuredContent.creado, false)
 assert.deepEqual(updated.structuredContent.huecos, [])
 const read = (await tool('leer_canvas', { canvas: created.enlace })).structuredContent.diagramas
 assert.equal(read.length, 1)
+assert.equal(read[0].tipo, 'dictado')
 assert.deepEqual(read[0].nodos.map((node) => node.id).sort(), complete.nodos.map((node) => node.id).sort())
 assert.equal(read[0].flechas.length, complete.flechas.length)
+
+// A plan note next to the diagram, and the diagram of what the game does today, next to the student's.
+const noted = await tool('escribir_nota', { canvas: created.id, titulo: complete.titulo, texto: '1. Restar la vida.\n   Para comprobar: me pega un zombie y baja el contador.' })
+assert.equal(noted.structuredContent.juntoA, complete.titulo)
+const today = await tool('dibujar_diagrama', { ...complete, titulo: `Así funciona hoy: ${complete.titulo}`, nodos: complete.nodos.filter((node) => node.id !== 'perder' && node.id !== 'fin'), flechas: complete.flechas.filter((edge) => !['perder', 'fin'].includes(edge.a) && !['perder', 'fin'].includes(edge.de)) })
+assert.match(today.content[0].text, /lo que el juego hace hoy/)
+assert.match(today.structuredContent.indicacion, /no lo corrijas/)
+const both = (await tool('leer_canvas', { canvas: created.id })).structuredContent
+assert.deepEqual(both.diagramas.map((diagram) => diagram.tipo).sort(), ['asi_funciona_hoy', 'dictado'])
+assert.deepEqual(both.notas, [{ titulo: complete.titulo, texto: '1. Restar la vida.\n   Para comprobar: me pega un zombie y baja el contador.', juntoA: complete.titulo }])
+for (const texto of ['', 'x'.repeat(2001)]) assert.equal((await tool('escribir_nota', { canvas: created.id, titulo: 'x', texto })).isError, true)
+assert.equal((await tool('escribir_nota', { canvas: classBoard.id, titulo: 'x', texto: 'y' })).isError, true)
 
 // Invalid input comes back as a tool error the agent can fix, not a crash.
 const invalid = await tool('dibujar_diagrama', { ...chart, flechas: [{ de: 'inicio', a: 'nadie' }] })

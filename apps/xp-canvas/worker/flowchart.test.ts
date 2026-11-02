@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DocumentRecordType, PageRecordType, TLDOCUMENT_ID, type TLPage, type TLRecord } from '@tldraw/tlschema'
 import { canvasSchema } from './boardSnapshot'
-import { findGaps, layoutFlowchart, parseFlowchart, plainText, readFlowcharts, richText, writeFlowchart, wrapText, type Flowchart } from './flowchart'
+import { findGaps, layoutFlowchart, parseFlowchart, parseNote, plainText, readFlowcharts, readNotes, richText, writeFlowchart, writeNote, wrapText, type Flowchart } from './flowchart'
 
 const vidas: Flowchart = parseFlowchart({
 	titulo: 'Cuando un zombie me pega',
@@ -137,5 +137,75 @@ describe('svg preview', () => {
 		expect(svg.match(/<polyline/g)).toHaveLength(tricky.flechas.length)
 		expect(svg).toContain('>SÍ<')
 		expect(renderFlowchartSvg(emptyStore().records.values())).toBeNull()
+	})
+})
+
+const boxOf = (shape: Extract<TLRecord, { typeName: 'shape' }>) => ({ x: shape.x, y: shape.y, w: (shape.props as { w: number }).w, h: (shape.props as { h: number }).h })
+const frameNamed = (store: ReturnType<typeof emptyStore>, name: string) => shapes(store).find((shape) => shape.type === 'frame' && (shape.props as { name: string }).name === name)!
+
+describe('what the game does today', () => {
+	it('draws the code diagram in violet next to the dictated one, without overlapping', () => {
+		const store = emptyStore()
+		writeFlowchart(store, vidas, validate)
+		const today = parseFlowchart({ ...vidas, titulo: `Así funciona hoy: ${vidas.titulo}`, nodos: vidas.nodos.filter((node) => node.id !== 'perder'), flechas: vidas.flechas.filter((edge) => edge.a !== 'perder' && edge.de !== 'perder') })
+		const { frameId } = writeFlowchart(store, today, validate)
+		const mine = boxOf(frameNamed(store, vidas.titulo)), theirs = boxOf(store.records.get(frameId) as never)
+		expect(theirs.y).toBe(mine.y)
+		expect(theirs.x).toBeGreaterThanOrEqual(mine.x + mine.w)
+		const colors = shapes(store).filter((shape) => shape.parentId === frameId && shape.type !== 'frame').map((shape) => (shape.props as { color: string }).color)
+		expect(new Set(colors)).toEqual(new Set(['violet']))
+		const read = readFlowcharts(store.records.values())
+		expect(read.map((diagram) => diagram.tipo).sort()).toEqual(['asi_funciona_hoy', 'dictado'])
+		expect(read.find((diagram) => diagram.tipo === 'asi_funciona_hoy')!.huecos.map((gap) => gap.tipo)).toContain('decision-sin-no')
+	})
+})
+
+describe('notes', () => {
+	const plan = 'Plan en tres pasos\n1. Hacer que el lobo se siente.\n   Para comprobar: le doy un hueso y se sienta.\n2. Detectar el peligro.\n   Para comprobar: aparece un zombie y el lobo voltea.'
+	it('sits inside the diagram frame, to its right, grows the frame and updates by title', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, vidas, validate)
+		const before = boxOf(store.records.get(frameId) as never)
+		const result = writeNote(store, parseNote({ titulo: 'cuando un ZOMBIE me pega', texto: plan }), validate)
+		expect(result).toMatchObject({ created: true, nextTo: vidas.titulo })
+		const note = store.records.get(result.noteId) as Extract<TLRecord, { typeName: 'shape' }>
+		expect(note.parentId).toBe(frameId)
+		const nodesRight = Math.max(...shapes(store).filter((shape) => shape.parentId === frameId && shape.type === 'geo').map((shape) => shape.x + (shape.props as { w: number }).w))
+		expect(note.x).toBeGreaterThan(nodesRight)
+		expect((store.records.get(frameId) as never as { props: { w: number } }).props.w).toBeGreaterThan(before.w)
+		expect(readNotes(store.records.values())).toEqual([{ titulo: 'cuando un ZOMBIE me pega', texto: plan, juntoA: vidas.titulo }])
+		expect(readFlowcharts(store.records.values())[0].otros).toEqual([])
+		writeNote(store, parseNote({ titulo: vidas.titulo, texto: 'Plan corregido' }), validate)
+		expect(readNotes(store.records.values()).map((entry) => entry.texto)).toEqual(['Plan corregido'])
+		expect(shapes(store).filter((shape) => shape.type === 'text')).toHaveLength(1)
+	})
+	it('follows the diagram when it gets wider, unless the student moved it', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, vidas, validate)
+		const { noteId } = writeNote(store, parseNote({ titulo: vidas.titulo, texto: plan }), validate)
+		const wider = parseFlowchart({ ...vidas, nodos: [...vidas.nodos, { id: 'x', tipo: 'decision', texto: '¿Tengo poción?' }, { id: 'y', tipo: 'proceso', texto: 'Tomar la poción' }], flechas: [...vidas.flechas.filter((edge) => edge.a !== 'perder'), { de: 'quedan', a: 'x', etiqueta: 'NO' }, { de: 'x', a: 'y', etiqueta: 'SÍ' }, { de: 'x', a: 'perder', etiqueta: 'NO' }, { de: 'y', a: 'restar' }] })
+		writeFlowchart(store, wider, validate)
+		const note = store.records.get(noteId) as Extract<TLRecord, { typeName: 'shape' }>
+		const nodesRight = Math.max(...shapes(store).filter((shape) => shape.parentId === frameId && shape.type === 'geo').map((shape) => shape.x + (shape.props as { w: number }).w))
+		expect(note.x).toBeGreaterThan(nodesRight)
+		store.set(noteId, { ...note, x: 5, y: 900 })
+		writeFlowchart(store, vidas, validate)
+		writeNote(store, parseNote({ titulo: vidas.titulo, texto: 'Otra versión' }), validate)
+		expect([store.records.get(noteId)!].map((shape) => [(shape as never as { x: number }).x, (shape as never as { y: number }).y])).toEqual([[5, 900]])
+	})
+	it('goes to a free spot with its title when there is no diagram, and checks its limits', () => {
+		const store = emptyStore()
+		writeFlowchart(store, vidas, validate)
+		const result = writeNote(store, parseNote({ titulo: 'Ideas sueltas', texto: 'Una idea' }), validate)
+		expect(result.nextTo).toBeNull()
+		const note = store.records.get(result.noteId) as Extract<TLRecord, { typeName: 'shape' }>
+		const frame = boxOf(frameNamed(store, vidas.titulo))
+		expect(note.parentId).toBe('page:page')
+		expect(note.x).toBeGreaterThanOrEqual(frame.x + frame.w)
+		expect(plainText((note.props as { richText: unknown }).richText)).toBe('Ideas sueltas Una idea')
+		expect(readNotes(store.records.values())).toEqual([{ titulo: 'Ideas sueltas', texto: 'Una idea', juntoA: null }])
+		expect(() => parseNote({ titulo: 'x', texto: '   ' })).toThrow('vacía')
+		expect(() => parseNote({ titulo: 'x', texto: 'a'.repeat(2001) })).toThrow('2000')
+		expect(() => parseNote({ titulo: 'x', texto: Array(61).fill('a').join('\n') })).toThrow('60')
 	})
 })

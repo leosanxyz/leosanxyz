@@ -90,6 +90,12 @@ export function renderFlowchartSvg(records: Iterable<TLRecord>, frameIds?: strin
 	const inside = shapes.filter((shape) => frameSet.has(shape.parentId))
 	const boxes = new Map<string, Box>()
 	for (const shape of inside) {
+		if (shape.type === 'text') {
+			// Notes next to a diagram, left aligned like on the canvas.
+			const box = absolute(shape)
+			textLines(shape, box.w).forEach((line, index) => parts.push(`<text x="${box.x}" y="${box.y + 26 + index * 31}" font-size="22" fill="#1d1d1d" ${FONT}>${escape(line)}</text>`))
+			continue
+		}
 		if (shape.type !== 'geo') continue
 		const box = absolute(shape), props = shape.props as { geo: string; color: string }
 		boxes.set(shape.id, box)
