@@ -10,6 +10,8 @@ import { readPoints } from './points'
 import { readPass } from './studentPass'
 import { body, json, PortalError } from './portalHttp'
 import { handleShopRequest } from './shop'
+import { listAgentGrants, revokeAgentGrants } from './oauth'
+import { createPersonalBoard } from './mcp'
 import {
 	allowedBoardIds, canReadBoard, clearPortalCookie, constantMatch, createPortalSession,
 	getPortalSession, hashPassword, loginAllowed, normalizeUsername, passwordProblem,
@@ -24,7 +26,7 @@ function name(value: unknown) {
 async function library(env: CanvasEnv) { return (await catalog(env).fetch('http://catalog/api/library')).json<BoardLibrary>() }
 async function recheckRooms(env: CanvasEnv) {
 	// Only used for account/session revocation, not on every canvas message.
-	const { boards } = await library(env)
+	const { boards } = await (await catalog(env).fetch('http://catalog/api/library?scope=all')).json<BoardLibrary>()
 	await Promise.all(boards.map((board) => env.TLDRAW_DURABLE_OBJECT.get(env.TLDRAW_DURABLE_OBJECT.idFromName(board.id)).revalidatePortalSessions()))
 }
 async function groupId(value: unknown, env: CanvasEnv): Promise<string | null> {
@@ -112,17 +114,26 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			}
 		}
 		if (path === '/api/portal/points' && method === 'GET') return json({ points: await readPoints(env, session.user.id) })
+		if (session.user.role === 'student' && (path === '/api/portal/canvases' || path.startsWith('/api/portal/agents'))) {
+			if (!session.passCompleted) throw new PortalError(403, 'Termina tu bienvenida antes de continuar.')
+			if (path === '/api/portal/canvases' && method === 'POST') return json(await createPersonalBoard(env, session.user.id, (await body(request)).name), 201)
+			if (path === '/api/portal/agents' && method === 'GET') return json({ agents: await listAgentGrants(env, session.user.id) })
+			const agent = /^\/api\/portal\/agents\/([a-f0-9-]{36})$/.exec(path)
+			if (agent && method === 'DELETE') { await revokeAgentGrants(env, session.user.id, agent[1]); return json({ ok: true }) }
+		}
 		if (session.user.role !== 'teacher') throw new PortalError(403, 'Solo el profesor puede administrar el portal.')
 		if (import.meta.env.DEV && path === '/api/portal/review-passes' && method === 'GET') {
 			const { results } = await db.prepare("SELECT * FROM users WHERE role = 'student' AND group_id = 'pipelines-sd26' ORDER BY name").all<UserRow>()
 			return json({ students: await Promise.all(results.map(async (row) => ({ username: row.username, name: row.name, profile: await readPass(publicUser(row), env) }))) })
 		}
 		if (path === '/api/portal/roster' && method === 'GET') {
-			const [students, groups] = await Promise.all([
+			const [students, groups, personal] = await Promise.all([
 				db.prepare("SELECT users.*, COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = users.id), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = users.id), 0) AS points FROM users WHERE role = 'student' ORDER BY name").all<UserRow & { points: number }>(),
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
+				catalog(env).fetch('http://catalog/api/library?scope=personal').then((response) => response.json<BoardLibrary>()),
 			])
-			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results })
+			const canvases = personal.boards.filter((board) => !board.trashedAt).sort((a, b) => b.updatedAt - a.updatedAt)
+			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results, canvases })
 		}
 		if (path === '/api/portal/groups' && method === 'POST') {
 			const group = { id: crypto.randomUUID(), name: name((await body(request)).name) }
@@ -146,14 +157,22 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			await db.batch(rows.map((row) => db.prepare("INSERT INTO users (id, username, name, role, group_id, created_at) VALUES (?, ?, ?, 'student', ?, ?)").bind(row.id, row.username, row.name, group, Date.now())))
 			return json({ created: rows.length }, 201)
 		}
+		const agentsMatch = /^\/api\/portal\/students\/([a-f0-9-]+)\/agents$/.exec(path)
+		if (agentsMatch && (method === 'GET' || method === 'DELETE')) {
+			const student = await readStudent(agentsMatch[1], env)
+			if (method === 'DELETE') await revokeAgentGrants(env, student.id)
+			return json({ agents: await listAgentGrants(env, student.id) })
+		}
 		const studentMatch = /^\/api\/portal\/students\/([a-f0-9-]+)(\/reset)?$/.exec(path)
 		if (studentMatch && (method === 'PATCH' || method === 'POST' && studentMatch[2])) {
 			const student = await readStudent(studentMatch[1], env)
 			if (studentMatch[2]) {
 				await db.prepare('UPDATE users SET password_hash = NULL, must_change = 1, version = version + 1 WHERE id = ?').bind(student.id).run()
+				await revokeAgentGrants(env, student.id)
 			} else {
 				const data = await body(request)
 				if ('disabled' in data && typeof data.disabled !== 'boolean') throw new PortalError(400, 'Estado inválido.')
+				if (data.disabled === true) await revokeAgentGrants(env, student.id)
 				const group = 'groupId' in data ? await groupId(data.groupId, env) : student.group_id
 				await db.prepare('UPDATE users SET name = ?, group_id = ?, disabled = ?, version = version + 1 WHERE id = ?')
 					.bind('name' in data ? name(data.name) : student.name, group, 'disabled' in data ? Number(data.disabled) : student.disabled, student.id).run()
@@ -204,7 +223,7 @@ async function canReadAsset(request: Request, uploadId: string, session: AuthSes
 	if (!hint) {
 		try { hint = /^\/board\/([^/]+)/.exec(new URL(request.headers.get('referer') ?? '').pathname)?.[1] ?? null } catch { /* Direct download: inspect granted rooms. */ }
 	}
-	const candidates = hint ? allowed.has(hint) ? [hint] : [] : [...allowed]
+	const candidates = hint ? await canReadBoard(session, hint, env) ? [hint] : [] : [...allowed]
 	for (const id of candidates) {
 		const board = await readBoard(env, id)
 		if (!board || board.trashedAt) continue
@@ -217,7 +236,8 @@ async function canReadAsset(request: Request, uploadId: string, session: AuthSes
 export async function portalGate(request: Request, env: CanvasEnv): Promise<Response | undefined> {
 	if (!portalEnabled(env)) return undefined
 	const url = new URL(request.url), path = url.pathname
-	if (!path.startsWith('/api/') || path === '/api/health' || path.startsWith('/api/portal/')) return undefined
+	// OAuth endpoints check the session or the client themselves; agents never carry a portal cookie.
+	if (!path.startsWith('/api/') || path === '/api/health' || path.startsWith('/api/portal/') || path.startsWith('/api/oauth/')) return undefined
 	if (!['GET', 'HEAD'].includes(request.method) && !isSameOrigin(request)) return json({ error: 'Origen inválido.' }, 403)
 	const session = await getPortalSession(request, env)
 	if (!session) return json({ error: 'Inicia sesión para continuar.' }, 401)
@@ -227,11 +247,15 @@ export async function portalGate(request: Request, env: CanvasEnv): Promise<Resp
 	if (!session.passCompleted) return json({ error: 'Termina tu bienvenida antes de entrar a tus clases.' }, 403)
 	const interaction = /^\/api\/boards\/([^/]+)\/interactions$/.exec(path)
 	if (interaction && ['GET', 'POST'].includes(request.method) && isBoardId(interaction[1]) && await canReadBoard(session, interaction[1], env)) return undefined
+	// The owner of a personal canvas saves its preview, like the teacher does for class canvases.
+	const thumbnail = /^\/api\/boards\/([^/]+)\/thumbnail$/.exec(path)
+	if (thumbnail && request.method === 'PUT' && isBoardId(thumbnail[1]) && (await readBoard(env, thumbnail[1]))?.ownerId === session.user.id) return undefined
 	if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Tu cuenta solo puede observar canvases.' }, 403)
 	if (path === '/api/editor-session') return undefined
 	if (path === '/api/library') {
-		const [data, allowed] = await Promise.all([library(env), allowedBoardIds(session, env)])
-		return json(studentLibrary(data, allowed))
+		const [data, allowed, own] = await Promise.all([library(env), allowedBoardIds(session, env), catalog(env).fetch(`http://catalog/api/library?owner=${encodeURIComponent(session.user.id)}`).then((response) => response.json<BoardLibrary>())])
+		const classes = studentLibrary(data, allowed)
+		return json({ ...classes, boards: [...classes.boards, ...own.boards.filter((board) => !board.trashedAt)] })
 	}
 	const board = /^\/api\/(?:boards|connect)\/([^/]+)(?:\/thumbnail)?$/.exec(path)
 	if (board && isBoardId(board[1]) && await canReadBoard(session, board[1], env)) return undefined

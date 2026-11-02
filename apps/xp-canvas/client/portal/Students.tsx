@@ -7,11 +7,13 @@ import { boardViewPath } from '../boards/useBoardView'
 import { navigate } from '../navigation'
 import { portalRequest } from './api'
 import { SkeletonLines, revealDelay, useReveal } from '../components/Skeleton'
+import { ago } from './AgentList'
+import type { Board } from '../../shared/boards'
 
 export default function Students() {
 	const { library } = useBoardLibrary()
 	const [roster, setRoster] = useState<Roster | null>(null), [error, setError] = useState(''), [notice, setNotice] = useState('')
-	const [search, setSearch] = useState(''), [groupFilter, setGroupFilter] = useState('')
+	const [search, setSearch] = useState(''), [groupFilter, setGroupFilter] = useState(''), [order, setOrder] = useState<'name' | 'activity'>('name')
 	const [dialog, setDialog] = useState<'group' | 'import' | Student | null>(null), [busy, setBusy] = useState(false)
 	const [text, setText] = useState(''), [selectedGroup, setSelectedGroup] = useState(''), [resetConfirm, setResetConfirm] = useState(false)
 	const load = useCallback(async () => { setRoster(await portalRequest<Roster>('roster')) }, [])
@@ -51,14 +53,18 @@ export default function Students() {
 		finally { setBusy(false) }
 	}
 	const reveal = useReveal(Boolean(roster))
-	const students = roster?.students.filter((student) => (!groupFilter || student.groupId === groupFilter) && `${student.name} ${student.username}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())) ?? []
+	const canvases = new Map<string, Board[]>()
+	for (const board of roster?.canvases ?? []) canvases.set(board.ownerId!, [...canvases.get(board.ownerId!) ?? [], board])
+	const lastEdit = (id: string) => canvases.get(id)?.[0]?.updatedAt ?? 0
+	const students = (roster?.students.filter((student) => (!groupFilter || student.groupId === groupFilter) && `${student.name} ${student.username}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())) ?? [])
+		.sort((a, b) => order === 'activity' ? lastEdit(b.id) - lastEdit(a.id) : 0)
 	return <LibraryShell title="Alumnos" view="students" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} testId="students-admin"
 		actions={<><button className="portal-button" onClick={() => open('group')}>Nuevo grupo</button><button className="xp-primary" disabled={!roster} onClick={() => open('import')}>Añadir alumnos</button></>}>
-		<div className="portal-admin-tools"><label>Buscar <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre o matrícula" /></label><label>Grupo <select value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}><option value="">Todos los grupos</option>{roster?.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label></div>
+		<div className="portal-admin-tools"><label>Buscar <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre o matrícula" /></label><label>Grupo <select value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}><option value="">Todos los grupos</option>{roster?.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label><label>Orden <select value={order} onChange={(event) => setOrder(event.target.value as 'name' | 'activity')}><option value="name">Nombre</option><option value="activity">Canvas editado hace menos</option></select></label></div>
 		{!dialog && error && <p role="alert" className="xp-error">{error} <button className="portal-link" onClick={() => { void load().then(() => setError('')).catch(() => setError('No pude cargar la lista de alumnos.')) }}>Reintentar</button></p>}
 		{notice && <p role="status">{notice}</p>}
 		<section className="portal-students" aria-label="Lista de alumnos" aria-busy={!roster} data-reveal={reveal}>
-			{students.map((student, index) => <article className="portal-student" data-disabled={student.disabled} key={student.id} style={revealDelay(reveal, index)}><div><strong>{student.name}</strong><p>{student.username} · {roster?.groups.find((group) => group.id === student.groupId)?.name ?? 'Sin grupo'}</p><p className="student-points">{student.points.toLocaleString('es-MX')} puntos</p><p>{student.disabled ? 'Cuenta deshabilitada' : student.mustChangePassword ? 'Pendiente de cambiar contraseña' : 'Cuenta activa'}</p></div><button className="portal-button" onClick={() => open(student)} aria-label={`Administrar ${student.name}`}>Administrar</button></article>)}
+			{students.map((student, index) => <article className="portal-student" data-disabled={student.disabled} key={student.id} style={revealDelay(reveal, index)}><div><strong>{student.name}</strong><p>{student.username} · {roster?.groups.find((group) => group.id === student.groupId)?.name ?? 'Sin grupo'}</p><p className="student-points">{student.points.toLocaleString('es-MX')} puntos</p><StudentCanvasLinks studentId={student.id} boards={canvases.get(student.id) ?? []} /><p>{student.disabled ? 'Cuenta deshabilitada' : student.mustChangePassword ? 'Pendiente de cambiar contraseña' : 'Cuenta activa'}</p></div><button className="portal-button" onClick={() => open(student)} aria-label={`Administrar ${student.name}`}>Administrar</button></article>)}
 			{!roster && <SkeletonLines count={4} />}
 		</section>
 		{roster && !students.length && <p>No hay alumnos en esta lista.</p>}
@@ -70,4 +76,13 @@ export default function Students() {
 			{typeof dialog === 'object' && <><hr /><p className="portal-hint">Restablecer vuelve a colocar la matrícula como contraseña y cierra las sesiones abiertas. El alumno tendrá que elegir una nueva.</p><div className="xp-dialog-actions"><button type="button" disabled={busy} onClick={() => { if (resetConfirm) void accountAction(dialog, true); else setResetConfirm(true) }}>{resetConfirm ? 'Confirmar restablecimiento' : 'Restablecer contraseña'}</button></div><button className="portal-link" type="button" disabled={busy} onClick={() => void accountAction(dialog, false)}>{dialog.disabled ? 'Habilitar cuenta' : 'Deshabilitar cuenta'}</button></>}
 		</form></Modal>}
 	</LibraryShell>
+}
+
+/** The latest personal canvas opens in one click; the rest are on the student's page. */
+function StudentCanvasLinks({ studentId, boards }: { studentId: string; boards: Board[] }) {
+	if (!boards.length) return null
+	const [latest] = boards
+	return <p className="student-canvases">
+		<button className="portal-link" onClick={() => navigate(`/board/${latest.id}`)}>{latest.name}</button> · {ago(latest.updatedAt)} · <button className="portal-link" onClick={() => navigate(`/alumnos/${studentId}`)}>{boards.length === 1 ? 'Ver su canvas y agentes' : `Ver sus ${boards.length} canvases`}</button>
+	</p>
 }

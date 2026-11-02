@@ -13,8 +13,9 @@ xp.leosan.xyz
   Cloudflare Worker xp-canvas-portal
     frontend React + Vite + tldraw
     API HTTP y acceso a WebSockets
-      D1: cuentas, grupos, sesiones, permisos y pases
+      D1: cuentas, grupos, sesiones, permisos, pases y agentes
       Durable Objects: documentos y catálogo
+    MCP en /mcp para los agentes de los alumnos (OAuth)
       R2 privado: archivos, recursos y miniaturas
 ```
 
@@ -37,6 +38,8 @@ Las rutas públicas son `/`, `/arte`, `/escritura` y `/software`; `/test-screens
 | `/` | Biblioteca del profesor o clases autorizadas del alumno |
 | `/board/<id>` | Documento tldraw colaborativo |
 | `/alumnos` | Administración del profesor |
+| `/alumnos/<id>` | Canvases personales y agentes de un alumno, para el profesor |
+| `/autorizar` | Permiso OAuth que el alumno da a su agente |
 | `/perfil` | Cuenta, contraseña y pase |
 | `/tienda` | Tienda de cartas del alumno; el profesor la ve sin comprar |
 | `/mi-pase` | Acceso anterior al editor del pase |
@@ -64,7 +67,7 @@ La biblioteca no almacena el documento de cada canvas. Duplicar crea otro docume
 
 Los datos locales y remotos son independientes. Las transferencias son copias puntuales, no una sincronización continua. El procedimiento está en [Transferencia de datos](apps/xp-canvas/PORTAL.md#transferencia-de-datos).
 
-Los alumnos acceden a canvases concedidos individualmente o a su grupo y su conexión tldraw permanece en modo lectura. Las respuestas a preguntas usan la API restringida que se describe abajo. La biblioteca filtrada devuelve únicamente esos canvases y sus carpetas antecesoras, sin revelar carpetas privadas o vacías. Ver una carpeta no concede acceso a todo su contenido. El profesor administra la biblioteca global.
+Los alumnos acceden a canvases concedidos individualmente o a su grupo y su conexión tldraw permanece en modo lectura. La única excepción son sus [canvases personales](#canvases-personales-y-agentes). Las respuestas a preguntas usan la API restringida que se describe abajo. La biblioteca filtrada devuelve únicamente esos canvases y sus carpetas antecesoras, sin revelar carpetas privadas o vacías. Ver una carpeta no concede acceso a todo su contenido. El profesor administra la biblioteca global.
 
 Los archivos se autorizan por sus referencias en documentos permitidos, antes de responder a GET, HEAD, Range o solicitudes condicionales. El navegador aporta el canvas de origen para acotar la consulta; sin esa pista se revisan los canvases concedidos. Esta búsqueda consulta los Durable Objects. Antes de ampliar el volumen de grupos y archivos, conviene medirla e indexar las referencias si hace falta. Las respuestas del portal usan `private, no-store` y no consultan ni llenan la caché pública del editor local.
 
@@ -84,6 +87,22 @@ Con permiso, un alumno puede enviar únicamente el identificador de la pregunta,
 La acción `draw` de la misma API está reservada al profesor. El servidor reúne alumnos conectados por identidad, sin duplicar pestañas, elige uno al azar y difunde un evento `student-draw` con participantes, ganador e instante de inicio. Todos recorren la misma secuencia y reproducen pulsos cada vez más espaciados. Con movimiento reducido solo se marca el resultado final. El sorteo no concede permiso de interacción. La tabla local `student_draw` conserva únicamente el plazo de bloqueo para impedir sorteos simultáneos incluso tras hibernar; participantes y resultado son efímeros y no se reproducen al reconectar.
 
 El Worker transmite las cargas por streaming y valida permisos, tamaño, tipo MIME y cabecera binaria. Los documentos se descargan con `nosniff` y una política que impide ejecutar su contenido. Las descargas admiten rangos, ETag y solicitudes condicionales; el uso de caché depende del modo de acceso.
+
+## Canvases personales y agentes
+
+Un canvas personal es una entrada del catálogo con `ownerId`. Lo crea el alumno desde **Mis canvases** o su agente, hasta 20 por alumno (`PERSONAL_BOARD_LIMIT`). Los canvases de clase no tienen dueño. `TldrawDurableObject` abre en modo escritura el WebSocket del profesor y el del dueño; cualquier otro alumno sigue en lectura, así que la garantía de los canvases de clase no cambia. `canReadBoard` concede la lectura al dueño además de los permisos de `board_grants`; otro alumno recibe 404. La biblioteca del profesor (`GET /api/library`) excluye los canvases personales; el roster los incluye (`canvases`) y la pantalla `/alumnos/<id>` los muestra por alumno. La biblioteca del alumno junta sus clases y sus canvases.
+
+En un canvas personal, la API de interacciones rechaza las acciones de los alumnos: sin eso, un alumno podría crear un gachapon gratis o preguntas que den puntos. El dueño no sube archivos ni ve Recursos, y puede guardar la miniatura de su canvas. Cerrar sesión, cambiar o restablecer la contraseña y deshabilitar la cuenta revalidan también sus canvases personales.
+
+`/mcp` es un servidor MCP Streamable HTTP sin estado, en el mismo Worker (`worker/mcp.ts`). Expone `listar_canvases`, `crear_canvas`, `dibujar_diagrama`, `escribir_nota` y `leer_canvas`, solo sobre los canvases personales del alumno dueño del token; un canvas de clase o de otro alumno se trata como inexistente. Sus `instructions` y las descripciones de las herramientas contienen las reglas mínimas de tutor: lo que el juego debe hacer lo dicta el alumno, el agente no inventa pasos y pregunta los huecos uno por uno. La única excepción es un diagrama de lo que el juego ya hace según el código, con un título que empieza con «Así funciona hoy:» y el título del diagrama del alumno. Se dibuja en violeta (`meta.xpToday` en el marco) en un lugar libre junto a ese diagrama, y `leer_canvas` lo marca como `asi_funciona_hoy`.
+
+`worker/flowchart.ts` valida el diagrama (60 nodos, 120 flechas, textos de 200 caracteres), lo acomoda de arriba abajo y lo escribe en una transacción del documento como figuras de tldraw: un `frame` con el título, óvalos, rectángulos y rombos `geo`, y flechas `elbow` enlazadas por bindings. Cada registro se valida con el esquema antes de escribirse. Dibujar con un título existente reemplaza los nodos y flechas de ese marco; los nodos que el alumno movió a mano (posición distinta de `meta.xpPos`) conservan su lugar, y el texto, los trazos y las flechas sueltas no se tocan. `leer_canvas` lee cada marco como diagrama, junta los símbolos sueltos de la página y reporta aparte lo que no es parte del diagrama. Los huecos (sin inicio o fin, decisión sin SÍ o NO, paso sin salida, paso inalcanzable, ciclo sin salida) los calcula el servidor.
+
+`escribir_nota` escribe una figura de texto (`meta.xpNote` con el título normalizado). Si existe un diagrama con ese título, va dentro de su marco, a la derecha de los nodos, y el marco crece para contenerla; cuando el diagrama se ensancha, la nota lo sigue salvo que el alumno la haya movido. Sin ese diagrama, va en un lugar libre de la primera página con el título en negritas. Repetir el título actualiza el texto. Admite 2000 caracteres, 60 líneas y 30 notas por canvas. `leer_canvas` devuelve las notas aparte, en `notas`, y no las cuenta entre lo que no es parte del diagrama.
+
+`worker/flowchartSvg.ts` dibuja los marcos como SVG a partir del documento. Ese SVG viaja en `_meta` del resultado, que los modelos no reciben, para la vista `ui://xp-canvas/diagrama.html` de MCP Apps (`worker/mcpApp.ts`). Esa vista no hace solicitudes de red. También sirve de miniatura de los canvases que el agente dibujó antes de que alguien los abriera: se guarda con `image/svg+xml` en la clave de la miniatura y se sirve con una CSP sin scripts. La primera miniatura PNG que guarde un navegador la sustituye y el agente ya no la reescribe.
+
+El agente se autentica con OAuth 2.1 (`worker/oauth.ts`): metadatos en `/.well-known/oauth-authorization-server` y `/.well-known/oauth-protected-resource/mcp`, registro dinámico de clientes públicos, PKCE S256 obligatorio, redirecciones https o de loopback (el puerto de loopback no se compara) y consentimiento en `/autorizar` con la sesión del portal. Solo una cuenta de alumno activa, con la contraseña cambiada y la bienvenida terminada, puede conectar un agente. La migración `0007_agents.sql` crea `oauth_clients`, `oauth_codes` (un uso, cinco minutos) y `agent_grants`. D1 guarda únicamente hashes: el token de acceso dura una hora y el de renovación 120 días; cada renovación los rota. Cada alumno conserva hasta cinco agentes. El alumno los desconecta en **Mi perfil** y el profesor los revoca en `/alumnos/<id>`; restablecer la contraseña o deshabilitar la cuenta los borra. Registro, token y `/mcp` tienen límites por IP o por agente en `login_attempts`.
 
 ## Puntos de los alumnos
 

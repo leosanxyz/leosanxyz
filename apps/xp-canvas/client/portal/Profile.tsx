@@ -9,6 +9,7 @@ import { portalRequest } from './api'
 import { PassPending, usePass } from './pass/PassGate'
 import { PanelSkeleton } from '../components/Skeleton'
 import { ProfilePass } from './pass/ProfilePass'
+import { AgentList } from './AgentList'
 import './profile.css'
 
 export default function Profile({ initiallyEditing = false }: { initiallyEditing?: boolean }) {
@@ -36,6 +37,10 @@ export default function Profile({ initiallyEditing = false }: { initiallyEditing
 					<Collapsible.Trigger className="profile-settings-row">Cambiar contraseña</Collapsible.Trigger>
 					<Collapsible.Content className="profile-password-content"><ChangePassword /></Collapsible.Content>
 				</Collapsible.Root>
+				{user?.role === 'student' && <Collapsible.Root className="profile-password">
+					<Collapsible.Trigger className="profile-settings-row">Agentes conectados</Collapsible.Trigger>
+					<Collapsible.Content className="profile-password-content"><AgentList /></Collapsible.Content>
+				</Collapsible.Root>}
 				{profile && <button className="profile-settings-row profile-replay" onClick={() => navigate('/bienvenida')}>Repetir la bienvenida</button>}
 			</div>
 	return <LibraryShell title="Mi perfil" view="profile" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/')} testId="portal-profile">

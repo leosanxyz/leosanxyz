@@ -1,3 +1,5 @@
+import type { Board } from './boards'
+
 export interface PortalUser {
 	id: string
 	username: string
@@ -21,4 +23,5 @@ export interface Student extends PortalUser {
 
 export interface StudentGroup { id: string; name: string }
 export interface BoardGrant { kind: 'user' | 'group'; subjectId: string }
-export interface Roster { students: Student[]; groups: StudentGroup[] }
+export interface Roster { students: Student[]; groups: StudentGroup[]; canvases: Board[] }
+export interface AgentGrant { id: string; client: string; createdAt: number; lastUsedAt: number | null }

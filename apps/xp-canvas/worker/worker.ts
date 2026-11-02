@@ -18,6 +18,8 @@ import { handlePortalRequest, portalGate } from './portal'
 import { getPortalSession, portalEnabled, PORTAL_IDENTITY_HEADER } from './portalAuth'
 import { handleQuestionInteraction } from './questions'
 import { exportBoard, importBoard } from './boardTransfer'
+import { handleMcp } from './mcp'
+import { authorizationServerMetadata, handleOAuthRequest, protectedResourceMetadata } from './oauth'
 
 export { TldrawDurableObject } from './TldrawDurableObject'
 export { BoardCatalog } from './BoardCatalog'
@@ -31,6 +33,11 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	},
 })
 	.all('/api/portal/*', handlePortalRequest)
+	.all('/api/oauth/*', handleOAuthRequest)
+	.all('/mcp', handleMcp)
+	.get('/.well-known/oauth-authorization-server', (request, env) => portalEnabled(env) ? authorizationServerMetadata(request) : error(404, 'Not found'))
+	.get('/.well-known/oauth-protected-resource', (request, env) => portalEnabled(env) ? protectedResourceMetadata(request) : error(404, 'Not found'))
+	.get('/.well-known/oauth-protected-resource/mcp', (request, env) => portalEnabled(env) ? protectedResourceMetadata(request) : error(404, 'Not found'))
 	.get('/api/health', () =>
 		Response.json(
 			{ ok: true, service: 'xp-canvas' },

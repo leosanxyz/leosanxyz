@@ -21,6 +21,8 @@ import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
 import type { RewardSkin } from '../shared/pass'
 import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
 import type { InteractionState, QuestionCommand, QuestionFeedback } from '../shared/questionShape'
+import { readFlowcharts, readNotes, writeFlowchart, writeNote, type Flowchart, type NoteInput } from './flowchart'
+import { renderFlowchartSvg } from './flowchartSvg'
 import { LETTERS_PER_ROUND, LETTERS_PER_STUDENT, type MailboxCommand, type MailboxReply } from '../shared/mailboxShape'
 
 interface SocketAttachment {
@@ -28,7 +30,7 @@ interface SocketAttachment {
 	isReadonly: boolean
 	authExpiresAt: number | null
 	snapshot: SessionStateSnapshot | null
-	portal?: { tokenHash: string; roomId: string; user: PortalUser }
+	portal?: { tokenHash: string; roomId: string; user: PortalUser; ownerId?: string }
 	revoked?: boolean
 }
 
@@ -166,6 +168,8 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		if (!session || !board || board.trashedAt || !await canReadBoard(session, roomId, this.env)) return denied(403, 'No tienes acceso a este canvas.')
 		const room = this.getOrCreateRoom(), user = session.user
 		if (!command) { this.broadcastQuestionPermissions(); return { status: 200, body: this.questionPermissions(user) } }
+		// Points, cards and letters belong to class. A student could otherwise build a free gachapon in their own canvas.
+		if (board.ownerId && user.role !== 'teacher') return denied(403, 'Las actividades de clase no funcionan en canvases personales.')
 		if (command.action === 'gachapon') return this.spinGachapon(roomId, user, command)
 		if (command.action === 'letter') return this.postLetter(user, command)
 		if (command.action === 'mailbox-draw') return this.drawLetter(user, command)
@@ -343,6 +347,28 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		return this.pointsFlush
 	}
 
+	/** Agent drawing (MCP). The Worker already checked that the agent's student owns this canvas. */
+	drawFlowchart(chart: Flowchart) {
+		const result = this.getOrCreateRoom().storage.transaction((store) => writeFlowchart(store, chart, (record) => { schema.types[record.typeName].validate(record) })).result
+		const records = this.documentRecords()
+		return { ...result, diagram: readFlowcharts(records).find((diagram) => diagram.enMarco && diagram.titulo === chart.titulo) ?? null, svg: renderFlowchartSvg(records, [result.frameId]), canvasSvg: renderFlowchartSvg(records) }
+	}
+
+	readFlowcharts() {
+		const records = this.documentRecords()
+		return { diagrams: readFlowcharts(records), notes: readNotes(records), svg: renderFlowchartSvg(records) }
+	}
+
+	/** Agent note (MCP). The Worker already checked that the agent's student owns this canvas. */
+	writeNote(note: NoteInput) {
+		const result = this.getOrCreateRoom().storage.transaction((store) => writeNote(store, note, (record) => { schema.types[record.typeName].validate(record) })).result
+		return { ...result, canvasSvg: renderFlowchartSvg(this.documentRecords()) }
+	}
+
+	private documentRecords() {
+		return this.getDocumentSnapshot().documents.map((document) => document.state as TLRecord)
+	}
+
 	referencesAsset(uploadId: string): boolean {
 		if (!/^[a-zA-Z0-9_-]{12,64}$/.test(uploadId)) return false
 		return documentReferencesAsset(this.getOrCreateRoom().getCurrentSnapshot().documents, uploadId)
@@ -405,7 +431,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 			const session = await sessionByHash(tokenHash, this.env)
 			const board = await readBoard(this.env, request.params.roomId)
 			if (!session || !board || board.trashedAt || !await canReadBoard(session, board.id, this.env)) return error(403, 'Access denied')
-			portal = { tokenHash, roomId: board.id, user: session.user }
+			portal = { tokenHash, roomId: board.id, user: session.user, ownerId: board.ownerId }
 		}
 		// Initialize before accepting this socket so it is not mistaken for a half-restored
 		// hibernated connection while getOrCreateRoom scans ctx.getWebSockets().
@@ -418,7 +444,8 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 
 		// Store sessionId in attachment immediately so we can identify this socket
 		// after hibernation, before the connect handshake completes.
-		const isReadonly = portal ? portal.user.role !== 'teacher' : request.headers.get(INTERNAL_ROLE_HEADER) !== 'editor'
+		// Students only write in their own personal canvases. Class canvases have no owner, so they stay read-only.
+		const isReadonly = portal ? portal.user.role !== 'teacher' && portal.ownerId !== portal.user.id : request.headers.get(INTERNAL_ROLE_HEADER) !== 'editor'
 		const authExpiresAt = Number(request.headers.get('x-xp-canvas-auth-exp')) || null
 		const attachment: SocketAttachment = { sessionId, isReadonly, authExpiresAt, snapshot: null, ...(portal ? { portal } : {}) }
 		serverWebSocket.serializeAttachment(attachment)

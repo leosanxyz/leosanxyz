@@ -7,6 +7,8 @@ export interface Board {
 	updatedAt: number
 	thumbnailAt: number | null
 	trashedAt: number | null
+	/** Personal canvas of a student. Class canvases have no owner and stay read-only for students. */
+	ownerId?: string
 }
 
 export interface BoardFolder {

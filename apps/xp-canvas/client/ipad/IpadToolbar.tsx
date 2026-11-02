@@ -53,6 +53,8 @@ const IPAD_TOOLS = [
 
 interface IpadToolbarState {
 	isEditor: boolean
+	/** Resources and emojis upload to the shared library, so only the teacher gets them. */
+	teacherTools: boolean
 	headerTarget: HTMLElement | null
 	quickShape: boolean
 	onQuickShapeChange: (enabled: boolean) => void
@@ -139,7 +141,7 @@ function IpadToolRail() {
 	const actions = useActions()
 	const canUndo = useCanUndo()
 	const canRedo = useCanRedo()
-	const { quickShape, onQuickShapeChange, onSnapHeldChange, onSnapContactChange, onResourcesToggle, resourcesOpen, onEmojisToggle, emojisOpen } = useIpadToolbarState()
+	const { teacherTools, quickShape, onQuickShapeChange, onSnapHeldChange, onSnapContactChange, onResourcesToggle, resourcesOpen, onEmojisToggle, emojisOpen } = useIpadToolbarState()
 
 	useEffect(() => {
 		const rail = railRef.current
@@ -180,17 +182,17 @@ function IpadToolRail() {
 							orientation="vertical"
 							label="Herramientas de dibujo"
 						>
-							{IPAD_TOOLS.map((tool) => (
+							{IPAD_TOOLS.filter((tool) => teacherTools || tool.id !== 'asset').map((tool) => (
 								<IpadToolButton key={tool.id} {...tool} />
 							))}
-							<TldrawUiToolbarButton type="icon" title="Recursos" aria-label="Recursos" aria-expanded={resourcesOpen}
+							{teacherTools && <><TldrawUiToolbarButton type="icon" title="Recursos" aria-label="Recursos" aria-expanded={resourcesOpen}
 								data-testid="ipad-toolbar.resources" onPointerDown={isolatePointer} onClick={onResourcesToggle}>
 								<Icon name="folder" size={20} />
 							</TldrawUiToolbarButton>
 							<TldrawUiToolbarButton type="icon" title="Emojis" aria-label="Emojis" aria-expanded={emojisOpen}
 								data-testid="ipad-toolbar.emojis" onPointerDown={isolatePointer} onClick={onEmojisToggle}>
 								<Icon name="smile" size={21} />
-							</TldrawUiToolbarButton>
+							</TldrawUiToolbarButton></>}
 						</TldrawUiToolbar>
 					</div>
 

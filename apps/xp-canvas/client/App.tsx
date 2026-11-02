@@ -14,6 +14,8 @@ const loadRoom = () => import('./pages/Room').then((module) => ({ default: modul
 const loadStudents = () => import('./portal/Students')
 const loadProfile = () => import('./portal/Profile')
 const loadShop = () => import('./shop/Shop')
+const Authorize = lazy(() => import('./portal/Authorize'))
+const StudentCanvases = lazy(() => import('./portal/StudentCanvases'))
 const Room = lazy(loadRoom)
 const Students = lazy(loadStudents)
 const Profile = lazy(loadProfile)
@@ -35,12 +37,15 @@ function Routes() {
 		return () => clearTimeout(timer)
 	}, [])
 	if (path === '/bienvenida/revision' && user?.role === 'teacher' && ReviewOnboarding) return <Suspense fallback={<div>Preparando las bienvenidas…</div>}><ReviewOnboarding /></Suspense>
+	if (path === '/autorizar' && mode === 'portal') return <Authorize />
 	if (path === '/perfil' && mode === 'portal') return <Profile />
 	if (path === '/mi-pase' && mode === 'portal' && user?.role === 'student') return <Profile initiallyEditing />
 	if (path === '/tienda' && mode === 'portal' && user) return <Shop />
 	if (path === '/bienvenida' && mode === 'portal' && user?.role === 'student') return <ReplayOnboarding />
 	if (path === '/') return mode === 'portal' && user?.role === 'student' ? <StudentBoards /> : <BoardManager />
 	if (path === '/alumnos' && mode === 'portal' && user?.role === 'teacher') return <Students />
+	const student = /^\/alumnos\/([a-f0-9-]{36})\/?$/.exec(path)
+	if (student && mode === 'portal' && user?.role === 'teacher') return <StudentCanvases key={student[1]} studentId={student[1]} />
 	const match = /^\/board\/([^/]+)\/?$/.exec(path)
 	if (!match || !isBoardId(match[1])) return <div className="board-welcome"><h1>Este canvas no existe</h1><button className="xp-primary" onClick={() => navigate('/')}>Mis canvases</button></div>
 	return <Room key={match[1]} roomId={match[1]} />
