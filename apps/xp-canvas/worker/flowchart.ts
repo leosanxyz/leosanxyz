@@ -165,6 +165,8 @@ export function nodeSize(node: Pick<FlowNode, 'tipo' | 'texto'>) {
 	return { w: Math.round(Math.max(170, textW + 90)), h: Math.max(76, textH + 46), lines }
 }
 
+/** How far tldraw's elbow arrows go out from a shape's side before turning. */
+const ARROW_GUTTER = 44
 export interface Placement { x: number; y: number; w: number; h: number; row: number; col: number }
 export interface EdgeRoute { start: { x: number; y: number }; end: { x: number; y: number }; back: boolean }
 
@@ -200,6 +202,8 @@ export function layoutFlowchart({ nodos, flechas }: Pick<Flowchart, 'nodos' | 'f
 	}
 
 	// 3. Columns: the first exit keeps the column, every other exit (NO) opens one to the right.
+	// Columns follow the depth-first walk, so a step where two paths meet belongs to the main path
+	// (SÍ goes first) and the NO branch comes back to it as a detour.
 	const col = new Map<string, number>(), taken = new Set<string>()
 	let maxCol = -1
 	const place = (id: string, wanted: number) => {
@@ -207,15 +211,16 @@ export function layoutFlowchart({ nodos, flechas }: Pick<Flowchart, 'nodos' | 'f
 		while (taken.has(`${row.get(id)}:${c}`)) c++
 		col.set(id, c); taken.add(`${row.get(id)}:${c}`); maxCol = Math.max(maxCol, c)
 	}
-	for (const id of order) {
-		if (!col.has(id)) place(id, maxCol + 1)
+	const visit = (id: string, wanted: number) => {
+		place(id, wanted)
 		let first = true
 		for (const edge of outs.get(id)!) {
 			if (back.has(edge) || col.has(edge.a)) continue
-			place(edge.a, first && edge.etiqueta !== 'NO' ? col.get(id)! : maxCol + 1)
+			visit(edge.a, first && edge.etiqueta !== 'NO' ? col.get(id)! : maxCol + 1)
 			first = false
 		}
 	}
+	for (const id of order) if (!col.has(id)) visit(id, maxCol + 1)
 
 	// 4. Coordinates.
 	const sizes = new Map(nodos.map((node) => [node.id, nodeSize(node)]))
@@ -229,15 +234,32 @@ export function layoutFlowchart({ nodos, flechas }: Pick<Flowchart, 'nodos' | 'f
 		const { w, h } = sizes.get(node.id)!, r = row.get(node.id)!, c = col.get(node.id)!
 		placements.set(node.id, { x: Math.round(c * colWidth + (colWidth - w) / 2), y: Math.round(rowTop[r] + (rowHeight[r] - h) / 2), w, h, row: r, col: c })
 	}
+	// An arrow that skips steps in its own column would run over them: it goes around on the right.
+	const detour = new Set(flechas.filter((edge) => {
+		if (back.has(edge) || edge.de === edge.a || col.get(edge.de) !== col.get(edge.a)) return false
+		const from = row.get(edge.de)!, to = row.get(edge.a)!
+		return nodos.some((node) => col.get(node.id) === col.get(edge.de) && row.get(node.id)! > from && row.get(node.id)! < to)
+	}))
+	// Arrows that go around a column (loops, detours) count as part of the drawing, so they get the margin too.
+	const reach: number[] = []
+	for (const edge of flechas) {
+		const a = placements.get(edge.de)!, b = placements.get(edge.a)!
+		const side = detour.has(edge) ? 1 : back.has(edge) || edge.de === edge.a ? edgeAnchors(a, b, true).start.x : null
+		if (side === 0) reach.push(Math.min(a.x, b.x) - ARROW_GUTTER)
+		if (side === 1) reach.push(Math.max(a.x + a.w, b.x + b.w) + ARROW_GUTTER)
+	}
 	// Columns center their nodes, so the widest column may not start at 0. Start the drawing at the
 	// top-left corner: the frame then gets the same margin on every side.
-	const left = Math.min(...[...placements.values()].map((place) => place.x)), top = Math.min(...[...placements.values()].map((place) => place.y))
+	const left = Math.min(...[...placements.values()].map((place) => place.x), ...reach), top = Math.min(...[...placements.values()].map((place) => place.y))
+	const right = Math.max(...[...placements.values()].map((place) => place.x + place.w), ...reach)
 	for (const place of placements.values()) { place.x -= left; place.y -= top }
-	return { placements, back }
+	return { placements, back, detour, width: right - left }
 }
 
 /** Where each arrow leaves and enters, as normalized anchors on the bound shapes. */
-export function edgeAnchors(from: Placement, to: Placement, isBack: boolean) {
+export function edgeAnchors(from: Placement, to: Placement, isBack: boolean, isDetour = false) {
+	// Out on the right, down the gutter and into the step from its side.
+	if (isDetour) return { start: { x: 1, y: 0.5 }, end: { x: 1, y: 0.5 } }
 	if (isBack || to.row <= from.row && from !== to) {
 		// Loops return on the outer side so they do not cross the main column.
 		const side = from.col > to.col ? 1 : 0
@@ -344,8 +366,8 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 	const pageId = frame ? pageOf(records, frame) : pages[0].id
 	const writes: TLRecord[] = [], deletes = new Set<string>()
 
-	const { placements, back } = layoutFlowchart(chart)
-	const bounds = [...placements.values()].reduce((acc, p) => ({ w: Math.max(acc.w, p.x + p.w), h: Math.max(acc.h, p.y + p.h) }), { w: 0, h: 0 })
+	const { placements, back, detour, width } = layoutFlowchart(chart)
+	const bounds = [...placements.values()].reduce((acc, p) => ({ w: Math.max(acc.w, p.x + p.w), h: Math.max(acc.h, p.y + p.h) }), { w: width, h: 0 })
 	// A title wider than the drawing widens the frame; the drawing stays centered under it.
 	const centering = Math.max(0, Math.round((titleWidth(chart.titulo) - bounds.w - FRAME_PAD * 2) / 2))
 	if (centering) { for (const place of placements.values()) place.x += centering; bounds.w += centering * 2 }
@@ -425,7 +447,7 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 	}
 	for (const edge of chart.flechas) {
 		const from = placements.get(edge.de)!, to = placements.get(edge.a)!
-		const anchors = edgeAnchors(from, to, back.has(edge))
+		const anchors = edgeAnchors(from, to, back.has(edge), detour.has(edge))
 		const start = { x: from.x + FRAME_PAD + from.w * anchors.start.x, y: from.y + FRAME_PAD + from.h * anchors.start.y }
 		const end = { x: to.x + FRAME_PAD + to.w * anchors.end.x, y: to.y + FRAME_PAD + to.h * anchors.end.y }
 		const arrowId = `shape:${newId()}`

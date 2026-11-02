@@ -248,3 +248,31 @@ describe('frame fit', () => {
 		expect(Math.abs(m.left - m.right)).toBeLessThanOrEqual(1)
 	})
 })
+
+describe('paths that meet again', () => {
+	it('keeps the step where SÍ and NO meet in the main column and sends NO around it', () => {
+		const chart = parseFlowchart({
+			titulo: 'Cuando entro al mundo',
+			nodos: [{ id: 'i', tipo: 'inicio', texto: 'Entras al mundo' }, { id: 'd', tipo: 'decision', texto: '¿Es tu primera vez?' }, { id: 'm', tipo: 'proceso', texto: 'Aparece un mensaje con las teclas' }, { id: 'j', tipo: 'proceso', texto: 'Juegas' }, { id: 'f', tipo: 'fin', texto: 'Eliminas al Ender Dragon' }],
+			flechas: [{ de: 'i', a: 'd' }, { de: 'd', a: 'm', etiqueta: 'SÍ' }, { de: 'm', a: 'j' }, { de: 'j', a: 'f' }, { de: 'd', a: 'j', etiqueta: 'NO' }],
+		})
+		const { placements, detour } = layoutFlowchart(chart)
+		expect(new Set([...placements.values()].map((place) => place.col))).toEqual(new Set([0]))
+		expect([...detour].map((edge) => `${edge.de}>${edge.a}`)).toEqual(['d>j'])
+		const store = emptyStore()
+		writeFlowchart(store, chart, validate)
+		const noArrow = shapes(store).find((shape) => shape.type === 'arrow' && plainText((shape.props as { richText: unknown }).richText) === 'NO')!
+		const anchors = [...store.records.values()].filter((record) => record.typeName === 'binding' && (record as never as { fromId: string }).fromId === noArrow.id).map((record) => (record as never as { props: { normalizedAnchor: { x: number } } }).props.normalizedAnchor.x)
+		expect(anchors).toEqual([1, 1])
+	})
+	it('still opens a column for a NO branch with its own steps before it meets the main path', () => {
+		const { placements } = layoutFlowchart(parseFlowchart({
+			titulo: 't',
+			nodos: [{ id: 'i', tipo: 'inicio', texto: 'Inicio' }, { id: 'd', tipo: 'decision', texto: '¿Llueve?' }, { id: 's', tipo: 'proceso', texto: 'Salir' }, { id: 'p', tipo: 'proceso', texto: 'Abrir el paraguas' }, { id: 'f', tipo: 'fin', texto: 'Fin' }],
+			flechas: [{ de: 'i', a: 'd' }, { de: 'd', a: 's', etiqueta: 'NO' }, { de: 'd', a: 'p', etiqueta: 'SÍ' }, { de: 'p', a: 's' }, { de: 's', a: 'f' }],
+		}))
+		expect(placements.get('p')!.col).toBe(0)
+		expect(placements.get('s')!.col).toBe(0)
+		expect(placements.get('f')!.col).toBe(0)
+	})
+})
