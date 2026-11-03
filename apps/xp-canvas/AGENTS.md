@@ -40,6 +40,8 @@ npm run test:xp-canvas
 npm run build:xp-canvas
 ```
 
+Si tocas puntos, tienda o gachapon, corre también sus pruebas de compras simultáneas: `npm run test:xp-canvas -- worker/points.test.ts worker/shop.test.ts`.
+
 Si el cambio afecta al portal, ejecuta también `npm run build:portal --workspace=apps/xp-canvas`. Los smokes de `scripts/*smoke.mjs` necesitan un servidor aislado. Consulta [Comandos](README.md#comandos) y [Desarrollo y pruebas del portal](PORTAL.md#desarrollo-y-pruebas) antes de ejecutarlos.
 
 ## Dónde documentar cada tema
