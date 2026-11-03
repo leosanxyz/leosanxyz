@@ -134,7 +134,7 @@ The contract is fixed regardless of how the harness renders:
 
 - Number keys `1–N` and `←`/`→` switch variants; `R` replays. Ignore key events when focus is in an input, textarea, select, or contenteditable, or when a modifier is held.
 - Clicking an item switches to it; exactly one item carries `data-active` and `aria-current="true"` at all times, and the highlight slides to it.
-- Selection persists across reload via a URL param (`?v=2`), falling back to variant 1. The highlight takes its initial position without animating (`data-ready` is added after first paint).
+- Selection persists across reload via a `?variant=` URL param holding the variant's name, lowercased and hyphenated (`?variant=editorial`), so any variant can be shared as a link; a missing or unknown value falls back to variant 1. The highlight takes its initial position without animating (`data-ready` is added after first paint).
 - Switching re-mounts the variant (so entrance animations re-run); the replay key re-mounts without switching.
 
 ## Reference wiring
@@ -148,6 +148,7 @@ const picker = document.querySelector('.proto-picker');
 const highlight = picker.querySelector('.proto-picker-highlight');
 const items = [...picker.querySelectorAll('.proto-picker-item:not(.proto-picker-replay)')];
 const replay = picker.querySelector('.proto-picker-replay');
+const slugs = items.map((el) => el.textContent.trim().toLowerCase().replace(/\s+/g, '-'));
 let current = 0;
 
 function moveHighlight() {
@@ -172,7 +173,7 @@ function setActive(i) {
   });
   moveHighlight();
   const url = new URL(location);
-  url.searchParams.set('v', i + 1);
+  url.searchParams.set('variant', slugs[i]);
   history.replaceState(null, '', url);
   mount(i);
 }
@@ -191,7 +192,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'r' || e.key === 'R') mount(current);
 });
 
-setActive((parseInt(new URLSearchParams(location.search).get('v'), 10) || 1) - 1);
+setActive(Math.max(0, slugs.indexOf(new URLSearchParams(location.search).get('variant'))));
 // Enable the slide only after first paint, so load doesn't animate.
 requestAnimationFrame(() => requestAnimationFrame(() => picker.setAttribute('data-ready', '')));
 ```
