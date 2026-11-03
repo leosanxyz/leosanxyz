@@ -41,6 +41,8 @@ If there is no project (empty directory, or the user is just exploring), skip to
 
 ### Phase 3 — Choose directions
 
+**References first, for visual briefs.** When the brief is about look and feel rather than pure mechanics, gather references before proposing directions: search the user's Are.na channel "wow" (`arena` MCP, slug `wow-wmoqvbzq_ys`) and their saved library in Pond (`pond` MCP) for the piece and its mood. Summarize what you find in a few lines — recurring layouts, type, palettes, motion — and let it steer the set: anchor each direction to a reference or theme where one fits. Skip this when the brief is about behavior or timing, or when the user already set the direction. If neither source is reachable, say so and continue.
+
 Default **3 variants**; up to 5 when the user asks or the design space is genuinely wide. More than 5 dilutes the comparison.
 
 Before writing any code, list the set: a name and an axis for each. Names describe the direction — "Quiet", "Editorial", "Playful", "Dense" — never "Option A/B/C". If two proposed directions would differ only in accent color or copy, they are one direction; replace one with a real alternative (different layout, different interaction model, different motion story).
@@ -54,7 +56,7 @@ Two branches, by what exists:
 - **In a project with a dev server** — an isolated route or page (`/prototypes/<slug>`, or the framework's equivalent), one file per variant plus a small harness file. Nothing imports from the prototype surface into production code.
 - **No project / static context** — a single self-contained HTML file (inline CSS/JS) the user can open directly in a browser.
 
-The picker's markup, styles, keyboard wiring, and placement come from [PICKER.md](PICKER.md), verbatim — load it now and build exactly that. Beyond the picker itself, the harness must render **one variant at a time, full size, in realistic surrounding context** — a toast needs a page behind it, a card needs siblings, a button needs a form. Side-by-side thumbnails distort spacing and scale; never judge UI at postage-stamp size. Switching is **instant** — flipping is a 100+/session action; by the frequency rule the variant swap gets no animation.
+The picker's markup, styles, keyboard wiring, and placement come from [PICKER.md](PICKER.md), verbatim — load it now and build exactly that. Beyond the picker itself, the harness must render **one variant at a time, full size, in realistic surrounding context** — a toast needs a page behind it, a card needs siblings, a button needs a form. Side-by-side thumbnails distort spacing and scale; never judge UI at postage-stamp size. Each variant opens directly with `?variant=<name>` on the prototype's own route or file (`/prototypes/<slug>?variant=editorial`), so a single variant can be shared as a link. Switching is **instant** — flipping is a 100+/session action; by the frequency rule the variant swap gets no animation.
 
 ### Phase 5 — Verify and hand off
 
@@ -67,13 +69,13 @@ Then present the set and **stop — the choice belongs to the user**:
 | 1 | Quiet | Minimal motion, borders over shadows | The product is a daily-use tool | Least memorable |
 | 2 | Editorial | Large type, generous whitespace | The moment deserves weight | Eats vertical space |
 
-Close with where the picker is running (URL or file path) and the keys to flip.
+Close with where the picker is running (URL or file path), a `?variant=` link for each variant, and the keys to flip.
 
 **Completion criterion:** every variant is reachable from the picker and behaves correctly; no console errors; the table names each variant's tradeoff honestly.
 
 ### Phase 6 — Promote on selection
 
-When the user picks: integrate that variant where it belongs, following the project's existing conventions (file layout, naming, token usage), then delete the prototype surface per Hard Rule 5. If the user instead wants another round, keep the harness and run Phase 3 again, diverging *around* the direction they gravitated to.
+When the user picks: integrate that variant where it belongs, following the project's existing conventions (file layout, naming, token usage). Before deleting anything, record which variant won and why — the user's reason and what it beat — where the project keeps its decisions; if it keeps none, put it in the integration commit message. Then delete the prototype surface per Hard Rule 5. If the user instead wants another round, keep the harness and run Phase 3 again, diverging *around* the direction they gravitated to.
 
 ## Invocation Variants
 
