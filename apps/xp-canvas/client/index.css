@@ -72,12 +72,38 @@ summary {
 
 .skeleton-trigger { display: none; width: 44px; height: 44px; border-radius: 12px; }
 .skeleton-panel { height: 320px; border-radius: 18px; }
-.skeleton-button { width: 44px; height: 44px; border-radius: 12px; }
-.skeleton-action { width: 88px; height: 36px; border-radius: 10px; }
 .skeleton-tile { aspect-ratio: 1; border-radius: 14px; }
 
 @media (max-width: 650px) {
 	.skeleton-trigger { display: block; }
+}
+
+/* The canvas shape: an icon is a small block in the cell its button takes. */
+.skeleton-glyph { display: block; flex: none; width: 20px; height: 20px; border-radius: 6px; }
+.skeleton-page-menu { display: flex; align-items: center; height: 44px; font-size: 12px; }
+.skeleton-page-menu > .skeleton-glyph { width: 16px; height: 16px; margin: 0 12px; }
+.skeleton-page-menu > span { width: 79px; padding-left: 4px; }
+.skeleton-page-menu > span + .skeleton-glyph { margin-left: 7px; }
+.skeleton-rail { --tl-color-panel: transparent; --tl-color-divider: hsl(0, 0%, 91%); }
+.skeleton-rail :is(.ipad-toolbar__tools, .ipad-toolbar__properties, .ipad-toolbar__footer) { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.skeleton-rail .skeleton-glyph { margin: 13px; }
+/* tldraw places these panels itself; the shapes copy where. */
+.skeleton-panel-tools { position: absolute; z-index: 10; display: flex; align-items: center; justify-content: space-around; border-radius: 11px; background: hsl(0, 0%, 99%); box-shadow: 0 0 2px hsl(0 0% 0% / 16%), 0 2px 3px hsl(0 0% 0% / 24%), 0 2px 6px hsl(0 0% 0% / 10%); }
+.skeleton-quick-actions { left: 20px; bottom: 54px; width: 188px; height: 44px; border-radius: 11px 11px 0 0; }
+.skeleton-phone-tools { left: 12px; right: 63px; bottom: 8px; height: 48px; }
+.skeleton-phone-styles { right: 12px; bottom: 8px; width: 43px; height: 48px; }
+.skeleton-viewer-tools { left: 50%; bottom: 8px; width: 82px; height: 48px; transform: translateX(-50%); }
+.skeleton-zoom { display: none; left: 76px; bottom: 8px; width: 96px; height: 40px; font-size: 12px; }
+.skeleton-grid-toggle { position: absolute; z-index: 10; right: 12px; bottom: 44px; width: 46px; height: 46px; border-radius: 12px; }
+
+@media (max-width: 599px) {
+	.skeleton-page-menu > span + .skeleton-glyph { display: none; }
+}
+
+@media (min-width: 600px) {
+	.skeleton-quick-actions, .skeleton-phone-tools, .skeleton-phone-styles { display: none; }
+	.skeleton-viewer-tools { width: 92px; }
+	.skeleton-zoom { display: flex; }
 }
 
 /* Content without a skeleton of its own fades in. Opacity uses a gentle `ease` so the fade is visible;

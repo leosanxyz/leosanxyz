@@ -12,7 +12,8 @@ import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
 import { Icon } from '../components/Icon'
-import { PageSkeleton } from '../components/Skeleton'
+import { PageSkeleton, ShopShape } from '../components/Skeleton'
+import { CARD } from './layout'
 import { GachaponReveal } from '../gachapon/GachaponReveal'
 import { loadCelebrate, loadPop, playCelebrate, playCoin, playPop } from '../gachapon/gachaponSounds'
 import { navigate } from '../navigation'
@@ -44,7 +45,6 @@ function shopDraft(skin: RewardSkin): PassDraft {
 /** The strip's cards gather into the tray and spread back as one motion. */
 const GATHER = { type: 'spring', duration: 0.5, bounce: 0 } as const
 /** Card widths in px. The corners scale with the card, 17 px at the row's 196 px, so a card keeps its look at every size and through every morph. */
-const CARD = { spread: 120, tray: 34, row: 196 }
 const radius = (width: number) => Math.round(width * 17 / 196)
 /** A scrolled strip's slide back to its start before the cards gather. */
 const REWIND_MS = 180, REWIND_EASE = cubicBezier(.19, 1, .22, 1)
@@ -753,22 +753,6 @@ function CardDetail({ skin, purchasable, state, onBuy, onClose, onLanded }: {
 }
 
 function ShopSkeleton({ hold }: { hold: Promise<void> }) {
-	// Same sections and sizes as the shop, so its content crossfades into place without moving.
 	// It stays in front until the shop is ready to fade in.
-	return <PageSkeleton className="shop-skeleton" hold={hold} label="Abriendo la tienda">
-		<section className="shop-hero">
-			<div className="shop-machine-frame"><span className="shop-skeleton__machine" skullet-block="" /></div>
-			<div className="shop-skeleton__panel">
-				<div className="shop-skeleton__pool">{Array.from({ length: 6 }, (_, i) => <span key={i} className="shop-skeleton__card" skullet-block="" />)}</div>
-				<span className="shop-skeleton__line" skullet-block="" />
-				<span className="shop-skeleton__button" skullet-block="" />
-			</div>
-		</section>
-		<section className="shop-cards">
-			<div className="shop-cards__heading"><h2>Cartas en venta</h2></div>
-			<div className="shop-scroller"><ul className="shop-row" style={{ '--card-w': `${CARD.row}px` } as CSSProperties}>
-				{Array.from({ length: 6 }, (_, i) => <li key={i}><span className="shop-skeleton__sale" skullet-block="" /></li>)}
-			</ul></div>
-		</section>
-	</PageSkeleton>
+	return <PageSkeleton className="shop-skeleton" hold={hold} label="Abriendo la tienda"><ShopShape /></PageSkeleton>
 }

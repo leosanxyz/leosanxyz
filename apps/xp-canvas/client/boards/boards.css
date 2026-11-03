@@ -52,7 +52,8 @@
 .board-card-open:disabled { cursor: default; opacity: .6; }
 .board-card-open:focus-visible { outline: 2px solid var(--xp-ink); outline-offset: 4px; }
 .board-card-preview { position: relative; aspect-ratio: 1.55; display: grid; place-items: center; border: 1px solid var(--xp-line); background: #fff; color: var(--xp-muted); overflow: hidden; transition: border-color 150ms ease; }
-.board-card-preview img { position: relative; width: 100%; height: 100%; object-fit: contain; transition: opacity 400ms ease; }
+/* The image box is opaque so the letterbox bands of a wide thumbnail fade in with it instead of letting the skeleton through. */
+.board-card-preview img { position: relative; width: 100%; height: 100%; object-fit: contain; background: #fff; transition: opacity 400ms ease; }
 /* While a thumbnail downloads the preview shows a skeleton block, then the image crossfades over it. */
 .board-card-placeholder { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease; }
 .board-card-preview[data-loading] .board-card-placeholder { opacity: 1; }

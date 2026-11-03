@@ -11,7 +11,7 @@ import { EditorCodeDialog } from '../components/EditorCodeDialog'
 import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
 import { LibrarySkeleton, SAMPLE_BOARDS, Skeleton } from '../components/Skeleton'
-import { navigate } from '../navigation'
+import { navigate, openCanvas } from '../navigation'
 import '../boards/boards.css'
 import { usePortal } from '../portal/PortalProvider'
 import { BoardAccessDialog } from '../portal/BoardAccessDialog'
@@ -138,7 +138,7 @@ export default function BoardManager() {
 		setBusy(true); setError('')
 		try {
 			const board = await boardRequest<Board>('boards', 'POST', { name: 'Sin título', folderId: selectedFolder?.id ?? null })
-			navigate(`/board/${board.id}`)
+			openCanvas(board)
 		} catch (cause) { setError(message(cause)) }
 		finally { setBusy(false) }
 	}
@@ -175,7 +175,7 @@ export default function BoardManager() {
 		finally { setBusy(false) }
 	}
 
-	if (isEditor === null) return <LibrarySkeleton cards />
+	if (isEditor === null) return <LibrarySkeleton page="cards" />
 	if (!isEditor) return <div className="board-welcome"><Icon name="boards" size={46} /><h1>Tus canvases</h1><button className="xp-primary" onClick={() => setUnlock(true)}>Editar</button><a href="/board/principal" onClick={(event) => { event.preventDefault(); navigate('/board/principal') }}>Ver Principal</a>
 		{error && <p className="xp-error" role="alert">{error}</p>}
 		{unlock && <EditorCodeDialog onClose={() => setUnlock(false)} onUnlock={() => { setUnlock(false); setIsEditor(true) }} />}
@@ -198,9 +198,9 @@ export default function BoardManager() {
 					<button className="xp-icon-button board-new" aria-label="Nuevo canvas" title="Nuevo canvas" disabled={busy} onClick={() => void createBoard()}><Icon name="plus" /></button>
 		</>}>
 			{error && <p className="xp-error board-error" role="alert">{error}</p>}
-			<Skeleton data={loading && !boards.length ? null : boards} sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid">
+			<Skeleton data={loading && !boards.length ? null : boards} id="library" sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid">
 				{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} draggable={!board.trashedAt} onDragStart={(event) => event.dataTransfer.setData(BOARD_DRAG, board.id)}>
-					<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
+					<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => openCanvas(board)} aria-label={`Abrir ${board.name}`}>
 						<BoardPreview board={board} index={index} order={thumbnails} />
 						<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
 					</button>

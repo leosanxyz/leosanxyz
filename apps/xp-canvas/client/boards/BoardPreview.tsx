@@ -53,15 +53,21 @@ export function BoardPreview({ board, index, order }: { board: Board; index: num
 	const image = useRef<HTMLImageElement>(null)
 	const reveal = useRef<ReturnType<RevealOrder['add']>>(null)
 	const [shown, setShown] = useState(false)
+	// The first render is an empty frame, so a skeleton's reveal fades the whole preview in as one piece.
+	// Skullet fades each innermost element on its own: a full preview would appear at once around them, and an
+	// image still loading would get two fades whose short one ends first, so the image dipped before settling.
+	const [filled, setFilled] = useState(false)
+	useLayoutEffect(() => setFilled(true), [])
 	const src = board.thumbnailAt ? `/api/boards/${board.id}/thumbnail?v=${board.thumbnailAt}` : null
 	useLayoutEffect(() => {
-		if (!src) return
+		if (!src || !filled) return
 		const entry = order.add(index, () => setShown(true))
 		reveal.current = entry
 		// Before the first paint, so a cached image never shows its shimmer.
 		if (image.current?.complete && image.current.naturalWidth) entry.shownAtOnce()
 		return () => { entry.remove(); reveal.current = null }
-	}, [order, index, src])
+	}, [order, index, src, filled])
+	if (!filled) return <div className="board-card-preview" />
 	if (!src) return <div className="board-card-preview"><Icon name="boards" size={44} /></div>
 	return <div className="board-card-preview" data-loading={!shown || undefined}>
 		<SkeletonBox className="board-card-placeholder" width="100%" height="100%" radius={0} />
