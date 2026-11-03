@@ -3,7 +3,7 @@ import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { useBoardView } from '../boards/useBoardView'
 import { SAMPLE_BOARDS, Skeleton } from '../components/Skeleton'
-import { navigate } from '../navigation'
+import { openCanvas } from '../navigation'
 import { useEffect, useState, type FormEvent } from 'react'
 import { DropdownMenu } from 'radix-ui'
 import { Icon } from '../components/Icon'
@@ -48,9 +48,9 @@ export function StudentBoards() {
 		actions={section === 'mine' ? <button className="xp-primary" disabled={!library} onClick={() => setCreating(true)}>Nuevo canvas</button> : undefined}>
 		{error && <p role="alert" className="xp-error board-error">{error} <button className="portal-link" onClick={() => void reload()}>Reintentar</button></p>}
 		{actionError && <p role="alert" className="xp-error board-error">{actionError}</p>}
-		{(library || !error) && <Skeleton data={library && boards} sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid board-grid--student">
+		{(library || !error) && <Skeleton data={library && boards} id={`classes:${section}`} sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid board-grid--student">
 			{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id}>
-				<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
+				<button className="board-card-open" disabled={Boolean(board.trashedAt)} onClick={() => openCanvas(board)} aria-label={`Abrir ${board.name}`}>
 					<BoardPreview board={board} index={index} order={thumbnails} />
 					<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{dateFormat.format(board.updatedAt)}</time></div>
 				</button>
@@ -72,7 +72,7 @@ function NewCanvas({ onClose }: { onClose: () => void }) {
 	async function submit(event: FormEvent) {
 		event.preventDefault(); if (busy) return
 		setBusy(true); setError('')
-		try { navigate(`/board/${(await portalRequest<Board>('canvases', 'POST', { name })).id}`) }
+		try { openCanvas(await portalRequest<Board>('canvases', 'POST', { name })) }
 		catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude crear el canvas.'); setBusy(false) }
 	}
 	return <Modal title="Nuevo canvas" onClose={() => { if (!busy) onClose() }}><form className="xp-form" onSubmit={submit}>

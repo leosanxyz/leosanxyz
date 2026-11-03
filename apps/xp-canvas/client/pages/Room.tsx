@@ -94,6 +94,8 @@ export function Room({ roomId }: { roomId: string }) {
 	const [authRequired, setAuthRequired] = useState(true)
 	const [board, setBoard] = useState<Board | null>(null)
 	const [error, setError] = useState('')
+	// The skeleton stays in front of the room until tldraw has mounted its toolbar.
+	const [mounted] = useState(() => { let resolve = () => {}; const promise = new Promise<void>((done) => { resolve = done }); return { promise, resolve } })
 	const onAccessChange = useCallback((isEditor: boolean) => setAccess(isEditor ? 'editor' : 'viewer'), [])
 
 	useEffect(() => {
@@ -119,7 +121,7 @@ export function Room({ roomId }: { roomId: string }) {
 	}, [roomId])
 
 	if (error) return <div className="board-welcome"><p role="alert">{error}</p><button className="xp-primary" onClick={() => navigate('/')}>{user?.role === 'student' ? 'Clases' : 'Mis canvases'}</button></div>
-	if (access === 'checking' || !board) return <CanvasSkeleton />
+	if (access === 'checking' || !board) return <CanvasSkeleton hold={mounted.promise} />
 	// A student writes only in their own canvases; the server enforces the same rule on the WebSocket.
 	const role = access === 'viewer' && mode === 'portal' && board.ownerId && board.ownerId === user?.id ? 'owner' : access
 
@@ -132,6 +134,7 @@ export function Room({ roomId }: { roomId: string }) {
 			canEdit={role !== 'viewer'}
 			authRequired={authRequired}
 			onAccessChange={onAccessChange}
+			onMounted={mounted.resolve}
 		/>
 	)
 }
@@ -143,6 +146,7 @@ function CanvasRoom({
 	canEdit,
 	authRequired,
 	onAccessChange,
+	onMounted,
 }: {
 	board: Board
 	onBoardChange: (board: Board) => void
@@ -150,12 +154,14 @@ function CanvasRoom({
 	canEdit: boolean
 	authRequired: boolean
 	onAccessChange: (isEditor: boolean) => void
+	onMounted: () => void
 }) {
 	const roomId = board.id
 	const { mode, user } = usePortal()
 	const [editor, setEditor] = useState<Editor | null>(null)
 	// The canvas stays hidden until tldraw mounts, then fades in.
 	const stageReveal = useReveal(Boolean(editor)) ?? (editor ? undefined : 'pending')
+	useEffect(() => { if (editor) onMounted() }, [editor, onMounted])
 	const [headerTarget, setHeaderTarget] = useState<HTMLDivElement | null>(null)
 	const [quickShape, setQuickShape] = useState(() => {
 		try {

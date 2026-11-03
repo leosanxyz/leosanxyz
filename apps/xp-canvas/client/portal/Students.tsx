@@ -4,7 +4,7 @@ import { Modal } from '../components/Modal'
 import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
-import { navigate } from '../navigation'
+import { navigate, openCanvas } from '../navigation'
 import { portalRequest } from './api'
 import { SAMPLE_ROSTER, Skeleton } from '../components/Skeleton'
 import { ago } from './AgentList'
@@ -81,6 +81,6 @@ function StudentCanvasLinks({ studentId, boards }: { studentId: string; boards: 
 	if (!boards.length) return null
 	const latest = boards.find((board) => !board.trashedAt) ?? boards[0], trashed = boards.filter((board) => board.trashedAt).length
 	return <p className="student-canvases">
-		<button className="portal-link" onClick={() => navigate(`/board/${latest.id}`)}>{latest.name}</button> · {latest.trashedAt ? 'en la papelera' : ago(latest.updatedAt)} · <button className="portal-link" onClick={() => navigate(`/alumnos/${studentId}`)}>{boards.length === 1 ? 'Ver su canvas y agentes' : `Ver sus ${boards.length} canvases`}</button>{trashed > 0 && latest.trashedAt === null && ` · ${trashed} en la papelera`}
+		<button className="portal-link" onClick={() => openCanvas(latest)}>{latest.name}</button> · {latest.trashedAt ? 'en la papelera' : ago(latest.updatedAt)} · <button className="portal-link" onClick={() => navigate(`/alumnos/${studentId}`)}>{boards.length === 1 ? 'Ver su canvas y agentes' : `Ver sus ${boards.length} canvases`}</button>{trashed > 0 && latest.trashedAt === null && ` · ${trashed} en la papelera`}
 	</p>
 }

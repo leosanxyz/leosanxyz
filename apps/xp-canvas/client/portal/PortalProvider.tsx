@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { PortalSession } from '../../shared/portal'
+import { forgetShapes } from 'skullet'
 import { portalRequest } from './api'
-import { RouteSkeleton } from '../components/Skeleton'
+import { rememberSession, RouteSkeleton } from '../components/Skeleton'
 import { XpLogo } from '../components/XpLogo'
 import '../components/ui.css'
 import './portal.css'
@@ -19,9 +20,10 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 	const [error, setError] = useState('')
 	const refresh = useCallback(async () => {
 		const result = await portalRequest<PortalSession>('session')
-		setSession(result); setError('')
+		setSession(result); setError(''); rememberSession(result)
 	}, [])
-	const logout = useCallback(async () => { await portalRequest('logout', 'POST'); await refresh() }, [refresh])
+	// Remembered skeleton shapes keep only layout, but the next person on this device should not see the last one's.
+	const logout = useCallback(async () => { await portalRequest('logout', 'POST'); forgetShapes(); await refresh() }, [refresh])
 	useEffect(() => { void refresh().catch(() => setError('No pude conectar con el servidor.')) }, [refresh])
 	useEffect(() => {
 		if (session?.mode !== 'portal') return

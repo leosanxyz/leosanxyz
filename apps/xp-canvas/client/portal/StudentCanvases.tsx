@@ -5,7 +5,7 @@ import { LibraryShell } from '../boards/LibraryShell'
 import { useBoardLibrary } from '../boards/useBoardLibrary'
 import { boardViewPath } from '../boards/useBoardView'
 import { SAMPLE_BOARDS, Skeleton } from '../components/Skeleton'
-import { navigate } from '../navigation'
+import { navigate, openCanvas } from '../navigation'
 import { AgentList, ago } from './AgentList'
 import { portalRequest } from './api'
 import { boardRequest } from '../boards/api'
@@ -36,9 +36,9 @@ export default function StudentCanvases({ studentId }: { studentId: string }) {
 	return <LibraryShell title={student?.name ?? 'Alumno'} view="students" folders={library?.folders ?? []} onViewChange={(view) => navigate(boardViewPath(view))} onBack={() => navigate('/alumnos')} testId="student-canvases">
 		{error && <p role="alert" className="xp-error board-error">{error}</p>}
 		{roster && !student && <p className="board-empty">Este alumno no existe.</p>}
-		{(roster || !error) && <Skeleton data={roster && boards} sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid board-grid--student">
+		{(roster || !error) && <Skeleton data={roster && boards} id="student-canvases" sample={SAMPLE_BOARDS} label="Cargando canvases">{(boards) => <div className="board-grid board-grid--student">
 			{boards.map((board, index) => <article className="board-card" key={board.id} data-board-id={board.id} data-trashed={board.trashedAt ? 'true' : undefined}>
-				<button className="board-card-open" onClick={() => navigate(`/board/${board.id}`)} aria-label={`Abrir ${board.name}`}>
+				<button className="board-card-open" onClick={() => openCanvas(board)} aria-label={`Abrir ${board.name}`}>
 					<BoardPreview board={board} index={index} order={thumbnails} />
 					<div className="board-card-caption"><strong>{board.name}</strong><time dateTime={new Date(board.updatedAt).toISOString()}>{board.trashedAt ? `En la papelera · ${ago(board.trashedAt)}` : ago(board.updatedAt)}</time></div>
 				</button>
