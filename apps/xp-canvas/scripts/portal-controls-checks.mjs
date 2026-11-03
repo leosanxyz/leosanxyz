@@ -169,7 +169,7 @@ export async function verifyInlinePassEditor(page) {
 	assert.equal(await page.locator('.portal-profile').getAttribute('data-editing'), 'true', 'failed save retains the editor and draft')
 	await page.unroute('**/api/portal/pass', failSave)
 	page.once('dialog', (dialog) => dialog.dismiss())
-	await page.getByRole('button', { name: 'Todas', exact: true }).click()
+	await page.getByRole('button', { name: 'Clases', exact: true }).click()
 	assert.equal(page.url(), url, 'unsaved changes guard internal navigation')
 	await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
 	await page.locator('.portal-profile[data-editing="false"]').waitFor()

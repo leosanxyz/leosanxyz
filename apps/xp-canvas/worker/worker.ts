@@ -18,6 +18,7 @@ import { handlePortalRequest, portalGate } from './portal'
 import { getPortalSession, portalEnabled, PORTAL_IDENTITY_HEADER } from './portalAuth'
 import { handleQuestionInteraction } from './questions'
 import { exportBoard, importBoard } from './boardTransfer'
+import { boardOpenFor } from '../shared/boards'
 import { handleMcp } from './mcp'
 import { authorizationServerMetadata, handleOAuthRequest, protectedResourceMetadata } from './oauth'
 
@@ -96,7 +97,7 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 	.get('/api/connect/:roomId', async (request, env) => {
 		if (!isValidRoomId(request.params.roomId)) return error(404, 'Room not found')
 		const board = await readBoard(env, request.params.roomId)
-		if (!board || board.trashedAt) return error(404, 'Room not found')
+		if (!board || !boardOpenFor(board, portalEnabled(env) ? (await getPortalSession(request, env))?.user.role : undefined)) return error(404, 'Room not found')
 		if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
 			return error(426, 'WebSocket upgrade required')
 		}
