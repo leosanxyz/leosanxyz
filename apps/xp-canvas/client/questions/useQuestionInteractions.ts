@@ -4,6 +4,7 @@ import { isStudentDraw, type StudentDraw } from '../../shared/studentDraw'
 import { useQuestionSounds } from './useQuestionSounds'
 import { boardRequest } from '../boards/api'
 import type { InteractionState, QuestionCommand, QuestionFeedback, QuestionShape } from '../../shared/questionShape'
+import type { CapsuleBet } from '../../shared/capsuleShape'
 
 export function useQuestionInteractions(roomId: string, enabled: boolean, connected: boolean, userId?: string) {
 	const playSound = useQuestionSounds(enabled)
@@ -14,6 +15,7 @@ export function useQuestionInteractions(roomId: string, enabled: boolean, connec
 	const feedbackTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
 	useEffect(() => () => { for (const timer of feedbackTimers.current) clearTimeout(timer) }, [])
 	const [allowedUserIds, setAllowedUserIds] = useState<string[]>([])
+	const [capsuleBets, setCapsuleBets] = useState<Record<string, CapsuleBet>>({})
 	const [pending, setPending] = useState(false)
 	const [error, setError] = useState('')
 	const busy = useRef(false)
@@ -45,6 +47,7 @@ export function useQuestionInteractions(roomId: string, enabled: boolean, connec
 
 		if (data && typeof data === 'object' && 'type' in data && data.type === 'question-permissions' && 'allowedUserIds' in data && Array.isArray(data.allowedUserIds) && data.allowedUserIds.every((id) => typeof id === 'string')) {
 			updates.current++; setAllowedUserIds(data.allowedUserIds)
+			if ('bets' in data && Array.isArray(data.bets)) setCapsuleBets(Object.fromEntries((data.bets as CapsuleBet[]).map((bet) => [bet.shapeId, bet])))
 		}
 	}, [playSound])
 	useEffect(() => {
@@ -65,7 +68,7 @@ export function useQuestionInteractions(roomId: string, enabled: boolean, connec
 		catch (cause) { setError(cause instanceof Error ? cause.message : 'No pude guardar la respuesta.') }
 		finally { busy.current = false; setPending(false) }
 	}, [roomId, receive])
-	return { receive, feedback, draw, gachaResults, spinGachapon: (shape: GachaponShape) => { void send({ action: 'gachapon', shapeId: shape.id, revision: shape.props.revision, cost: shape.props.cost }) }, drawStudent: () => { void send({ action: 'draw' }) }, allowedUserIds, canAnswer: connected && Boolean(userId && allowedUserIds.includes(userId)), pending, error,
+	return { receive, feedback, draw, gachaResults, capsuleBets, setCapsuleBet: (bet: CapsuleBet) => setCapsuleBets((current) => ({ ...current, [bet.shapeId]: bet })), spinGachapon: (shape: GachaponShape) => { void send({ action: 'gachapon', shapeId: shape.id, revision: shape.props.revision, cost: shape.props.cost }) }, drawStudent: () => { void send({ action: 'draw' }) }, allowedUserIds, canAnswer: connected && Boolean(userId && allowedUserIds.includes(userId)), pending, error,
 		answer: (shape: QuestionShape, answer: number) => { void send({ action: 'answer', shapeId: shape.id, revision: shape.props.revision, answer }) },
 		permission: (userId: string, allowed: boolean) => { void send({ action: 'permission', userId, allowed }) },
 	}

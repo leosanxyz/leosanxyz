@@ -17,7 +17,7 @@ import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
 import { boardOpenFor } from '../shared/boards'
 import type { PortalUser } from '../shared/portal'
-import { savePointAward, type PointAward } from './points'
+import { balanceSql, savePointAward, type PointAward } from './points'
 import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
 import type { RewardSkin } from '../shared/pass'
 import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
@@ -25,6 +25,7 @@ import type { InteractionState, QuestionCommand, QuestionFeedback } from '../sha
 import { readFlowcharts, readNotes, writeFlowchart, writeNote, type Flowchart, type NoteInput } from './flowchart'
 import { renderFlowchartSvg } from './flowchartSvg'
 import { LETTERS_PER_ROUND, LETTERS_PER_STUDENT, type MailboxCommand, type MailboxReply } from '../shared/mailboxShape'
+import { handleCapsule, myCapsuleBets } from './capsule'
 
 interface SocketAttachment {
 	sessionId: string
@@ -151,7 +152,8 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	private questionPermissions(user: PortalUser): InteractionState {
 		this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS question_permissions (user_id TEXT PRIMARY KEY)')
 		const ids = this.ctx.storage.sql.exec<{ user_id: string }>('SELECT user_id FROM question_permissions').toArray().map((row) => row.user_id)
-		return { type: 'question-permissions', allowedUserIds: user.role === 'teacher' ? ids : ids.filter((id) => id === user.id || this.questionPeers().some((peer) => peer.user.id === id)) }
+		if (user.role === 'teacher') return { type: 'question-permissions', allowedUserIds: ids }
+		return { type: 'question-permissions', allowedUserIds: ids.filter((id) => id === user.id || this.questionPeers().some((peer) => peer.user.id === id)), bets: myCapsuleBets(this.ctx.storage.sql, user.id) }
 	}
 
 	private broadcastQuestionPermissions() {
@@ -174,6 +176,19 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		if (command.action === 'gachapon') return this.spinGachapon(roomId, user, command)
 		if (command.action === 'letter') return this.postLetter(user, command)
 		if (command.action === 'mailbox-draw') return this.drawLetter(user, command)
+		if (command.action === 'capsule-bet' || command.action === 'capsule-draw' || command.action === 'capsule-bonus' || command.action === 'capsule-resolve' || command.action === 'capsule-list') {
+			this.ensurePointOutbox()
+			const result = await handleCapsule({
+				sql: this.ctx.storage.sql, db: this.env.PORTAL_DB!, roomId,
+				transaction: <T>(fn: (store: Parameters<Parameters<typeof room.storage.transaction>[0]>[0]) => T) => room.storage.transaction((store) => fn(store) as never).result as T,
+				queueAward: (award) => {
+					if (this.ctx.storage.sql.exec('INSERT OR IGNORE INTO point_receipts (source_key) VALUES (?) RETURNING source_key', award.sourceKey).toArray().length) this.ctx.storage.sql.exec('INSERT INTO point_outbox (event_id, payload) VALUES (?, ?)', award.eventId, JSON.stringify({ award }))
+				},
+			}, user, command)
+			if (!await this.ctx.storage.getAlarm()) await this.ctx.storage.setAlarm(Date.now() + 60_000)
+			this.ctx.waitUntil(this.flushPointAwards().catch(() => { console.warn('Capsule award synchronization deferred; recovery alarm scheduled.') }))
+			return result
+		}
 		if (command.action === 'draw') {
 			if (user.role !== 'teacher') return denied(403, 'Solo el maestro puede sortear alumnos.')
 			const peers = this.questionPeers().filter((peer) => peer.user.role === 'student')
@@ -252,9 +267,8 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 			const source = JSON.stringify(['gachapon', roomId, shape.id, shape.props.revision, user.id])
 			// The unique claim and the permanent unlock are the same D1 row. A retry cannot choose again.
 			const claimed = await this.env.PORTAL_DB!.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
-				SELECT ?, ?, ?, ?, ? WHERE ? <=
-				COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0)
-				RETURNING skin`).bind(source, user.id, skin, Date.now(), shape.props.cost, shape.props.cost, user.id, user.id).first()
+				SELECT ?, ?, ?, ?, ? WHERE ? <= ${balanceSql('?')}
+				RETURNING skin`).bind(source, user.id, skin, Date.now(), shape.props.cost, shape.props.cost, user.id, user.id, user.id).first()
 			if (!claimed) {
 				const used = await this.env.PORTAL_DB!.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(source).first()
 				return denied(409, used ? 'Ya usaste tu tirada. Espera a que el maestro reinicie la máquina.' : `Necesitas ${shape.props.cost} puntos para esta tirada.`)

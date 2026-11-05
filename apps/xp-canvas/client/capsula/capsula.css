@@ -1,0 +1,104 @@
+/* Cápsula en el canvas: hermana del buzón, mismo marco y mismos botones. */
+.capsula { pointer-events: all; overflow: visible; }
+.capsula__contenido { box-sizing: border-box; transform-origin: 0 0; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px 22px;
+	border: 1px solid #c9c5bc; border-radius: 16px; background: #fffdfa; color: #24231f; font-family: var(--tl-font-sans, sans-serif); user-select: none; }
+.capsula__cabeza { display: flex; align-items: center; justify-content: space-between; min-height: 32px; margin: -4px -10px -6px 0; }
+.capsula__etiqueta { display: inline-flex; align-items: center; gap: 6px; color: #6b6861; font-size: 13px; }
+.capsula__etiqueta b { margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: #fdebe6; color: #b1452f; font-size: 12px; font-weight: 600; }
+.capsula__hora { margin-right: 10px; color: #a8a397; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.capsula h2 { margin: 0; font-size: 22px; line-height: 1.3; white-space: pre-wrap; overflow-wrap: anywhere; }
+.capsula__escena { position: relative; flex: 1 1 0; min-height: 110px; display: flex; justify-content: center; align-items: flex-end; }
+.capsula__escena svg { height: 100%; max-height: 230px; width: auto; overflow: visible; }
+.capsula__contenido[data-estado="cerrada"] .capsula__escena svg { filter: saturate(1.1); }
+.capsula__insignia { position: absolute; left: calc(50% - 90px); top: 8px; display: grid; place-items: center; min-width: 34px; height: 34px; padding: 0 8px; box-sizing: border-box;
+	border-radius: 999px; background: #24231f; color: #fffdfa; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px #24231f33; }
+.capsula__fondo { transform-box: fill-box; transform-origin: 50% 100%; }
+.capsula__tapa { transform-box: fill-box; transform-origin: 50% 100%; transition: transform 560ms cubic-bezier(.34, 1.56, .64, 1); }
+.capsula__tapa[data-suelta="true"] { transform: translateY(-22px); }
+
+.capsula__salidas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.capsula__salida { display: grid; grid-template-columns: 28px 1fr auto; column-gap: 10px; row-gap: 8px; align-items: start; padding: 10px 12px; border: 1px solid #e7e3da; border-radius: 10px; }
+.capsula__letra { display: grid; place-items: center; width: 26px; height: 26px; border: 1.5px solid #c9c5bc; border-radius: 50%; font-size: 13px; font-weight: 600; color: #6b6861; }
+.capsula__texto { font-size: 15px; line-height: 1.35; padding-top: 3px; overflow-wrap: anywhere; }
+.capsula__cuenta { font-size: 13px; color: #6b6861; padding-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.capsula__barra { grid-column: 2 / 4; height: 6px; border-radius: 3px; background: #eeebe4; overflow: hidden; }
+.capsula__barra i { display: block; height: 100%; border-radius: 3px; background: #b9b4aa; transition: width 480ms cubic-bezier(.2, .8, .2, 1); }
+.capsula__salida[data-estado="mia"], .capsula__salida[data-estado="gana"] { border-color: #ec6a1e; background: #fff8f2; }
+.capsula__salida[data-estado="mia"] .capsula__letra, .capsula__salida[data-estado="gana"] .capsula__letra { border-color: #ec6a1e; background: #ec6a1e; color: #fff; }
+.capsula__salida[data-estado="mia"] .capsula__barra i { background: #ec6a1e; }
+.capsula__salida[data-estado="pierde"] { opacity: .5; }
+.capsula__gana { justify-self: end; padding: 1px 8px; border-radius: 999px; background: #fdebe6; color: #b1452f; font-size: 12px; font-weight: 600; }
+
+.capsula__estado { margin: 0; color: #6b6861; font-size: 14px; text-align: center; font-variant-numeric: tabular-nums; }
+.capsula__estado b { color: #24231f; font-weight: 600; }
+
+/* Papel rayado con margen rojo, como la carta del buzón. */
+.capsula__hoja { --linea: 30px; position: relative; padding: 10px 14px 6px 42px; border: 1px solid #e6dcc8; border-radius: 6px;
+	background: #fffdf7 repeating-linear-gradient(to bottom, transparent 0 calc(var(--linea) - 1px), #dfe8f1 calc(var(--linea) - 1px) var(--linea)) 0 10px / 100% auto; }
+.capsula__hoja::before { content: ''; position: absolute; top: 0; bottom: 0; left: 30px; width: 1.5px; background: #f2b8b0; }
+.capsula__hoja p { margin: 0; color: #2b2a26; font-family: 'tldraw_draw', var(--tl-font-draw, cursive); font-size: 19px; line-height: var(--linea); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.capsula__hoja p i { color: #a8a397; }
+.capsula__hoja footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; color: #8a877f; font-size: 12px; }
+.capsula__hoja--sorteada { rotate: -1deg; transform-origin: 50% 100%; box-shadow: 0 10px 24px #3b2a1a1f, 0 2px 5px #3b2a1a14; animation: capsula-sale 620ms cubic-bezier(.2, .8, .2, 1) 420ms backwards; }
+@keyframes capsula-sale { from { transform: translateY(60px) scale(.3) rotateX(70deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.capsula__quien { color: #24231f; font-size: 13px; }
+.capsula__quien b { font-weight: 600; }
+.capsula__premiada { color: #b1452f; font-weight: 600; }
+
+.capsula__reparto { display: grid; gap: 2px; margin: 0; padding: 10px 0 0; border-top: 1px dashed #c9c5bc; font-size: 14px; }
+.capsula__reparto div { display: grid; grid-template-columns: 1fr 60px 60px; }
+.capsula__reparto dt, .capsula__reparto dd { margin: 0; }
+.capsula__reparto dd { text-align: right; font-variant-numeric: tabular-nums; }
+.capsula__reparto dd:last-child { font-weight: 600; }
+.capsula__reparto-titulo { color: #a8a397; font-size: 12px; }
+.capsula__reparto-titulo dd { font-weight: 400 !important; }
+
+.capsula__controles { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.capsula__boton, .capsula__icono, .capsula__apostar { pointer-events: all; font: inherit; touch-action: manipulation; cursor: pointer; }
+.capsula__boton { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1px solid #d4d0c8; border-radius: 10px; background: #f5f3ee; color: #24231f; font-size: 15px; }
+.capsula__boton--principal { border-color: #078aa3; background: #078aa3; color: #fff; }
+.capsula__boton--gana { min-height: 34px; padding: 0 12px; border-color: #ec6a1e; background: #ec6a1e; color: #fff; font-size: 13px; font-weight: 600; }
+.capsula__boton--premio { min-height: 36px; padding: 0 11px; border-color: #f3c3a2; background: #fdebe6; color: #b1452f; font-size: 13px; font-weight: 600; }
+.capsula__boton--premio[aria-pressed="true"] { border-color: #ec6a1e; background: #ec6a1e; color: #fff; opacity: 1; }
+.capsula__icono { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #6b6861; }
+.capsula__controles .capsula__icono { border: 1px solid #d4d0c8; background: #f5f3ee; }
+.capsula__boton:disabled, .capsula__icono:disabled { opacity: .45; cursor: default; }
+.capsula__apostar { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border: 0; border-radius: 12px; background: #078aa3; color: #fff; font-size: 17px; font-weight: 600; }
+.capsula__apostar:active { transform: scale(.98); }
+.capsula__cerrado { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 52px; margin: 0; color: #8a877f; font-size: 14px; }
+.capsula :is(button):focus-visible { outline: 3px solid #078aa3; outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+	.capsula__boton:enabled:hover, .capsula__controles .capsula__icono:enabled:hover { background: #eeece6; }
+	.capsula__boton--principal:enabled:hover { background: #067a90; }
+	.capsula__boton--gana:enabled:hover { background: #d95e16; }
+	.capsula__boton--premio:enabled:hover { background: #fbdcc6; }
+	.capsula__icono:enabled:hover { background: #eeece6; color: #24231f; }
+	.capsula__apostar:hover { background: #067a90; }
+}
+@media (prefers-reduced-motion: reduce) { .capsula__hoja--sorteada { animation: none; } .capsula__tapa, .capsula__barra i { transition: none; } }
+
+/* La hoja de apuesta y la lista de apuestas */
+.apuesta { display: grid; gap: 14px; }
+.apuesta__salidas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.apuesta__salida { display: grid; grid-template-columns: 28px 1fr; column-gap: 10px; align-items: center; min-height: 48px; padding: 8px 12px; border: 1px solid var(--xp-line); border-radius: 10px; background: #fff; font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+.apuesta__salida[aria-pressed="true"] { border-color: #ec6a1e; background: #fff8f2; }
+.apuesta__salida[aria-pressed="true"] .capsula__letra { border-color: #ec6a1e; background: #ec6a1e; color: #fff; }
+.apuesta__monto { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.apuesta__stepper { display: inline-flex; align-items: center; border: 1px solid var(--xp-line); border-radius: 10px; overflow: hidden; }
+.apuesta__stepper button { width: 44px; height: 44px; border: 0; background: #f5f3ee; color: #6b6861; font-size: 20px; cursor: pointer; }
+.apuesta__stepper button:disabled { opacity: .4; cursor: default; }
+.apuesta__stepper input { width: 64px; height: 44px; border: 0; text-align: center; font: inherit; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.apuesta__stepper input:focus-visible { outline: none; background: #fff8f2; }
+.apuesta__saldo { color: var(--xp-text-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.apuesta__porque { display: grid; gap: 6px; }
+.apuesta__porque textarea { min-height: 88px; padding: 10px 12px; border: 1px solid var(--xp-line); border-radius: 10px; font: inherit; font-size: 16px; resize: none; }
+.apuesta__cuenta { justify-self: end; color: var(--xp-text-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.apuesta__cuenta[data-limite="pasado"] { color: #be123c; font-weight: 600; }
+.apuesta__nota { margin: 0; color: var(--xp-text-2); font-size: 13px; line-height: 1.45; }
+
+.apuestas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 60vh; overflow: auto; }
+.apuestas li { display: grid; grid-template-columns: 28px 1fr auto; column-gap: 10px; row-gap: 4px; padding: 10px 12px; border: 1px solid var(--xp-line); border-radius: 10px; font-size: 14px; }
+.apuestas li[data-leida] { background: #f5f3ee; }
+.apuestas li p { grid-column: 2 / 4; margin: 0; color: #2b2a26; }
+.apuestas li p i { color: var(--xp-text-2); }
+.apuestas__meta { color: var(--xp-text-2); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }

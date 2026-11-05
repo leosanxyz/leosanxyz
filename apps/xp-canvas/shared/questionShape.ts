@@ -2,6 +2,7 @@ import { T } from '@tldraw/validate'
 import { createShapePropsMigrationIds, createShapePropsMigrationSequence } from '@tldraw/tlschema'
 import type { TLShape } from '@tldraw/tlschema'
 import { parseMailboxCommand, type MailboxCommand } from './mailboxShape'
+import { parseCapsuleCommand, type CapsuleBet, type CapsuleCommand } from './capsuleShape'
 
 const text = (max: number) => T.string.refine((value) => {
 	if (!value.trim() || value.length > max) throw new Error('Texto de pregunta inválido.')
@@ -45,13 +46,15 @@ declare module '@tldraw/tlschema' {
 }
 export type QuestionShape = TLShape<'question'>
 export type QuestionFeedback = { type: 'question-result'; id: string; shapeId: string; revision: string; answer: number; correct: boolean; points?: number }
-export type InteractionState = { type: 'question-permissions'; allowedUserIds: string[] }
+/** `bets` llega solo a los alumnos: sus apuestas en las cápsulas de este canvas. */
+export type InteractionState = { type: 'question-permissions'; allowedUserIds: string[]; bets?: CapsuleBet[] }
 export type QuestionCommand =
 	| { action: 'draw' }
 	| { action: 'gachapon'; shapeId: string; revision: string; cost: number }
 	| { action: 'permission'; userId: string; allowed: boolean }
 	| { action: 'answer'; shapeId: string; revision: string; answer: number }
 	| MailboxCommand
+	| CapsuleCommand
 
 export function parseQuestionCommand(value: unknown): QuestionCommand {
 	if (!value || typeof value !== 'object') throw new Error('Solicitud inválida.')
@@ -66,5 +69,7 @@ export function parseQuestionCommand(value: unknown): QuestionCommand {
 	}
 	const mailbox = parseMailboxCommand(data)
 	if (mailbox) return mailbox
+	const capsule = parseCapsuleCommand(data)
+	if (capsule) return capsule
 	throw new Error('Solicitud inválida.')
 }

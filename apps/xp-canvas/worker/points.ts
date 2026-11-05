@@ -5,7 +5,7 @@ export interface PointAward {
 	sourceKey: string
 	eventId: string
 	userId: string
-	activityKind: 'question' | 'shop-reveal' | 'shop-gift'
+	activityKind: 'question' | 'shop-reveal' | 'shop-gift' | 'capsule-win' | 'capsule-bonus'
 	amount: number
 	createdAt: number
 }
@@ -21,7 +21,10 @@ export async function savePointAward(env: CanvasEnv, award: PointAward): Promise
 	return saved.event_id === award.eventId ? saved.amount : null
 }
 
+/** Saldo: premios menos tiradas y compras menos lo apostado en cápsulas. `user` se bindea tres veces cuando es `?`. */
+export const balanceSql = (user: string) => `COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ${user}), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ${user}), 0) - COALESCE((SELECT SUM(amount) FROM capsule_stakes WHERE user_id = ${user}), 0)`
+
 export async function readPoints(env: CanvasEnv, userId: string) {
-	const row = await portalDb(env).prepare('SELECT COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0) AS points').bind(userId, userId).first<{ points: number }>()
+	const row = await portalDb(env).prepare(`SELECT ${balanceSql('?')} AS points`).bind(userId, userId, userId).first<{ points: number }>()
 	return row?.points ?? 0
 }

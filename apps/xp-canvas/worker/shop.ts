@@ -1,6 +1,6 @@
 import type { CanvasEnv } from './access'
 import { catalog } from './boards'
-import { readPoints, savePointAward } from './points'
+import { balanceSql, readPoints, savePointAward } from './points'
 import { allowedBoardIds, portalDb, type AuthSession } from './portalAuth'
 import { body, json, PortalError } from './portalHttp'
 import type { BoardLibrary } from '../shared/boards'
@@ -16,7 +16,7 @@ type Answers = (number | null)[]
 
 const MAX_REVIEW_BOARDS = 40
 const ID = /^[a-f0-9-]{36}$/
-const balance = 'COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0)'
+const balance = balanceSql('?')
 /** Answers so far, one slot per question. Rows from before per-question grading may hold `NULL`. */
 const storedAnswers = (json: string | null): Answers => json ? JSON.parse(json) : Array(SHOP_REVIEW_QUESTIONS).fill(null)
 const random = (below: number) => Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * below)
@@ -184,7 +184,7 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 		// The ownership check keeps two simultaneous spins from paying twice for the same card.
 		const claimed = await db.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
 			SELECT ?, ?, ?, ?, ? WHERE ? <= ${balance} AND NOT EXISTS (SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ?)
-			RETURNING skin`).bind(source, user.id, skin, now, cost, cost, user.id, user.id, user.id, skin).first()
+			RETURNING skin`).bind(source, user.id, skin, now, cost, cost, user.id, user.id, user.id, user.id, skin).first()
 		if (!claimed) {
 			if (await db.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(source).first()) throw new PortalError(409, data.free ? 'Ya usaste tu tirada gratis de hoy.' : 'Esta tirada ya se registró.')
 			if ((await readPoints(env, user.id)) < cost) throw new PortalError(409, `Necesitas ${SHOP_SPIN_COST} puntos para esta tirada.`)
@@ -199,7 +199,7 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 		if (!shop.includes(skin)) throw new PortalError(403, 'Esa carta ya no está en la tienda ahora.')
 		const claimed = await db.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
 			SELECT ?, ?, ?, ?, ? WHERE ? <= ${balance} AND NOT EXISTS (SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ?)
-			RETURNING skin`).bind(JSON.stringify(['shop-card', user.id, skin]), user.id, skin, now, SHOP_CARD_COST, SHOP_CARD_COST, user.id, user.id, user.id, skin).first()
+			RETURNING skin`).bind(JSON.stringify(['shop-card', user.id, skin]), user.id, skin, now, SHOP_CARD_COST, SHOP_CARD_COST, user.id, user.id, user.id, user.id, skin).first()
 		if (!claimed) {
 			if (await db.prepare('SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ?').bind(user.id, skin).first()) throw new PortalError(409, 'Ya tienes esta carta.')
 			throw new PortalError(409, `Necesitas ${SHOP_CARD_COST} puntos para esta carta.`)

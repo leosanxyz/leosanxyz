@@ -58,6 +58,11 @@ import { MailboxContext, sentKey } from '../mailbox/MailboxContext'
 import { MailboxDialog } from '../mailbox/MailboxDialog'
 import { LetterSheet } from '../mailbox/LetterSheet'
 import type { MailboxReply, MailboxShape } from '../../shared/mailboxShape'
+import { CapsuleContext } from '../capsula/CapsuleContext'
+import { CapsuleDialog } from '../capsula/CapsuleDialog'
+import { BetSheet } from '../capsula/BetSheet'
+import { CapsuleBetsDialog } from '../capsula/CapsuleBetsDialog'
+import type { CapsuleReply, CapsuleShape } from '../../shared/capsuleShape'
 import { ParejasContext } from '../parejas/ParejasContext'
 import { ParejasDialog } from '../parejas/ParejasDialog'
 import type { ParejasShape } from '../../shared/parejasShape'
@@ -175,6 +180,9 @@ function CanvasRoom({
 	const [mailboxDialog, setMailboxDialog] = useState<MailboxShape | 'new' | null>(null)
 	const [parejasDialog, setParejasDialog] = useState<ParejasShape | 'new' | null>(null)
 	const [letterFor, setLetterFor] = useState<MailboxShape | null>(null)
+	const [capsuleDialog, setCapsuleDialog] = useState<CapsuleShape | 'new' | null>(null)
+	const [betFor, setBetFor] = useState<CapsuleShape | null>(null)
+	const [betsOf, setBetsOf] = useState<CapsuleShape | null>(null)
 	const [letterAuthors, setLetterAuthors] = useState<Record<string, string>>({})
 	const [sentLetters, setSentLetters] = useState<Record<string, number>>({})
 	const [syncConnected, setSyncConnected] = useState(false)
@@ -294,6 +302,16 @@ function CanvasRoom({
 		} catch (cause) { setNotice(cause instanceof Error ? cause.message : 'No pude sacar la carta.') }
 	}, [roomId])
 	const closeLetter = useCallback(() => setLetterFor(null), [])
+	// Sortear, premiar y resolver cambian la figura desde el servidor; aquí solo se avisa si algo falla.
+	const capsuleCommand = useCallback(async (command: Record<string, unknown>) => {
+		try { await boardRequest<CapsuleReply>(`boards/${roomId}/interactions`, 'POST', command) }
+		catch (cause) { setNotice(cause instanceof Error ? cause.message : 'No pude abrir la cápsula.') }
+	}, [roomId])
+	const drawBet = useCallback((shape: CapsuleShape) => capsuleCommand({ action: 'capsule-draw', shapeId: shape.id }), [capsuleCommand])
+	const bonusBet = useCallback((shape: CapsuleShape, betId: string) => capsuleCommand({ action: 'capsule-bonus', shapeId: shape.id, betId }), [capsuleCommand])
+	const resolveCapsule = useCallback((shape: CapsuleShape, winner: number) => capsuleCommand({ action: 'capsule-resolve', shapeId: shape.id, winner }), [capsuleCommand])
+	const closeBet = useCallback(() => setBetFor(null), [])
+	const closeBets = useCallback(() => setBetsOf(null), [])
 
 	function followLeo() {
 		if (!editor) return
@@ -345,6 +363,7 @@ function CanvasRoom({
 		<GachaponContext.Provider value={{ userId: user?.id, isTeacher: isEditor, canUse: questions.canAnswer, pending: questions.pending, results: questions.gachaResults, spin: questions.spinGachapon, edit: setGachaponDialog }}>
 		<QuestionContext.Provider value={{ feedback: questions.feedback, isTeacher: isEditor, canAnswer: questions.canAnswer, pending: questions.pending, answer: questions.answer, edit: setQuestionDialog }}>
 		<MailboxContext.Provider value={{ isTeacher: isEditor, enabled: mode === 'portal' && syncConnected, authors: letterAuthors, sent: sentLetters, write: setLetterFor, draw: drawLetter, edit: setMailboxDialog }}>
+		<CapsuleContext.Provider value={{ isTeacher: isEditor, enabled: mode === 'portal' && syncConnected, mine: questions.capsuleBets, bet: setBetFor, draw: drawBet, bonus: bonusBet, resolve: resolveCapsule, list: setBetsOf, edit: setCapsuleDialog }}>
 		<ParejasContext.Provider value={{ isTeacher: isEditor, edit: setParejasDialog }}>
 		<div className="canvas-room" data-stage-reveal={stageReveal}>
 			<header className="canvas-header">
@@ -354,6 +373,7 @@ function CanvasRoom({
 					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setGachaponDialog('new')}>Gachapon</button>}
 					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
 					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setMailboxDialog('new')}>Buzón</button>}
+					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setCapsuleDialog('new')}>Cápsula</button>}
 					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setParejasDialog('new')}>Parejas</button>}
 					{isEditor && <><button type="button" className="header-resources" aria-expanded={showResources} disabled={!editor} onClick={toggleResources}>Recursos</button><button type="button" className="header-emojis" aria-expanded={showEmojis} disabled={!editor} onClick={toggleEmojis} aria-label="Emojis"><Icon name="smile" size={20} /></button></>}
 					{isEditor && (
@@ -458,6 +478,9 @@ function CanvasRoom({
 			{questions.error && <div className="canvas-notice" role="alert">{questions.error}</div>}
 			{questionDialog && editor && <QuestionDialog editor={editor} shape={questionDialog === 'new' ? null : questionDialog} onClose={() => setQuestionDialog(null)} />}
 			{mailboxDialog && editor && <MailboxDialog editor={editor} shape={mailboxDialog === 'new' ? null : mailboxDialog} onClose={() => setMailboxDialog(null)} />}
+			{capsuleDialog && editor && <CapsuleDialog editor={editor} shape={capsuleDialog === 'new' ? null : capsuleDialog} onClose={() => setCapsuleDialog(null)} />}
+			{betFor && editor && <BetSheet editor={editor} roomId={roomId} shape={betFor} current={questions.capsuleBets[betFor.id]?.revision === betFor.props.revision ? questions.capsuleBets[betFor.id] : undefined} onPlaced={questions.setCapsuleBet} onClose={closeBet} />}
+			{betsOf && <CapsuleBetsDialog roomId={roomId} shape={betsOf} onClose={closeBets} />}
 			{parejasDialog && editor && <ParejasDialog editor={editor} roomId={roomId} shape={parejasDialog === 'new' ? null : parejasDialog} onClose={() => setParejasDialog(null)} />}
 			{letterFor && editor && <LetterSheet editor={editor} roomId={roomId} shape={letterFor} name={user?.name ?? 'Leo'} isTeacher={isEditor} onClose={closeLetter}
 				onSent={() => setSentLetters((current) => ({ ...current, [sentKey(letterFor)]: (current[sentKey(letterFor)] ?? 0) + 1 }))} />}
@@ -469,6 +492,7 @@ function CanvasRoom({
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
 		</ParejasContext.Provider>
+		</CapsuleContext.Provider>
 		</MailboxContext.Provider>
 		</QuestionContext.Provider>
 		</GachaponContext.Provider>

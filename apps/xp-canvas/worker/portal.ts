@@ -6,7 +6,7 @@ import { studentLibrary } from './studentLibrary'
 import { isBoardId } from '../shared/boards'
 import type { BoardGrant, Student } from '../shared/portal'
 import { validPass, isRewardSkin } from '../shared/pass'
-import { readPoints } from './points'
+import { balanceSql, readPoints } from './points'
 import { readPass } from './studentPass'
 import { body, json, PortalError } from './portalHttp'
 import { handleShopRequest } from './shop'
@@ -144,7 +144,7 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 		}
 		if (path === '/api/portal/roster' && method === 'GET') {
 			const [students, groups, personal] = await Promise.all([
-				db.prepare("SELECT users.*, COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = users.id), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = users.id), 0) AS points FROM users WHERE role = 'student' ORDER BY name").all<UserRow & { points: number }>(),
+				db.prepare(`SELECT users.*, ${balanceSql('users.id')} AS points FROM users WHERE role = 'student' ORDER BY name`).all<UserRow & { points: number }>(),
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
 				catalog(env).fetch('http://catalog/api/library?scope=personal').then((response) => response.json<BoardLibrary>()),
 			])
