@@ -16,6 +16,7 @@ Rutas relativas a `apps/xp-canvas/`.
 | Preguntas interactivas | `client/questions/`, `worker/questions.ts` |
 | Gachapon | `client/gachapon/` |
 | Tienda | `client/shop/`, `worker/shop.ts`, `shared/shop.ts` |
+| Cosméticos: placas, marcos y su catálogo | `client/cosmetics/`, `shared/cosmetics.ts`, `worker/cosmetics.ts` |
 | Demo de Esquiva | `client/esquiva/` |
 | Buzón | `client/mailbox/`, `shared/mailboxShape.ts` |
 | Parejas | `client/parejas/`, `shared/parejasShape.ts` |
