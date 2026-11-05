@@ -1,7 +1,7 @@
 // Ported from the approved prototypes in designs/capsula/materiales (index.html and variantes.html).
 // Only the card constants changed: the pass card is 270 × 393.6 units with a 17-unit corner, not 9:16.
 
-const NOISE = `
+export const NOISE = `
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
 vec2 hash22(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*vec3(.1031,.1030,.0973)); p3 += dot(p3, p3.yzx+33.33); return fract((p3.xx+p3.yz)*p3.zy); }
 vec2 grad(vec2 i, float per){ i.y = mod(i.y, per); float a = hash12(i)*6.2831853; return vec2(cos(a), sin(a)); }

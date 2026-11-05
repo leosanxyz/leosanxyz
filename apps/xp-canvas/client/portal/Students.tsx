@@ -10,6 +10,8 @@ import { SAMPLE_ROSTER, Skeleton } from '../components/Skeleton'
 import { ago } from './AgentList'
 import type { Board } from '../../shared/boards'
 import { MaterialMini } from './pass/materials/MaterialMini'
+import { CardFrame } from '../cosmetics/CardFrame'
+import { Plate } from '../cosmetics/Plate'
 
 export default function Students() {
 	const { library } = useBoardLibrary()
@@ -64,7 +66,7 @@ export default function Students() {
 		{!dialog && error && <p role="alert" className="xp-error">{error} <button className="portal-link" onClick={() => { void load().then(() => setError('')).catch(() => setError('No pude cargar la lista de alumnos.')) }}>Reintentar</button></p>}
 		{notice && <p role="status">{notice}</p>}
 		<Skeleton data={roster && students} sample={SAMPLE_ROSTER.students} label="Cargando alumnos">{(students) => <section className="portal-students" aria-label="Lista de alumnos">
-			{students.map((student) => <article className="portal-student" data-disabled={student.disabled} key={student.id}>{student.card ? <MaterialMini className="portal-student-card" skin={student.card.skin} material={student.card.material} /> : <span className="portal-student-card" data-empty aria-hidden="true" />}<div><strong>{student.name}</strong><p>{student.username} · {roster?.groups.find((group) => group.id === student.groupId)?.name ?? 'Sin grupo'}</p><p className="student-points">{student.points.toLocaleString('es-MX')} puntos</p><StudentCanvasLinks studentId={student.id} boards={canvases.get(student.id) ?? []} /><p>{student.disabled ? 'Cuenta deshabilitada' : student.mustChangePassword ? 'Pendiente de cambiar contraseña' : 'Cuenta activa'}</p></div><button className="portal-button" onClick={() => open(student)} aria-label={`Administrar ${student.name}`}>Administrar</button></article>)}
+			{students.map((student) => <article className="portal-student" data-disabled={student.disabled} key={student.id}>{student.card ? <span className="portal-student-card"><MaterialMini skin={student.card.skin} material={student.card.material} /><CardFrame frame={student.frame} /></span> : <span className="portal-student-card" data-empty aria-hidden="true" />}<div><strong className="portal-student-name"><Plate plate={student.plate} name={student.name} /></strong><p>{student.username} · {roster?.groups.find((group) => group.id === student.groupId)?.name ?? 'Sin grupo'}</p><p className="student-points">{student.points.toLocaleString('es-MX')} puntos</p><StudentCanvasLinks studentId={student.id} boards={canvases.get(student.id) ?? []} /><p>{student.disabled ? 'Cuenta deshabilitada' : student.mustChangePassword ? 'Pendiente de cambiar contraseña' : 'Cuenta activa'}</p></div><button className="portal-button" onClick={() => open(student)} aria-label={`Administrar ${student.name}`}>Administrar</button></article>)}
 		</section>}</Skeleton>
 		{roster && !students.length && <p>No hay alumnos en esta lista.</p>}
 		{dialog && <Modal title={dialog === 'group' ? 'Nuevo grupo' : dialog === 'import' ? 'Añadir alumnos' : `Cuenta de ${dialog.name}`} onClose={() => { if (!busy) setDialog(null) }}><form className="xp-form" onSubmit={submit}>

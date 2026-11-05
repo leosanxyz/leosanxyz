@@ -1,5 +1,6 @@
 /* Hero: the canvas spills 64 px past the card on every side. The front face stops clipping while it is shown. */
-.pass-front:has(> .material-hero[data-ready='true']) {
+.pass-front:has(> .material-hero[data-ready='true']),
+.pass-front:has(> .card-frame) {
 	overflow: visible;
 }
 .material-hero {

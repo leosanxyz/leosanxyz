@@ -1,15 +1,20 @@
 import { useEffect, useState, useSyncExternalStore, type RefObject } from 'react'
 
-// One live WebGL context per page: the first hero in mount order that is on screen owns it.
+// One live WebGL context per kind of hero per page: the first in mount order that is on screen owns it.
+// Materials, frames and plates each have their own slot, so a pass with a material and a frame draws both live.
 type Hero = { visible: boolean }
-const heroes: Hero[] = []
+const groups = new Map<string, { heroes: Hero[]; owner: Hero | null }>()
 const listeners = new Set<() => void>()
-let owner: Hero | null = null
 
-function update() {
-	const next = heroes.find((hero) => hero.visible) ?? null
-	if (next === owner) return
-	owner = next
+const group = (key: string) => {
+	let entry = groups.get(key)
+	if (!entry) groups.set(key, entry = { heroes: [], owner: null })
+	return entry
+}
+function update(key: string) {
+	const entry = group(key), next = entry.heroes.find((hero) => hero.visible) ?? null
+	if (next === entry.owner) return
+	entry.owner = next
 	for (const listener of listeners) listener()
 }
 const subscribe = (listener: () => void) => {
@@ -17,23 +22,24 @@ const subscribe = (listener: () => void) => {
 	return () => listeners.delete(listener)
 }
 
-export function useHeroSlot(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+export function useHeroSlot(ref: RefObject<HTMLElement | null>, enabled: boolean, key = 'material') {
 	const [hero] = useState<Hero>(() => ({ visible: false }))
 	useEffect(() => {
 		const element = ref.current
 		if (!enabled || !element) return
-		heroes.push(hero)
-		const observer = new IntersectionObserver(([entry]) => {
-			hero.visible = entry.isIntersecting
-			update()
+		const entry = group(key)
+		entry.heroes.push(hero)
+		const observer = new IntersectionObserver(([item]) => {
+			hero.visible = item.isIntersecting
+			update(key)
 		})
 		observer.observe(element)
 		return () => {
 			observer.disconnect()
-			heroes.splice(heroes.indexOf(hero), 1)
+			entry.heroes.splice(entry.heroes.indexOf(hero), 1)
 			hero.visible = false
-			update()
+			update(key)
 		}
-	}, [enabled, hero, ref])
-	return useSyncExternalStore(subscribe, () => owner === hero, () => false)
+	}, [enabled, hero, ref, key])
+	return useSyncExternalStore(subscribe, () => group(key).owner === hero, () => false)
 }

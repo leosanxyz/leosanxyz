@@ -3,10 +3,10 @@ const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { CanvasEnv } from './access'
-import { applyEquip, buyCosmetic, cosmeticsState, equipCosmetic, ownsEquipped } from './cosmetics'
+import { buyCosmetic, cosmeticsState, equipCosmetic, ownsEquipped } from './cosmetics'
 import { readPoints } from './points'
 import { cosmetic } from '../shared/cosmetics'
-import { defaultPass, validPass } from '../shared/pass'
+import { applyEquip, defaultPass, validPass } from '../shared/pass'
 
 /** D1 over node:sqlite, enough for the cosmetics queries. */
 function database() {

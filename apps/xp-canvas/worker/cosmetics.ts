@@ -4,9 +4,9 @@ import { portalDb } from './portalAuth'
 import { PortalError } from './portalHttp'
 import {
 	cosmetic, cosmeticPrice, forSale, frameItem, MATERIALS_FOR_SALE, ownsCosmetic, plateItem,
-	type CosmeticId, type CosmeticItem, type CosmeticPurchase, type CosmeticsState, type EquipSlot,
+	type CosmeticId, type CosmeticItem, type CosmeticPurchase, type CosmeticsState,
 } from '../shared/cosmetics'
-import { defaultHologram, passHologram, validPass, type PassDraft } from '../shared/pass'
+import { applyEquip, passHologram, validPass, type PassDraft } from '../shared/pass'
 
 /** Items bought with points, from their charges `["cosmetic", user, item]`. */
 export async function boughtCosmetics(env: CanvasEnv, userId: string) {
@@ -91,12 +91,3 @@ export async function equipCosmetic(env: CanvasEnv, userId: string, slot: unknow
 	throw new PortalError(409, 'Tu pase cambió mientras tanto. Vuelve a intentarlo.')
 }
 
-/** A material goes on as the pass's special finish, the same as choosing it in the profile. */
-export function applyEquip(draft: PassDraft, slot: EquipSlot, item: CosmeticItem | null): PassDraft {
-	if (slot === 'plate') return { ...draft, plate: item?.kind === 'plate' ? item.id : null }
-	if (slot === 'frame') return { ...draft, frame: item?.kind === 'frame' ? item.id : null }
-	const hologram = draft.hologram ?? defaultHologram()
-	return item?.kind === 'material'
-		? { ...draft, finish: 'matte', hologram: { ...hologram, material: item.material } }
-		: { ...draft, hologram: { ...hologram, material: 'none' } }
-}

@@ -21,6 +21,7 @@ import { PassSticker as Sticker } from './PassSticker'
 import { PassHologram } from './PassHologram'
 import { unprojectCardPoint } from './cardProjection'
 import { MaterialHero } from './materials/MaterialHero'
+import { CardFrame } from '../../cosmetics/CardFrame'
 
 export function PassCard({
 	draft,
@@ -222,6 +223,7 @@ export function PassCard({
 						</div>
 						{hero && <MaterialHero skin={draft.skin} material={passHologram(draft).material} root={root}
 							rotateX={rotateX} rotateY={rotateY} lamp={lamp} phase={phase} reduced={reduced} />}
+						{pass && <CardFrame frame={draft.frame} hero={hero} root={root} />}
 						{pass && <>
 						<div className="pass-top">
 							<span>XP / CLASS PASS</span>

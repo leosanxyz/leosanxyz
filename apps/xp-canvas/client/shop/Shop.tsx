@@ -26,6 +26,7 @@ import { usePassReducedMotion } from '../portal/pass/usePassReducedMotion'
 import { usePortal } from '../portal/PortalProvider'
 import { uuid } from '../uuid'
 import { ShopMachine } from './ShopMachine'
+import { Wardrobe } from './Wardrobe'
 import { COINS_FLY_AT, flyCoins } from './coins'
 import { useShopNotice } from './shopNotice'
 import './shop.css'
@@ -287,6 +288,7 @@ export default function Shop() {
 						</li>
 					</Strip>
 				</section>
+				<Wardrobe state={state} name={user?.name ?? 'Tu nombre'} onState={(change) => setState((current) => current && change(current))} />
 			</>}
 		</div>
 		{reveal && <GachaponReveal result={reveal} />}

@@ -69,6 +69,18 @@ export function buildProgram(gl: WebGL2RenderingContext, fs: string, textures: {
 	return program
 }
 
+/** A program with no textures: the cosmetics' plates and frames are pure shader. */
+export function buildFxProgram(gl: WebGL2RenderingContext, fs: string) {
+	const program = compile(gl, fs)
+	gl.bindVertexArray(gl.createVertexArray())
+	gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+	gl.enableVertexAttribArray(0)
+	gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+	gl.useProgram(program.program)
+	return program
+}
+
 export function draw(gl: WebGL2RenderingContext, program: Program, values: Uniforms) {
 	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
 	gl.clearColor(0, 0, 0, 0)

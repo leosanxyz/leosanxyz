@@ -297,3 +297,62 @@
 
 /* Local QA only: the Vite dev build renders this button; production never does. */
 [data-testid='portal-shop'] .shop-debug { margin-right: 6px; padding: 6px 10px; border: 1px dashed var(--xp-muted); border-radius: 8px; background: transparent; color: var(--xp-muted); font-size: 12px; }
+
+/* Your pass: the card wearing what you try on at the left, its five slots at the right, and the catalog by rarity below. */
+.shop-wear { position: relative; margin-top: 64px; }
+.shop-wear__top { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 56px; align-items: start; }
+.shop-wear__stage { display: grid; justify-items: center; gap: 30px; padding: 40px 0 24px; border-radius: 16px; background: var(--shop-bg); }
+.shop-wear__card { width: 210px; }
+.shop-wear__row { --plate-h: 34px; display: flex; justify-content: center; }
+.shop-wear__error { margin: 16px 0 0; }
+
+.shop-slots { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--shop-line); }
+.shop-slot { display: grid; grid-template-columns: 132px minmax(0, 1fr) auto; align-items: center; gap: 18px; min-height: 92px; padding: 12px 0; border-bottom: 1px solid var(--shop-line); }
+.shop-slot__art { display: grid; place-items: center; width: 132px; height: 68px; }
+.shop-slot__card { width: 40px; }
+.shop-slot__framed { position: relative; display: block; width: 40px; }
+.shop-slot__plate { --plate-h: 20px; }
+.shop-slot__soon, .shop-item__soon { display: block; width: 40px; aspect-ratio: .686; border: 1px dashed var(--shop-muted); border-radius: 4px; }
+.shop-slot[data-empty] .shop-slot__art { opacity: .55; }
+.shop-slot__text { display: grid; gap: 2px; min-width: 0; }
+.shop-slot__label { color: var(--shop-muted); font-size: 13px; }
+.shop-slot__text strong { font-size: 16px; font-weight: 400; overflow-wrap: anywhere; }
+.shop-slot[data-empty] .shop-slot__text strong { color: var(--shop-text); }
+.shop .shop-slot__action { min-height: 40px; padding: 0 14px; border: 1px solid var(--shop-line); border-radius: 0; background: var(--xp-paper); color: var(--shop-ink); font-size: 14px; }
+.shop .shop-slot__action:disabled { opacity: .5; cursor: default; }
+
+/* The tier list: the rarity's color and price on the left, its objects on the right. Rarity is visual cost. */
+.shop-tiers { display: grid; gap: 12px; margin-top: 48px; }
+.shop-tier { display: grid; grid-template-columns: 148px minmax(0, 1fr); border-radius: 16px; background: var(--xp-paper); box-shadow: 0 0 0 1px var(--shop-line); overflow: hidden; }
+.shop-tier__name { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 18px; background: var(--rarity); color: #fff; }
+.shop-tier[data-rarity='legendaria'] .shop-tier__name { color: #2b1a02; }
+.shop-tier__name strong { font-size: 20px; font-weight: 400; letter-spacing: -.01em; }
+.shop-tier__name > span { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.shop-tier__name .shop-coin { box-shadow: 0 0 0 1.5px #ffffff80; }
+.shop-tier__items { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin: 0; padding: 14px; list-style: none; }
+.shop-item { display: grid; gap: 6px; }
+.shop .shop-item__pick { display: grid; justify-items: center; gap: 4px; min-width: 104px; padding: 14px 12px 12px; border: 0; border-radius: 12px; background: none; color: var(--shop-ink); transition: background-color 160ms ease; }
+.shop .shop-item__pick[aria-pressed='true'] { background: var(--shop-bg); }
+.shop-item__art { display: grid; place-items: center; height: 92px; margin-bottom: 6px; }
+.shop-item[data-kind='plate'] .shop-item__art { --plate-h: 28px; }
+.shop-item__card { width: 56px; }
+.shop-item__framed { position: relative; display: block; width: 56px; }
+.shop-item__soon { width: 56px; }
+.shop-item__name { font-size: 14px; }
+.shop-item__state { display: inline-flex; align-items: center; gap: 5px; color: var(--shop-text); font-size: 13px; font-variant-numeric: tabular-nums; }
+.shop-item[data-mode='worn'] .shop-item__state { color: var(--shop-ink); font-weight: 500; }
+.shop-item[data-mode='soon'] { opacity: .6; }
+.shop .shop-item__act { min-height: 40px; padding: 0 14px; border: 0; border-radius: 0; background: var(--shop-action); color: #fff; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; animation: shop-fade 160ms ease both; }
+.shop .shop-item__act[data-mode='confirm'] { background: var(--xp-yellow); color: var(--xp-ink); }
+.shop .shop-item__act:disabled { background: #eceff3; color: var(--shop-text); cursor: default; }
+
+@media (hover: hover) {
+	.shop .shop-item__pick:hover { background: var(--shop-bg); }
+}
+@media (max-width: 760px) {
+	.shop-wear__top { grid-template-columns: 1fr; gap: 28px; }
+	.shop-tier { grid-template-columns: 1fr; }
+	.shop-tier__name { flex-direction: row; align-items: baseline; justify-content: space-between; padding: 12px 16px; }
+	.shop-tier__items { padding: 10px; }
+	.shop .shop-item__pick { min-width: 96px; padding: 12px 8px 10px; }
+}

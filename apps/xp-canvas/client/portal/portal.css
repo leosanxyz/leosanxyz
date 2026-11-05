@@ -18,7 +18,8 @@
 .portal-admin-tools input, .portal-admin-tools select { min-height: 44px; padding: 10px; font: inherit; border: 1px solid var(--xp-line); border-radius: 0; background: white; color: inherit; max-width: 100%; }
 .portal-students { display: grid; gap: 10px; }
 .portal-student { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px; background: white; border: 1px solid var(--xp-line); border-radius: 0; }
-.portal-student-card { flex: none; width: 44px; }
+.portal-student-card { position: relative; flex: none; width: 44px; }
+.portal-student-name { --plate-h: 30px; display: flex; min-width: 0; }
 .portal-student-card[data-empty] { aspect-ratio: 0.686; border-radius: 4px; border: 1px dashed var(--xp-line); }
 .portal-student-card + div { flex: 1; min-width: 0; }
 .portal-student p { margin: 5px 0 0; font-size: 13px; color: var(--xp-text-2); }
@@ -37,7 +38,7 @@
 .connected-students__body ul { list-style: none; margin: 0; padding: 0; }
 .connected-students__body li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; margin: 4px -4px; border: 1px solid transparent; border-radius: 12px; overflow-wrap: anywhere; }
 .connected-students__body p { margin: 12px 8px; color: var(--xp-text-2); line-height: 1.5; }
-.connected-students__name { flex: 1; min-width: 0; }
+.connected-students__name { --plate-h: 26px; display: flex; flex: 1; min-width: 0; }
 .hand-raise-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 20px; line-height: 1; }
 .connected-students__raised-hand { display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 8px; background: #fff0c2; color: #805500; }
 .canvas-actions .canvas-raise-hand { display: flex; align-items: center; justify-content: center; gap: 7px; }

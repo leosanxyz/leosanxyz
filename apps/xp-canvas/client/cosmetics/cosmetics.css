@@ -1,0 +1,102 @@
+/* Plates: a 220 × 36 strip behind the name, sized by --plate-h. Every unit below is a fraction of that height.
+   In a narrow column it shrinks whole, keeping its proportion, so a baked sheet is never stretched. */
+.plate-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plate { --u: calc(var(--plate-h, 36px) / 36); position: relative; isolation: isolate; display: inline-flex; flex: none; align-items: center; max-width: 100%;
+	width: calc(var(--u) * 220); height: auto; aspect-ratio: 220 / 36; padding: 0 calc(var(--u) * 12); border-radius: calc(var(--u) * 10); color: var(--plate-ink); vertical-align: middle; }
+.plate__name { position: relative; z-index: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: max(12px, calc(var(--u) * 15)); font-weight: 500; line-height: 1.2; }
+.plate__art { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.plate__art > * { position: absolute; }
+
+/* Commons: flat color with a lit top edge. */
+.plate[data-look='flat'] { background: var(--plate-fill); box-shadow: inset 0 0 0 1px var(--plate-edge), inset 0 1px 0 #ffffff24, 0 1px 2px #0000001f; }
+
+/* Aurora: two curtains of light drifting at different speeds over a night sky. */
+.plate[data-plate='aurora'] { background: #0b1427; box-shadow: inset 0 0 0 1px #ffffff1a, 0 1px 2px #0000002e; }
+.plate[data-plate='aurora'] .plate__art i { top: -60%; bottom: -60%; left: 0; width: 300%; will-change: transform;
+	background: linear-gradient(100deg, transparent 4%, #2ef0a2cc 14%, transparent 26%, #2bc6e8b0 38%, transparent 50%, #ff7ac099 62%, transparent 72%, #2ef0a2cc 82%, transparent 96%);
+	filter: blur(calc(var(--u) * 5)); animation: plate-aurora 14s ease-in-out infinite alternate; }
+.plate[data-plate='aurora'] .plate__art i + i { opacity: .7; transform: translateX(-40%) scaleY(-1); animation-duration: 9s; animation-direction: alternate-reverse; }
+.plate[data-plate='aurora'] .plate__art b { inset: 0; background: linear-gradient(#0b142700 30%, #0b1427b0); }
+@keyframes plate-aurora { from { transform: translateX(0); } to { transform: translateX(-66.6%); } }
+.plate[data-plate='aurora'] .plate__name { text-shadow: 0 0 calc(var(--u) * 8) #0b1427; }
+
+/* Neón: a tube inside the edge; the glow flickers now and then, like a sign that is almost right. */
+.plate[data-plate='neon'] { background: #160b18; box-shadow: 0 1px 2px #0000002e; }
+.plate[data-plate='neon'] .plate__art i { inset: calc(var(--u) * 3); border: calc(var(--u) * 1.6) solid #ff9bd8; border-radius: calc(var(--u) * 7); box-shadow: 0 0 calc(var(--u) * 2) #ff4fb8, inset 0 0 calc(var(--u) * 2) #ff4fb8; }
+.plate[data-plate='neon'] .plate__art b { inset: 0; background: radial-gradient(120% 140% at 50% 50%, #ff4fb840, transparent 70%); box-shadow: inset 0 0 calc(var(--u) * 10) #ff4fb866; animation: plate-flicker 5.2s steps(1) infinite; }
+.plate[data-plate='neon'] { overflow: visible; }
+.plate[data-plate='neon']::after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; box-shadow: 0 0 calc(var(--u) * 14) #ff4fb855; animation: plate-flicker 5.2s steps(1) infinite; }
+.plate[data-plate='neon'] .plate__name { text-shadow: 0 0 calc(var(--u) * 6) #ff4fb8; }
+@keyframes plate-flicker { 0%, 61%, 63.5%, 66%, 100% { opacity: 1; } 62% { opacity: .35; } 65% { opacity: .55; } }
+
+/* Píxel: a green phosphor screen, ordered dither and scanlines, with the refresh bar rolling down. */
+.plate[data-plate='pixel'] { background: #04140b; box-shadow: inset 0 0 0 1px #3dff8a2e, 0 1px 2px #0000002e; font-variant-numeric: tabular-nums; }
+.plate[data-plate='pixel'] .plate__art i { inset: 0; opacity: .5;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'%3E%3Cpath fill='%233dff8a' d='M0 0h1v1H0zM2 2h1v1H2z' opacity='.55'/%3E%3Cpath fill='%233dff8a' d='M2 0h1v1H2zM0 2h1v1H0z' opacity='.22'/%3E%3C/svg%3E"),
+		repeating-linear-gradient(#0000 0 2px, #00000080 2px 3px);
+	background-size: 4px 4px, 100% 3px; -webkit-mask-image: linear-gradient(90deg, #0006 25%, #000 70%); mask-image: linear-gradient(90deg, #0006 25%, #000 70%); }
+.plate[data-plate='pixel'] .plate__art b { left: 0; right: 0; top: -60%; height: 60%; background: linear-gradient(#3dff8a00, #3dff8a33 70%, #b8ffd255 90%, #3dff8a00); will-change: transform; animation: plate-roll 3.6s linear infinite; }
+@keyframes plate-roll { to { transform: translateY(280%); } }
+.plate[data-plate='pixel'] .plate__name { text-shadow: 0 0 calc(var(--u) * 5) #3dff8a99; }
+
+/* Tinta: a blot on cream paper that breathes, and two drops that follow it. */
+.plate[data-plate='tinta'] { background: #f2eadb; box-shadow: inset 0 0 0 1px #00000014, 0 1px 2px #0000001a; }
+.plate__blot, .plate__drop { will-change: transform; animation: plate-breathe 4.8s ease-in-out infinite alternate; }
+.plate__blot { right: 4%; top: 6%; width: 34%; height: 92%;
+	background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 34' preserveAspectRatio='none'%3E%3Cpath fill='%231b1d3a' d='M26 2.6c9.5-3.6 23.4-2.3 32.2 2.4 7.6 4 15.1 5.6 17.6 11.4 2.7 6.3-3.1 11.8-10.4 13.6-6.4 1.6-11.7-1.6-17.8.3-6.5 2-12.2 4.4-19.6 2.2C20.2 30.4 12 31.2 6.8 27.3 1.2 23.1 2 15.6 8.3 11.4c5-3.3 8.6-6.3 17.7-8.8Z'/%3E%3Cpath fill='%231b1d3a' d='M71 3.2c2.1-.9 4.4.4 4.1 2.2-.3 2-3.3 2.6-4.7 1.3-1-1-.7-2.9.6-3.5Z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+.plate__drop { left: 56%; top: 66%; width: calc(var(--u) * 6.5); aspect-ratio: 1; border-radius: 46% 54% 50% 50%; background: #1b1d3a; animation-duration: 3.4s; }
+.plate__drop--2 { left: 61%; top: 16%; width: calc(var(--u) * 3.6); animation-delay: -1.7s; }
+@keyframes plate-breathe { from { transform: scale(.92); } to { transform: scale(1.06); } }
+
+/* Shader plates and frames: the baked sheet, or the live canvas, spill past the box by its pad. */
+.cosmetic-fx { position: absolute; z-index: 1; pointer-events: none; overflow: hidden; }
+.cosmetic-fx__strip { position: absolute; top: 0; left: 0; height: 100%; width: calc(100% * var(--n)); background-size: 100% 100%; will-change: transform; animation: cosmetic-strip var(--loop) steps(var(--n)) infinite; }
+@keyframes cosmetic-strip { to { transform: translateX(-100%); } }
+.cosmetic-fx__live { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plate[data-look='shader'] .cosmetic-fx { z-index: 0; }
+/* Until the sheet is ready the plate holds its color, so the name never sits on nothing. */
+.plate[data-look='shader'] { background: var(--plate-wait); }
+.plate[data-look='shader']:has(.cosmetic-fx[data-ready='true']) { background: none; }
+.plate[data-plate='brasa'] { --plate-wait: #1c100b; }
+.plate[data-plate='rayo'] { --plate-wait: #0a1229; }
+.plate[data-plate='escarcha'] { --plate-wait: #dcecf8; }
+.plate[data-plate='oro'] { --plate-wait: #d8a640; }
+.plate[data-plate='brasa'] .plate__name, .plate[data-plate='rayo'] .plate__name { text-shadow: 0 0 calc(var(--u) * 6) #000; }
+
+/* Frames: the box of the card they wrap. Lines sit a small gap outside the card's edge. */
+.card-frame { --frame-gap: 2.5px; --frame-line: 1.25px; --frame-r: 7.4% / 5.2%; position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.card-frame[data-hero] { --frame-gap: 7px; --frame-line: 2px; --frame-r: 24px; }
+.card-frame__line, .card-frame__dots, .card-frame__tube { position: absolute; inset: calc(var(--frame-gap) * -1); border-radius: var(--frame-r); }
+.card-frame__line { border: var(--frame-line) solid var(--frame-color); }
+.card-frame[data-frame='estrellas'] .card-frame__line { border-color: #e9cf86; opacity: .8; }
+
+/* Cinta: dots on the edge, with a light running round them. The dots are a mask; only the light behind it turns. */
+.card-frame__dots { --dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 146' preserveAspectRatio='none'%3E%3Crect x='2.5' y='2.5' width='95' height='141' rx='8' fill='none' stroke='%23000' stroke-width='3.6' stroke-linecap='round' stroke-dasharray='0 8'/%3E%3C/svg%3E");
+	-webkit-mask: var(--dots) 0 0 / 100% 100%; mask: var(--dots) 0 0 / 100% 100%; background: color-mix(in srgb, var(--frame-color) 45%, #8a877f); overflow: hidden; }
+.card-frame[data-hero] .card-frame__dots { --dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 146' preserveAspectRatio='none'%3E%3Crect x='1.5' y='1.5' width='97' height='143' rx='6.5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-dasharray='0 3.6'/%3E%3C/svg%3E"); }
+.card-frame__dots--lit { background: none; }
+.card-frame__dots--lit b { position: absolute; left: 50%; top: 50%; width: 220%; aspect-ratio: 1; margin: -110% 0 0 -110%; will-change: transform;
+	background: conic-gradient(from 0deg, transparent 0 55%, color-mix(in srgb, var(--frame-color) 60%, transparent) 72%, #fffbe8 80%, var(--frame-color) 83%, transparent 90%);
+	animation: frame-turn 3.2s linear infinite; }
+@keyframes frame-turn { to { transform: rotate(1turn); } }
+
+/* Estrellas: four sparks on the corners that open and close out of step. */
+.card-frame__star { position: absolute; width: 22%; aspect-ratio: 1; fill: #fff6d8; filter: drop-shadow(0 0 2px #ffd76a); will-change: transform, opacity; animation: frame-twinkle 2.8s ease-in-out infinite; }
+.card-frame__star[data-corner='tl'] { left: -11%; top: -7.5%; }
+.card-frame__star[data-corner='tr'] { right: -11%; top: -7.5%; }
+.card-frame__star[data-corner='br'] { right: -11%; bottom: -7.5%; }
+.card-frame__star[data-corner='bl'] { left: -11%; bottom: -7.5%; }
+.card-frame[data-hero] .card-frame__star { width: 13%; }
+.card-frame[data-hero] .card-frame__star[data-corner$='l'] { left: -6.5%; }
+.card-frame[data-hero] .card-frame__star[data-corner$='r'] { right: -6.5%; }
+.card-frame[data-hero] .card-frame__star[data-corner^='t'] { top: -4.5%; }
+.card-frame[data-hero] .card-frame__star[data-corner^='b'] { bottom: -4.5%; }
+@keyframes frame-twinkle { 0%, 100% { opacity: .15; transform: scale(.35) rotate(0deg); } 45% { opacity: 1; transform: scale(1) rotate(45deg); } 70% { opacity: .5; transform: scale(.6) rotate(70deg); } }
+
+/* Neón: a pink tube with its glow on a separate layer, so only that layer's opacity changes. */
+.card-frame__tube { border: var(--frame-line) solid #ffc2e6; box-shadow: 0 0 0 calc(var(--frame-line) * .5) var(--frame-color), inset 0 0 0 calc(var(--frame-line) * .5) var(--frame-color); }
+.card-frame__tube--glow { border-color: transparent; box-shadow: 0 0 calc(var(--frame-gap) * 2.4) var(--frame-color), inset 0 0 calc(var(--frame-gap) * 1.6) var(--frame-color); animation: plate-flicker 4.4s steps(1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+	.plate__art *, .plate::after, .cosmetic-fx__strip, .card-frame * { animation: none !important; }
+}

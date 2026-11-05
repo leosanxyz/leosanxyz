@@ -1,4 +1,4 @@
-import { isCosmeticOf, type EffectId, type FrameId, type PlateId } from './cosmetics'
+import { isCosmeticOf, type CosmeticItem, type EffectId, type EquipSlot, type FrameId, type PlateId } from './cosmetics'
 
 export const REWARD_SKIN_SETS = [
 	['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'],
@@ -153,6 +153,15 @@ export function defaultPass(name: string, skin: PassSkin = 'xp'): PassDraft {
 		opened: false,
 		signature: null,
 	}
+}
+/** Puts a shop item on the pass, or clears its slot with `null`. A material goes on as the special finish, as when chosen in the profile. */
+export function applyEquip(draft: PassDraft, slot: EquipSlot, item: CosmeticItem | null): PassDraft {
+	if (slot === 'plate') return { ...draft, plate: item?.kind === 'plate' ? item.id : null }
+	if (slot === 'frame') return { ...draft, frame: item?.kind === 'frame' ? item.id : null }
+	const hologram = draft.hologram ?? defaultHologram()
+	return item?.kind === 'material'
+		? { ...draft, finish: 'matte', hologram: { ...hologram, material: item.material } }
+		: { ...draft, hologram: { ...hologram, material: 'none' } }
 }
 export function passStickers(draft: PassDraft, skin: PassSkin): PassSticker[] {
 	return skin === draft.skin ? draft.stickers : draft.stickersBySkin?.[skin] ?? []
