@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DocumentRecordType, PageRecordType, TLDOCUMENT_ID, type TLPage, type TLRecord } from '@tldraw/tlschema'
 import { canvasSchema } from './boardSnapshot'
-import { findGaps, layoutFlowchart, parseFlowchart, parseNote, plainText, readFlowcharts, readNotes, richText, writeFlowchart, writeNote, wrapText, type Flowchart } from './flowchart'
+import { findGaps, frameName, isTodayTitle, layoutFlowchart, parseFlowchart, parseNote, plainText, readFlowcharts, readNotes, richText, writeFlowchart, writeNote, wrapText, type Flowchart } from './flowchart'
 
 const vidas: Flowchart = parseFlowchart({
 	titulo: 'Cuando un zombie me pega',
@@ -141,7 +141,7 @@ describe('svg preview', () => {
 })
 
 const boxOf = (shape: Extract<TLRecord, { typeName: 'shape' }>) => ({ x: shape.x, y: shape.y, w: (shape.props as { w: number }).w, h: (shape.props as { h: number }).h })
-const frameNamed = (store: ReturnType<typeof emptyStore>, name: string) => shapes(store).find((shape) => shape.type === 'frame' && (shape.props as { name: string }).name === name)!
+const frameNamed = (store: ReturnType<typeof emptyStore>, title: string) => shapes(store).find((shape) => shape.type === 'frame' && (shape.props as { name: string }).name === frameName(title))!
 
 describe('what the game does today', () => {
 	it('draws the code diagram in violet next to the dictated one, without overlapping', () => {
@@ -274,5 +274,84 @@ describe('paths that meet again', () => {
 		expect(placements.get('p')!.col).toBe(0)
 		expect(placements.get('s')!.col).toBe(0)
 		expect(placements.get('f')!.col).toBe(0)
+	})
+})
+
+describe('the skill label on the frame', () => {
+	const mundo = parseFlowchart({
+		titulo: 'Cuando entro al mundo',
+		nodos: [{ id: 'i', tipo: 'inicio', texto: 'Entras al mundo' }, { id: 'j', tipo: 'proceso', texto: 'Juegas' }, { id: 'f', tipo: 'fin', texto: 'Fin' }],
+		flechas: [{ de: 'i', a: 'j' }, { de: 'j', a: 'f' }],
+	})
+	const hoy = parseFlowchart({ ...mundo, titulo: 'Así funciona hoy: Cuando entro al mundo' })
+	const nameOf = (store: ReturnType<typeof emptyStore>, id: string) => (store.records.get(id) as never as { props: { name: string } }).props.name
+	/** A frame as it was drawn before the label existed. */
+	const unlabel = (store: ReturnType<typeof emptyStore>, id: string) => {
+		const frame = store.records.get(id) as never as { props: { name: string } }
+		store.set(id, { ...frame, props: { ...frame.props, name: frame.props.name.replace(/^\S+ · /, '') } } as never)
+	}
+
+	it('names a dictated diagram «diagrama · título»', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, mundo, validate)
+		expect(nameOf(store, frameId)).toBe('diagrama · Cuando entro al mundo')
+	})
+	it('names what the game does today «explicame · título» and puts it next to its labeled pair', () => {
+		const store = emptyStore()
+		const mine = writeFlowchart(store, mundo, validate)
+		writeNote(store, parseNote({ titulo: 'Ideas sueltas', texto: 'Algo en medio' }), validate)
+		const theirs = writeFlowchart(store, hoy, validate)
+		expect(nameOf(store, theirs.frameId)).toBe('explicame · Así funciona hoy: Cuando entro al mundo')
+		const a = boxOf(store.records.get(mine.frameId) as never), b = boxOf(store.records.get(theirs.frameId) as never)
+		expect(b.y).toBe(a.y)
+		expect(b.x).toBeGreaterThanOrEqual(a.x + a.w)
+		expect(isTodayTitle(nameOf(store, theirs.frameId))).toBe(true)
+		expect(isTodayTitle(nameOf(store, mine.frameId))).toBe(false)
+	})
+	it('updates the labeled frame instead of drawing a second one', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, mundo, validate)
+		const result = writeFlowchart(store, parseFlowchart({ ...mundo, nodos: [...mundo.nodos, { id: 'x', tipo: 'proceso', texto: 'Saludas' }], flechas: [{ de: 'i', a: 'x' }, { de: 'x', a: 'j' }, { de: 'j', a: 'f' }] }), validate)
+		expect(result).toMatchObject({ frameId, created: false })
+		expect(shapes(store).filter((shape) => shape.type === 'frame')).toHaveLength(1)
+		expect(nameOf(store, frameId)).toBe('diagrama · Cuando entro al mundo')
+		writeFlowchart(store, hoy, validate)
+		writeFlowchart(store, hoy, validate)
+		expect(shapes(store).filter((shape) => shape.type === 'frame')).toHaveLength(2)
+	})
+	it('reads the bare title back, with its kind', () => {
+		const store = emptyStore()
+		writeFlowchart(store, mundo, validate)
+		writeFlowchart(store, hoy, validate)
+		const read = readFlowcharts(store.records.values())
+		expect(read.map((diagram) => [diagram.titulo, diagram.tipo])).toEqual([['Cuando entro al mundo', 'dictado'], ['Así funciona hoy: Cuando entro al mundo', 'asi_funciona_hoy']])
+	})
+	it('puts the plan note inside the labeled frame and reports the bare title', () => {
+		const store = emptyStore()
+		const { frameId } = writeFlowchart(store, mundo, validate)
+		const result = writeNote(store, parseNote({ titulo: 'Cuando entro al mundo', texto: 'Plan' }), validate)
+		expect(result.nextTo).toBe('Cuando entro al mundo')
+		expect((store.records.get(result.noteId) as never as { parentId: string }).parentId).toBe(frameId)
+		expect(readNotes(store.records.values())).toEqual([{ titulo: 'Cuando entro al mundo', texto: 'Plan', juntoA: 'Cuando entro al mundo' }])
+	})
+	it('keeps frames drawn before the label working, and labels them when redrawn', () => {
+		const store = emptyStore()
+		const mine = writeFlowchart(store, mundo, validate)
+		unlabel(store, mine.frameId)
+		expect(nameOf(store, mine.frameId)).toBe('Cuando entro al mundo')
+		expect(readFlowcharts(store.records.values())[0].titulo).toBe('Cuando entro al mundo')
+		expect(writeNote(store, parseNote({ titulo: 'Cuando entro al mundo', texto: 'Plan' }), validate).nextTo).toBe('Cuando entro al mundo')
+		const theirs = writeFlowchart(store, hoy, validate)
+		const a = boxOf(store.records.get(mine.frameId) as never), b = boxOf(store.records.get(theirs.frameId) as never)
+		expect(b.y).toBe(a.y)
+		expect(b.x).toBeGreaterThanOrEqual(a.x + a.w)
+		unlabel(store, theirs.frameId)
+		expect(isTodayTitle(nameOf(store, theirs.frameId))).toBe(true)
+		expect(readFlowcharts(store.records.values()).map((diagram) => diagram.tipo)).toEqual(['dictado', 'asi_funciona_hoy'])
+		expect(writeFlowchart(store, mundo, validate)).toMatchObject({ frameId: mine.frameId, created: false })
+		expect(writeFlowchart(store, hoy, validate)).toMatchObject({ frameId: theirs.frameId, created: false })
+		expect(nameOf(store, mine.frameId)).toBe('diagrama · Cuando entro al mundo')
+		expect(nameOf(store, theirs.frameId)).toBe('explicame · Así funciona hoy: Cuando entro al mundo')
+		expect(shapes(store).filter((shape) => shape.type === 'frame')).toHaveLength(2)
 	})
 })

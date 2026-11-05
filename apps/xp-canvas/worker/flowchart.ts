@@ -15,9 +15,14 @@ export const LIMITS = { nodes: 60, edges: 120, text: 200, label: 40, title: 80, 
 
 /** A diagram of what the game already does, taken from the project's code. Everything else is dictated by the student. */
 export const TODAY_PREFIX = 'Así funciona hoy:'
-export const isTodayTitle = (title: string) => fold(title).startsWith(fold(TODAY_PREFIX))
+export const isTodayTitle = (title: string) => fold(titleOf(title)).startsWith(fold(TODAY_PREFIX))
 /** "Así funciona hoy: Lobo mascota" sits next to the student's "Lobo mascota". */
 const todayCounterpart = (title: string) => title.slice(title.indexOf(':') + 1).trim()
+
+/** The frame says which skill drew it so students can tell them apart; agents only ever see the bare title. */
+export const frameName = (title: string) => `${isTodayTitle(title) ? 'explicame' : 'diagrama'} · ${title}`
+/** The diagram title inside a frame name. Frames drawn before the label existed have no label. */
+export const titleOf = (name: string) => name.replace(/^\s*(diagrama|expl[ií]came)\s*·\s*/i, '')
 
 export class FlowchartError extends Error {}
 
@@ -346,7 +351,8 @@ function indicesAfter(records: Iterable<TLRecord>, parentId: string, n: number) 
 	for (const record of records) if (isShape(record) && record.parentId === parentId && (!max || record.index > max)) max = record.index
 	return getIndicesBetween(max, null, n)
 }
-const frameKey = (name: string) => fold(name).replace(/\s+/g, ' ')
+const titleKey = (title: string) => fold(title).replace(/\s+/g, ' ')
+const frameKey = (name: string) => titleKey(titleOf(name))
 
 export interface DrawResult { frameId: string; created: boolean; kept: number }
 
@@ -361,7 +367,7 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 	const pages = [...records.values()].filter((record) => record.typeName === 'page').sort((a, b) => (a as { index: string }).index < (b as { index: string }).index ? -1 : 1)
 	if (!pages.length) throw new FlowchartError('El canvas no tiene páginas.')
 	const frames = [...records.values()].filter((record): record is AnyShape => isShape(record) && record.type === 'frame')
-	let frame = frames.find((shape) => frameKey((shape.props as { name: string }).name) === frameKey(chart.titulo))
+	let frame = frames.find((shape) => frameKey((shape.props as { name: string }).name) === titleKey(chart.titulo))
 	const created = !frame
 	const pageId = frame ? pageOf(records, frame) : pages[0].id
 	const writes: TLRecord[] = [], deletes = new Set<string>()
@@ -369,14 +375,14 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 	const { placements, back, detour, width } = layoutFlowchart(chart)
 	const bounds = [...placements.values()].reduce((acc, p) => ({ w: Math.max(acc.w, p.x + p.w), h: Math.max(acc.h, p.y + p.h) }), { w: width, h: 0 })
 	// A title wider than the drawing widens the frame; the drawing stays centered under it.
-	const centering = Math.max(0, Math.round((titleWidth(chart.titulo) - bounds.w - FRAME_PAD * 2) / 2))
+	const centering = Math.max(0, Math.round((titleWidth(frameName(chart.titulo)) - bounds.w - FRAME_PAD * 2) / 2))
 	if (centering) { for (const place of placements.values()) place.x += centering; bounds.w += centering * 2 }
 
 	const today = isTodayTitle(chart.titulo)
 	if (!frame) {
 		const w = bounds.w + FRAME_PAD * 2, h = bounds.h + FRAME_PAD * 2
 		// What the game does today goes right next to the diagram the student dictated, to compare them.
-		const pair = today ? frames.find((shape) => shape.parentId === pageId && frameKey((shape.props as { name: string }).name) === frameKey(todayCounterpart(chart.titulo))) : undefined
+		const pair = today ? frames.find((shape) => shape.parentId === pageId && frameKey((shape.props as { name: string }).name) === titleKey(todayCounterpart(chart.titulo))) : undefined
 		let spot: { x: number; y: number }
 		if (pair) spot = freeSpot(records, pageId, pair.x + shapeWidth(pair).w + 160, pair.y, w, h)
 		else {
@@ -389,7 +395,7 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 			spot = { x: Number.isFinite(right) ? Math.round(right + 160) : 0, y: Number.isFinite(top) ? Math.round(top) : 0 }
 		}
 		const [index] = indicesAfter(records.values(), pageId, 1)
-		frame = shapeBase(`shape:${newId()}`, 'frame', pageId, index, spot.x, spot.y, { w, h, name: chart.titulo, color: 'black' }, { xpDiagram: true }) as AnyShape
+		frame = shapeBase(`shape:${newId()}`, 'frame', pageId, index, spot.x, spot.y, { w, h, name: frameName(chart.titulo), color: 'black' }, { xpDiagram: true }) as AnyShape
 	}
 	const frameId = frame.id as string
 
@@ -479,7 +485,7 @@ export function writeFlowchart(store: Store, chart: Flowchart, validate: Validat
 		maxX = Math.max(maxX, latest.x + size.w + FRAME_PAD); maxY = Math.max(maxY, latest.y + size.h + FRAME_PAD)
 	}
 	const frameProps = frame.props as { w: number; h: number; name: string }
-	writes.unshift({ ...frame, props: { ...frameProps, name: chart.titulo, w: Math.round(maxX), h: Math.round(maxY) }, meta: { ...frame.meta, xpDiagram: true, ...(today ? { xpToday: true } : {}) } } as TLRecord)
+	writes.unshift({ ...frame, props: { ...frameProps, name: frameName(chart.titulo), w: Math.round(maxX), h: Math.round(maxY) }, meta: { ...frame.meta, xpDiagram: true, ...(today ? { xpToday: true } : {}) } } as TLRecord)
 
 	for (const record of writes) validate(record)
 	for (const id of deletes) store.delete(id)
@@ -523,7 +529,7 @@ export function readFlowcharts(all: Iterable<TLRecord>): ReadDiagram[] {
 		const container = isShape(parent) && parent.type === 'frame' ? parent : null
 		if (shape.type === 'frame' || isNote(shape)) continue
 		const key = container?.id ?? `page:${pageOf(records, shape)}`
-		if (!groups.has(key)) groups.set(key, { titulo: container ? (container.props as { name: string }).name || 'Sin título' : 'Fuera de un marco', enMarco: Boolean(container), shapes: [] })
+		if (!groups.has(key)) groups.set(key, { titulo: container ? titleOf((container.props as { name: string }).name) || 'Sin título' : 'Fuera de un marco', enMarco: Boolean(container), shapes: [] })
 		groups.get(key)!.shapes.push(shape)
 	}
 	const bindings = [...records.values()].filter((record) => record.typeName === 'binding') as unknown as { fromId: string; toId: string; props: { terminal: 'start' | 'end' } }[]
@@ -608,7 +614,7 @@ export interface NoteResult { noteId: string; created: boolean; nextTo: string |
 export function writeNote(store: Store, note: NoteInput, validate: Validate, newId: () => string = () => crypto.randomUUID()): NoteResult {
 	const records = new Map<string, TLRecord>()
 	for (const record of store.values()) records.set(record.id, record)
-	const key = frameKey(note.titulo)
+	const key = titleKey(note.titulo)
 	const pages = [...records.values()].filter((record) => record.typeName === 'page').sort((a, b) => (a as { index: string }).index < (b as { index: string }).index ? -1 : 1)
 	if (!pages.length) throw new FlowchartError('El canvas no tiene páginas.')
 	const shapes = [...records.values()].filter(isShape)
@@ -644,7 +650,7 @@ export function writeNote(store: Store, note: NoteInput, validate: Validate, new
 	}
 	for (const record of writes) validate(record)
 	for (const record of writes) store.set(record.id, record)
-	return { noteId: id, created: !old, nextTo: inFrame && isShape(container) ? (container.props as { name: string }).name : null, movedByHand: keep }
+	return { noteId: id, created: !old, nextTo: inFrame && isShape(container) ? titleOf((container.props as { name: string }).name) : null, movedByHand: keep }
 }
 
 export function readNotes(all: Iterable<TLRecord>): ReadNote[] {
@@ -655,7 +661,7 @@ export function readNotes(all: Iterable<TLRecord>): ReadNote[] {
 		const lines = richLines((shape.props as { richText: unknown }).richText)
 		const titulo = typeof meta.xpNoteTitle === 'string' ? meta.xpNoteTitle : lines[0] ?? 'Nota'
 		// A loose note starts with its bold title; the student may have edited it, so drop it only if it still matches.
-		const body = lines[0] !== undefined && frameKey(lines[0]) === frameKey(titulo) && !(isShape(parent) && parent.type === 'frame') ? lines.slice(1) : lines
-		return { titulo, texto: body.join('\n').trim(), juntoA: isShape(parent) && parent.type === 'frame' ? (parent.props as { name: string }).name : null }
+		const body = lines[0] !== undefined && titleKey(lines[0]) === titleKey(titulo) && !(isShape(parent) && parent.type === 'frame') ? lines.slice(1) : lines
+		return { titulo, texto: body.join('\n').trim(), juntoA: isShape(parent) && parent.type === 'frame' ? titleOf((parent.props as { name: string }).name) : null }
 	})
 }
