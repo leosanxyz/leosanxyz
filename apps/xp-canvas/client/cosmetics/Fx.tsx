@@ -22,6 +22,9 @@ export function Fx({ id, spec, live = false, root, slot }: { id: string; spec: F
 	const reduced = usePassReducedMotion()
 	const supported = typeof WebGL2RenderingContext !== 'undefined'
 	const owner = useHeroSlot(host, live && supported && !failed && !reduced, slot)
+	// The baked sheet stays until the live shader has drawn its first frame, so the effect never blinks out as the live one takes over.
+	const [drawing, setDrawing] = useState(false)
+	useEffect(() => { if (!owner) setDrawing(false) }, [owner])
 	useEffect(() => {
 		const element = host.current
 		if (!element || seen) return
@@ -35,15 +38,15 @@ export function Fx({ id, spec, live = false, root, slot }: { id: string; spec: F
 		fxSheet(id, spec).then((next) => { if (current) setSheet(next) }).catch((cause) => console.error(cause))
 		return () => { current = false }
 	}, [seen, supported, id, spec])
-	return <span ref={host} className="cosmetic-fx" data-ready={Boolean(sheet) || owner} aria-hidden="true" style={spillStyle(spec)}>
-		{owner ? <LiveFx key={id} spec={spec} root={root ?? host} onFail={() => setFailed(true)} />
-			: sheet && <span className="cosmetic-fx__strip" style={{ backgroundImage: `url(${sheet.url})`, ['--n' as string]: sheet.frames, ['--loop' as string]: `${sheet.loop}s`, animationDelay: `${(delay % sheet.loop).toFixed(2)}s` }} />}
+	return <span ref={host} className="cosmetic-fx" data-ready={Boolean(sheet) || (owner && drawing)} aria-hidden="true" style={spillStyle(spec)}>
+		{owner && <LiveFx key={id} spec={spec} root={root ?? host} onFail={() => setFailed(true)} onDraw={() => setDrawing(true)} />}
+		{sheet && !(owner && drawing) && <span className="cosmetic-fx__strip" style={{ backgroundImage: `url(${sheet.url})`, ['--n' as string]: sheet.frames, ['--loop' as string]: `${sheet.loop}s`, animationDelay: `${(delay % sheet.loop).toFixed(2)}s` }} />}
 	</span>
 }
 
-function LiveFx({ spec, root, onFail }: { spec: FxSpec; root: RefObject<HTMLElement | null>; onFail: () => void }) {
-	const canvasRef = useRef<HTMLCanvasElement>(null), fail = useRef(onFail)
-	fail.current = onFail
+function LiveFx({ spec, root, onFail, onDraw }: { spec: FxSpec; root: RefObject<HTMLElement | null>; onFail: () => void; onDraw: () => void }) {
+	const canvasRef = useRef<HTMLCanvasElement>(null), fail = useRef(onFail), drew = useRef(onDraw)
+	fail.current = onFail; drew.current = onDraw
 	useEffect(() => {
 		const canvas = canvasRef.current, box = root.current
 		if (!canvas || !box) return
@@ -86,7 +89,7 @@ function LiveFx({ spec, root, onFail }: { spec: FxSpec; root: RefObject<HTMLElem
 			}))
 			frame = requestAnimationFrame(loop)
 		}
-		frame = requestAnimationFrame(loop)
+		frame = requestAnimationFrame((now) => { loop(now); drew.current() })
 		return () => {
 			stopped = true
 			cancelAnimationFrame(frame)

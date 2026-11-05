@@ -16,7 +16,7 @@ declare global {
 	interface Window { __materialHero?: { gpuMs: number | null; cpuMs: number; frames: number; width: number; height: number } }
 }
 
-export function MaterialHero({ skin, material, root, rotateX, rotateY, lamp, phase, reduced }: {
+export function MaterialHero({ skin, material, root, rotateX, rotateY, lamp, phase, reduced, onReady }: {
 	skin: PassSkin
 	material: CardMaterial
 	/** The card's stationary box: pointer position and speed are read on it. */
@@ -26,12 +26,16 @@ export function MaterialHero({ skin, material, root, rotateX, rotateY, lamp, pha
 	lamp: MotionValue<{ x: number; y: number }>
 	phase: MotionValue<number>
 	reduced: boolean
+	/** Called once the material is drawing. */
+	onReady?: () => void
 }) {
 	const host = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLCanvasElement>(null), spillRef = useRef<HTMLDivElement>(null)
 	const supported = typeof WebGL2RenderingContext !== 'undefined'
 	const [failed, setFailed] = useState(false), [ready, setReady] = useState(false), [generation, setGeneration] = useState(0)
 	const active = material !== 'none' && supported && !failed
 	const owner = useHeroSlot(host, active)
+	const announce = useRef(onReady)
+	announce.current = onReady
 	useEffect(() => {
 		const canvas = canvasRef.current, element = host.current?.parentElement, card = root.current
 		if (!owner || !active || !canvas || !element || !card) return
@@ -140,6 +144,7 @@ export function MaterialHero({ skin, material, root, rotateX, rotateY, lamp, pha
 			resize()
 			if (reduced) { step(1.1); render() } else frame = requestAnimationFrame(loop)
 			setReady(true)
+			announce.current?.()
 		}).catch(() => setFailed(true))
 		return () => {
 			stopped = true

@@ -8,9 +8,10 @@ import './material.css'
 
 /**
  * A small card with its material: the shader baked once into a sprite sheet, then played with CSS `steps()`.
- * No live WebGL. It bakes only once it scrolls into view.
+ * No live WebGL. It bakes only once it scrolls into view. `width` is the card's CSS width when it is drawn larger than a mini,
+ * so the sheet is baked sharp for the screen.
  */
-export function MaterialMini({ skin, material, className }: { skin: PassSkin; material: CardMaterial; className?: string }) {
+export function MaterialMini({ skin, material, className, width }: { skin: PassSkin; material: CardMaterial; className?: string; width?: number }) {
 	const ref = useRef<HTMLSpanElement>(null)
 	const [seen, setSeen] = useState(false), [sheet, setSheet] = useState<Sheet | null>(null)
 	// each copy starts on another frame so a list does not beat in unison
@@ -26,9 +27,11 @@ export function MaterialMini({ skin, material, className }: { skin: PassSkin; ma
 		setSheet(null)
 		if (!seen || material === 'none' || typeof WebGL2RenderingContext === 'undefined') return
 		let current = true
-		materialSheet(skin, material).then((next) => { if (current) setSheet(next) }).catch((cause) => console.error(cause))
+		const dpr = Math.min(2, devicePixelRatio || 1)
+		const baking = width ? materialSheet(skin, material, Math.round(width * dpr), dpr) : materialSheet(skin, material)
+		baking.then((next) => { if (current) setSheet(next) }).catch((cause) => console.error(cause))
 		return () => { current = false }
-	}, [seen, skin, material])
+	}, [seen, skin, material, width])
 	const entry = skins.find((s) => s.id === skin)
 	const style = { '--material-accent': material === 'none' ? 'transparent' : materialAccent(material, skin) } as CSSProperties
 	return <span ref={ref} className={`material-mini${className ? ` ${className}` : ''}`} data-skin={skin} data-material={material} data-ready={Boolean(sheet)} style={style} role="img" aria-label={`${entry?.name ?? 'Carta'} · ${materialName(material)}`}>

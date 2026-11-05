@@ -9,9 +9,9 @@ const corners = ['tl', 'tr', 'br', 'bl'] as const
 
 /**
  * A frame around a pass card. It fills the card's own box (the parent must be positioned) and spills past it where the frame does.
- * `hero` scales the lines to a full pass and draws a shader frame live, for the one frame hero on screen.
+ * `hero` scales the lines to a full pass and draws a shader frame live, for the one frame hero on screen; `live` can hold that shader back.
  */
-export function CardFrame({ frame, hero = false, root }: { frame: FrameId | null | undefined; hero?: boolean; root?: RefObject<HTMLElement | null> }) {
+export function CardFrame({ frame, hero = false, live = hero, root }: { frame: FrameId | null | undefined; hero?: boolean; live?: boolean; root?: RefObject<HTMLElement | null> }) {
 	const item = frameItem(frame)
 	if (!item) return null
 	const spec = item.spec
@@ -21,6 +21,6 @@ export function CardFrame({ frame, hero = false, root }: { frame: FrameId | null
 		{spec.look === 'animated' && spec.style === 'cinta' && <><i className="card-frame__dots" /><i className="card-frame__dots card-frame__dots--lit"><b /></i></>}
 		{spec.look === 'animated' && spec.style === 'estrellas' && <><i className="card-frame__line" />{corners.map((corner, i) => <svg key={corner} className="card-frame__star" data-corner={corner} style={{ animationDelay: `${i * -0.7}s` }} viewBox="0 0 24 24"><path d={STAR} /></svg>)}</>}
 		{spec.look === 'animated' && spec.style === 'neon' && <><i className="card-frame__tube" /><i className="card-frame__tube card-frame__tube--glow" /></>}
-		{spec.look === 'shader' && <Fx id={`frame:${spec.shader}`} spec={FRAME_FX[spec.shader]} live={hero} root={root} slot="frame" />}
+		{spec.look === 'shader' && <Fx id={`frame:${spec.shader}`} spec={FRAME_FX[spec.shader]} live={live} root={root} slot="frame" />}
 	</span>
 }

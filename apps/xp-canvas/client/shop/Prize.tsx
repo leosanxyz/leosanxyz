@@ -10,7 +10,6 @@ import './prize.css'
 
 const KIND = { material: 'Efecto de carta', frame: 'Marco', plate: 'Placa', effect: 'Efecto de perfil' } as const
 const art = (skin: RewardSkin) => skins.find((item) => item.id === skin)!
-const points = (value: number) => value.toLocaleString('es-MX')
 
 export const prizeItem = (prize: ShopPrize): CosmeticItem | undefined => isRewardSkin(prize) ? undefined : cosmetic(prize)
 export const prizeName = (prize: ShopPrize) => isRewardSkin(prize) ? art(prize).name : cosmetic(prize)!.name
@@ -40,28 +39,46 @@ export function RarityChip({ prize }: { prize: ShopPrize }) {
 }
 
 /**
- * A cosmetic on the front of a shop card: the object alone on a dark surface, with its name, rarity and, in the rows for sale, its price.
- * Materials and frames are dressed on the student's cover as baked minis, with no live WebGL; `live` draws a plate's shader for the one detail open.
+ * A cosmetic on the front of one of the machine's cards: the object alone on a dark surface, with its name and rarity.
+ * Materials and frames are dressed on the student's cover as baked minis, with no live WebGL.
  */
-export function PrizeFace({ prize, cover, name, price, caption = true, live = false }: {
-	prize: ShopPrize; cover: PassSkin; name: string; price?: number; caption?: boolean; live?: boolean
-}) {
+export function PrizeFace({ prize, cover, name }: { prize: ShopPrize; cover: PassSkin; name: string }) {
 	const item = prizeItem(prize)
 	if (!item) return null
 	return <span className="prize-face" data-kind={item.kind} data-rarity={item.rarity} style={{ '--rarity': RARITY[item.rarity].color } as CSSProperties}>
 		<span className="prize-face__object">
-			{item.kind === 'plate' ? <Plate plate={item.id} name={name} live={live} />
+			{item.kind === 'plate' ? <Plate plate={item.id} name={name} />
 				: <span className="prize-face__card">
 					<MaterialMini skin={cover} material={item.kind === 'material' ? item.material : 'none'} />
 					{item.kind === 'frame' && <CardFrame frame={item.id} />}
 				</span>}
 		</span>
-		{caption && <span className="prize-face__caption">
+		<span className="prize-face__caption">
 			<span className="prize-face__name">{item.name}</span>
-			<span className="prize-face__meta">
-				<RarityChip prize={prize} />
-				{price !== undefined && <span className="prize-face__price"><span className="shop-coin" aria-hidden="true" />{points(price)}</span>}
-			</span>
-		</span>}
+			<span className="prize-face__meta"><RarityChip prize={prize} /></span>
+		</span>
 	</span>
+}
+
+/**
+ * A cosmetic as a card of its own in the rows, the way a card for sale shows its art: the student's cover at full bleed wearing the
+ * material or the frame, or the plate alone on the black of the card back. Only its name is printed; rarity and price wait in the detail.
+ * `width` is the card's CSS width, for a material baked sharp at that size (without it, the mini's sheet); `live` draws a plate's shader for the one detail open.
+ */
+export function PrizeCover({ prize, cover, name, width, caption = true, live = false }: {
+	prize: ShopPrize; cover: PassSkin; name: string; width?: number; caption?: boolean; live?: boolean
+}) {
+	const item = prizeItem(prize)
+	if (!item) return null
+	return <span className="prize-cover" data-kind={item.kind} data-rarity={item.rarity}>
+		{item.kind === 'plate' ? <span className="prize-cover__plate"><Plate plate={item.id} name={name} live={live} /></span>
+			: <MaterialMini className="prize-cover__art" skin={cover} material={item.kind === 'material' ? item.material : 'none'} width={width} />}
+		{item.kind === 'frame' && <CardFrame frame={item.id} />}
+		{caption && <PrizeCaption prize={prize} />}
+	</span>
+}
+
+/** The name printed at the foot of a row's cosmetic. The detail lays one over its card that fades as it opens, so the name never jumps. */
+export function PrizeCaption({ prize, leaving = false }: { prize: ShopPrize; leaving?: boolean }) {
+	return <span className="prize-caption" data-leaving={leaving || undefined} aria-hidden="true"><span>{prizeName(prize)}</span></span>
 }

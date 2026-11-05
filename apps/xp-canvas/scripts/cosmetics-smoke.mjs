@@ -111,8 +111,8 @@ try {
 	assert.equal((await reveal(luis, away)).status(), 403, 'only the rotation\'s items are turned')
 	const luisPage = watch(await luis.context.newPage())
 	await luisPage.goto('/tienda')
-	const rarities = async (place) => luisPage.locator(`.shop-row[data-place="${place}"] .prize-face`).evaluateAll((faces) => faces.map((face) => face.dataset.rarity))
-	await luisPage.locator('.shop-row[data-place="plates"] .prize-face').first().waitFor()
+	const rarities = async (place) => luisPage.locator(`.shop-row[data-place="${place}"] .prize-cover`).evaluateAll((faces) => faces.map((face) => face.dataset.rarity))
+	await luisPage.locator('.shop-row[data-place="plates"] .prize-cover').first().waitFor()
 	for (const place of ['effects', 'plates']) {
 		const row = await rarities(place), count = (rarity) => row.filter((item) => item === rarity).length
 		assert.equal(row.length, 6, `${place}: six turned`)
@@ -159,17 +159,21 @@ try {
 		await page.waitForTimeout(1500)
 	})
 	assert(frames > 10, `the reveal was recorded (${frames} frames)`)
-	const face = effects.locator(`.shop-card-slot:has(.shop-card[data-skin="${effectId}"]) .prize-face`)
+	// Turned, a row's cosmetic shows its preview and its name only; its rarity and price wait in the detail.
+	const face = effects.locator(`.shop-card-slot:has(.shop-card[data-skin="${effectId}"]) .prize-cover`)
 	await face.waitFor()
-	const price = (await face.locator('.prize-face__price').innerText()).replace(/\D/g, '')
-	assert.match(await face.locator('.prize-face__name').innerText(), /\S/)
-	assert.match(await face.locator('.prize-rarity').innerText(), /^(Común|Rara|Épica|Legendaria)$/)
+	assert.match(await face.locator('.prize-caption').innerText(), /\S/)
+	assert.equal(await effects.locator('.prize-rarity, .shop-coin').count(), 0, 'no rarity nor price in the rows')
+	assert.equal(await plates.locator('.prize-rarity, .shop-coin').count(), 0, 'no rarity nor price in the rows')
+	let price
 	async function purchase(row, id) {
 		const card = row.locator(`.shop-card[data-skin="${id}"]`)
 		if (await card.getAttribute('aria-label') === 'Revelar carta') { await card.click(); await page.waitForTimeout(700) }
 		await card.click()
 		const detail = page.locator('.shop-detail:not([data-leaving="true"])').getByTestId('shop-card-detail')
 		await detail.waitFor()
+		assert.match(await detail.locator('.prize-rarity').innerText(), /^(Común|Rara|Épica|Legendaria)$/)
+		price = (await detail.locator('.shop-detail__buy[data-mode="buy"]').innerText()).replace(/\D/g, '')
 		await detail.locator('.shop-detail__buy[data-mode="buy"]').click()
 		const bought = page.waitForResponse((response) => response.url().endsWith('/cosmetic/buy'))
 		await detail.locator('.shop-detail__buy[data-mode="confirm"]').click()
@@ -180,7 +184,7 @@ try {
 		await row.locator(`.shop-card[data-skin="${id}"][data-owned="true"]`).waitFor()
 	}
 	await purchase(effects, effectId)
-	assert.equal((await shop(dana)).points, 4005 - Number(price), 'exactly the price shown on the card')
+	assert.equal((await shop(dana)).points, 4005 - Number(price), 'exactly the price shown in the detail')
 	await purchase(plates, state.plates[0])
 	// The rest of the effects row: a frame and a material, so the editor has something of each.
 	state = await shop(dana)

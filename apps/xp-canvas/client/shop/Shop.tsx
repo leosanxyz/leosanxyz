@@ -26,7 +26,7 @@ import { usePassReducedMotion } from '../portal/pass/usePassReducedMotion'
 import { usePortal } from '../portal/PortalProvider'
 import { uuid } from '../uuid'
 import { ShopMachine } from './ShopMachine'
-import { hasPrize, prizeColor, prizeDraft, prizeItem, prizeName, prizePrice, PrizeFace, RarityChip } from './Prize'
+import { hasPrize, prizeColor, prizeDraft, prizeItem, prizeName, prizePrice, PrizeCaption, PrizeCover, PrizeFace, RarityChip } from './Prize'
 import { COINS_FLY_AT, flyCoins } from './coins'
 import { useShopNotice } from './shopNotice'
 import './shop.css'
@@ -627,8 +627,11 @@ function GiftTicket({ gift, teacher, claiming, coins, onClaim }: { gift: ShopGif
 
 const CARD_BACK = <img className="shop-card-back" src={cardBack} alt="" draggable={false} />
 
-/** The shared-element morph between a card's slot and the detail, as one card moving rather than a copy. */
-const MORPH = { type: 'spring', stiffness: 260, damping: 30 } as const
+/**
+ * The shared-element morph between a card's slot and the detail, as one card moving rather than a copy. Layout morphs run a 0–1000 progress;
+ * resting within 3 of it, about a pixel, ends the morph when the card looks in place rather than ~150 ms later.
+ */
+const MORPH = { type: 'spring', stiffness: 260, damping: 30, restDelta: 3, restSpeed: 30 } as const
 const morphId = (place: Place, skin: ShopPrize) => `shop-card-${place}-${skin}`
 
 /**
@@ -664,7 +667,7 @@ function ShopCard({ skin, place, faceUp = false, width, state, name, fresh = fal
 	if (open) return <div className="shop-card-slot" {...slot} />
 	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${prizeName(skin)}` : 'Revelar carta'} onClick={press} />
 	// The face is drawn only once turned, so a face-down card never gives its rarity away to the page.
-	const face = prizeItem(skin) && revealed ? <PrizeFace prize={skin} cover={state.cover} name={name} price={place === 'machine' ? undefined : prizePrice(skin, state)} /> : undefined
+	const face = !prizeItem(skin) || !revealed ? undefined : place === 'machine' ? <PrizeFace prize={skin} cover={state.cover} name={name} /> : <PrizeCover prize={skin} cover={state.cover} name={name} width={width} />
 	return <div className="shop-card-slot" {...slot}>
 		<div className="shop-card-stage" ref={stage}>
 			{/* `layoutId` alone animates its layout too. It moves with the slot's spring, so the card never drifts inside a gathering slot; the morph uses the detail's own spring.
@@ -679,7 +682,7 @@ function ShopCard({ skin, place, faceUp = false, width, state, name, fresh = fal
 }
 
 type BuyMode = 'buy' | 'confirm' | 'busy' | 'short' | 'owned' | 'preview'
-/** The veil, the name, the button and the close button fade in, and out as the card heads home. */
+/** The veil and the close button fade in, and out as the card heads home. */
 const fade = (leaving: boolean) => ({ initial: { opacity: 0 }, animate: { opacity: leaving ? 0 : 1 }, exit: { opacity: 0 }, transition: { duration: 0.2 } })
 
 /**
@@ -698,6 +701,21 @@ function CardDetail({ open: { prize: skin, place }, state, name, onBuy, onClose,
 	const reduced = usePassReducedMotion()
 	const owned = hasPrize(skin, state), cost = prizePrice(skin, state), missing = cost - state.points
 	const [confirming, setConfirming] = useState(false), [busy, setBusy] = useState(false)
+	// The name, the rarity and the price rise in once the card is in place; they are laid out from the start, so nothing moves when they show.
+	const [arrived, setArrived] = useState(reduced)
+	useEffect(() => {
+		// In case the morph never reports its end, for example in a background tab.
+		const timer = setTimeout(() => setArrived(true), 900)
+		return () => clearTimeout(timer)
+	}, [])
+	// Compiling a live shader stalls the page and the GPU for up to a few hundred ms, so it waits until the card and its text are still,
+	// and never starts on the way home. Until then the baked sheets stand in, the same the row shows.
+	const [settled, setSettled] = useState(reduced), [lit, setLit] = useState(false)
+	useEffect(() => {
+		if (!arrived || settled || leaving) return
+		const timer = setTimeout(() => setSettled(true), 300)
+		return () => clearTimeout(timer)
+	}, [arrived, settled, leaving])
 	const root = useRef<HTMLDivElement>(null), buyButton = useRef<HTMLButtonElement>(null), close = useRef<HTMLButtonElement>(null)
 	const title = useId()
 	// On close the card flies back to its slot here, above the strip's clipping, then hands over to the slot card in place.
@@ -756,16 +774,19 @@ function CardDetail({ open: { prize: skin, place }, state, name, onBuy, onClose,
 			<div className="shop-detail__frame" ref={frame}>
 				<motion.div className="shop-detail__card" layoutId={reduced ? undefined : morphId(place, skin)} layout={!reduced} transition={MORPH}
 					style={{ borderRadius: radius(home ? home.width : frameWidth), '--card-color': prizeColor(skin), ...(home && { position: 'fixed', left: home.left, top: home.top, width: home.width }) } as CSSProperties}
-					onLayoutAnimationComplete={() => { if (home) land.current?.() }}>
-					<div className="shop-float"><PassCard draft={draft} variant="shop"
-						face={item?.kind === 'plate' ? <PrizeFace prize={skin} cover={state.cover} name={name} caption={false} live /> : undefined} /></div>
+					onLayoutAnimationComplete={() => { if (home) land.current?.(); else setArrived(true) }}>
+					<div className="shop-float"><PassCard draft={draft} variant="shop" live={settled} onLive={() => setLit(true)}
+						face={item?.kind === 'plate' ? <PrizeCover prize={skin} cover={state.cover} name={name} width={frameWidth} caption={false} live={settled} /> : undefined} /></div>
+					{item?.kind === 'material' && <span className="shop-detail__baked" data-lit={lit || undefined}><PrizeCover prize={skin} cover={state.cover} name={name} width={purchasable ? CARD.row : undefined} caption={false} /></span>}
+					{/* A row's card prints its name; here it fades as the card grows, and the card in its slot brings it back. */}
+					{item && purchasable && !reduced && <PrizeCaption prize={skin} leaving />}
 				</motion.div>
 			</div>
-			<motion.div className="shop-detail__text" {...fade(leaving)}>
+			<div className="shop-detail__text" data-shown={arrived || undefined}>
 				<h2 className="shop-detail__name" id={title}>{prizeName(skin)}</h2>
 				{item && <RarityChip prize={skin} />}
 				{purchasable && <button ref={buyButton} className="shop-detail__buy" data-mode={mode} disabled={!enabled} onClick={() => void press()}>{label}</button>}
-			</motion.div>
+			</div>
 		</div>
 		<motion.button className="xp-icon-button shop-detail__close" aria-label="Cerrar" ref={close} onClick={dismiss} {...fade(leaving)}><Icon name="close" /></motion.button>
 	</div>, document.body)

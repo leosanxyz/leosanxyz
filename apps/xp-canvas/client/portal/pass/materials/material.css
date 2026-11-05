@@ -82,10 +82,14 @@
 	width: calc(100% * var(--n));
 	background-size: 100% 100%;
 	will-change: transform;
-	animation: material-strip var(--loop) steps(var(--n)) infinite;
+	/* the sheet arrives over the plain art without a jump */
+	animation: material-strip var(--loop) steps(var(--n)) infinite, material-sheet-in 240ms ease-out;
 }
 @keyframes material-strip {
 	to { transform: translateX(-100%); }
+}
+@keyframes material-sheet-in {
+	from { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
 	/* the first frame, still */

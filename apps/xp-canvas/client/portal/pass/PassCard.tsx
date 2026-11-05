@@ -43,6 +43,8 @@ export function PassCard({
 	backFace,
 	face,
 	hero = true,
+	live = true,
+	onLive,
 }: {
 	draft: PassDraft
 	edit?: boolean
@@ -66,6 +68,10 @@ export function PassCard({
 	face?: ReactNode
 	/** Draws the card's material live. Off for the carousel's other covers; one live hero per page anyway. */
 	hero?: boolean
+	/** A hero waits with `false`: compiling its shaders stalls the page and the GPU, so the shop starts them once its morph has settled. */
+	live?: boolean
+	/** The live material has drawn, so whatever stood in for it can go. */
+	onLive?: () => void
 }) {
 	const pass = variant === 'pass'
 	const reduced = usePassReducedMotion(),
@@ -225,9 +231,9 @@ export function PassCard({
 							)}
 							<div className="pass-shade" />
 						</div>
-						{hero && <MaterialHero skin={draft.skin} material={passHologram(draft).material} root={root}
-							rotateX={rotateX} rotateY={rotateY} lamp={lamp} phase={phase} reduced={reduced} />}
-						<CardFrame frame={draft.frame} hero={hero} root={root} />
+						{hero && live && <MaterialHero skin={draft.skin} material={passHologram(draft).material} root={root}
+							rotateX={rotateX} rotateY={rotateY} lamp={lamp} phase={phase} reduced={reduced} onReady={onLive} />}
+						<CardFrame frame={draft.frame} hero={hero} live={hero && live} root={root} />
 						</>}
 						{pass && <>
 						<div className="pass-top">
