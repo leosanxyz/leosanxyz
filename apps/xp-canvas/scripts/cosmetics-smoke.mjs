@@ -119,7 +119,7 @@ try {
 		assert(count('legendaria') <= 1, `${place}: at most one legendary`)
 		assert([1, 2].includes(count('epica')), `${place}: one or two epics`)
 	}
-	const strip = await luisPage.locator('.shop-strip .shop-card-slot').evaluateAll((slots) => slots.map((slot) => slot.querySelector('.prize-face')?.dataset.rarity ?? 'card'))
+	const strip = await luisPage.locator('.shop-strip .shop-card-slot').evaluateAll((slots) => slots.map((slot) => slot.querySelector('.prize-cover')?.dataset.rarity ?? 'card'))
 	assert.equal(strip[0], 'legendaria', 'the machine opens on its legendary')
 	assert.equal(strip.filter((rarity) => rarity === 'legendaria').length, 1)
 	assert(strip.filter((rarity) => rarity === 'epica').length >= 1, 'at least one epic in the machine')
@@ -243,7 +243,7 @@ try {
 		if (!isCard(prize)) {
 			await page.waitForTimeout(5200)
 			await page.screenshot({ path: `${OUT}/maquina-premio.png` })
-			assert.equal(await page.locator('.gachapon-reveal__face[data-cosmetic] .prize-face').count(), 1)
+			assert.equal(await page.locator('.gachapon-reveal__face[data-cosmetic] .prize-cover').count(), 1)
 			await page.locator('.gachapon-reveal').waitFor({ state: 'detached', timeout: 15_000 })
 			break
 		}

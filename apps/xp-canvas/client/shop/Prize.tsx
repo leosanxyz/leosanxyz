@@ -39,28 +39,6 @@ export function RarityChip({ prize }: { prize: ShopPrize }) {
 }
 
 /**
- * A cosmetic on the front of one of the machine's cards: the object alone on a dark surface, with its name and rarity.
- * Materials and frames are dressed on the student's cover as baked minis, with no live WebGL.
- */
-export function PrizeFace({ prize, cover, name }: { prize: ShopPrize; cover: PassSkin; name: string }) {
-	const item = prizeItem(prize)
-	if (!item) return null
-	return <span className="prize-face" data-kind={item.kind} data-rarity={item.rarity} style={{ '--rarity': RARITY[item.rarity].color } as CSSProperties}>
-		<span className="prize-face__object">
-			{item.kind === 'plate' ? <Plate plate={item.id} name={name} />
-				: <span className="prize-face__card">
-					<MaterialMini skin={cover} material={item.kind === 'material' ? item.material : 'none'} />
-					{item.kind === 'frame' && <CardFrame frame={item.id} />}
-				</span>}
-		</span>
-		<span className="prize-face__caption">
-			<span className="prize-face__name">{item.name}</span>
-			<span className="prize-face__meta"><RarityChip prize={prize} /></span>
-		</span>
-	</span>
-}
-
-/**
  * A cosmetic as a card of its own in the rows, the way a card for sale shows its art: the student's cover at full bleed wearing the
  * material or the frame, or the plate alone on the black of the card back. Only its name is printed; rarity and price wait in the detail.
  * `width` is the card's CSS width, for a material baked sharp at that size (without it, the mini's sheet); `live` draws a plate's shader for the one detail open.

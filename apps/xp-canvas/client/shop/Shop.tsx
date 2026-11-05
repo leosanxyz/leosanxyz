@@ -26,7 +26,7 @@ import { usePassReducedMotion } from '../portal/pass/usePassReducedMotion'
 import { usePortal } from '../portal/PortalProvider'
 import { uuid } from '../uuid'
 import { ShopMachine } from './ShopMachine'
-import { hasPrize, prizeColor, prizeDraft, prizeItem, prizeName, prizePrice, PrizeCaption, PrizeCover, PrizeFace, RarityChip } from './Prize'
+import { hasPrize, prizeColor, prizeDraft, prizeItem, prizeName, prizePrice, PrizeCaption, PrizeCover, RarityChip } from './Prize'
 import { COINS_FLY_AT, flyCoins } from './coins'
 import { useShopNotice } from './shopNotice'
 import './shop.css'
@@ -147,7 +147,8 @@ export default function Shop() {
 			const result = await portalRequest<ShopSpin>('shop/spin', 'POST', { spinId: uuid(), free })
 			setReveal(result)
 			setState((current) => current && { ...current, points: result.points })
-			if (isRewardSkin(result.skin)) unlocked(result.userId)
+			// Una carta o un cosmético ganado: el pase se vuelve a leer para que el perfil lo ofrezca sin recargar.
+			unlocked(result.userId)
 			// The card joins the collection once the reveal ends, so the grid does not spoil it.
 			later(() => { setReveal(null); void load() }, Math.max(0, result.startedAt + GACHAPON_DURATION - Date.now()))
 		} catch (cause) { fail(cause, 'No pude girar la máquina.') }
@@ -163,6 +164,7 @@ export default function Shop() {
 			} else {
 				const result = await portalRequest<CosmeticPurchase>('shop/cosmetic/buy', 'POST', { item: prize })
 				setState((current) => current && { ...current, points: result.points, cosmetics: result.owned })
+				if (user) unlocked(user.id)
 			}
 			playCoin()
 			return true
@@ -441,7 +443,7 @@ function TrayPreview({ skin, list, panel, state }: { skin: ShopPrize | null; lis
 			<AnimatePresence mode="popLayout" initial={false}>
 				<motion.div key={skin} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} style={{ borderRadius: radius(PREVIEW_W) }}>
 					<div className="shop-float"><PassCard draft={draft} variant="shop" tilt={false} hero={false}
-							face={prizeItem(skin) && <PrizeFace prize={skin} cover={state.cover} name={user?.name ?? 'Tu nombre'} />} /></div>
+							face={prizeItem(skin) && <PrizeCover prize={skin} cover={state.cover} name={user?.name ?? 'Tu nombre'} width={PREVIEW_W} />} /></div>
 				</motion.div>
 			</AnimatePresence>
 		</motion.div>}
@@ -667,7 +669,7 @@ function ShopCard({ skin, place, faceUp = false, width, state, name, fresh = fal
 	if (open) return <div className="shop-card-slot" {...slot} />
 	const actions = <button ref={button} className="shop-card" data-mode={mode} data-owned={owned} data-skin={skin} aria-label={revealed ? `Ver ${prizeName(skin)}` : 'Revelar carta'} onClick={press} />
 	// The face is drawn only once turned, so a face-down card never gives its rarity away to the page.
-	const face = !prizeItem(skin) || !revealed ? undefined : place === 'machine' ? <PrizeFace prize={skin} cover={state.cover} name={name} /> : <PrizeCover prize={skin} cover={state.cover} name={name} width={width} />
+	const face = !prizeItem(skin) || !revealed ? undefined : <PrizeCover prize={skin} cover={state.cover} name={name} width={width} />
 	return <div className="shop-card-slot" {...slot}>
 		<div className="shop-card-stage" ref={stage}>
 			{/* `layoutId` alone animates its layout too. It moves with the slot's spring, so the card never drifts inside a gathering slot; the morph uses the detail's own spring.

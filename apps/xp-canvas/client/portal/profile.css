@@ -83,3 +83,9 @@
 .profile-coin { width: 20px; height: 20px; border-radius: 50%; background: var(--xp-yellow); }
 .profile-points .portal-link { padding: 6px 0; font-size: 16px; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) { .profile-points .portal-link:hover { color: var(--xp-ink); text-decoration: underline; } }
+
+/* Las filas de material, marco y placa del perfil van sobre claro, como el resto del editor; el café es de la bienvenida. */
+.profile-edit-controls .pass-material-picker { background: #eceff3; }
+.profile-edit-controls .pass-material-picker button::after { box-shadow: inset 0 0 0 2px var(--xp-ink); }
+.profile-edit-controls .pass-wear__none { border-color: #1a1a1a33; color: var(--xp-text-2); }
+.profile-edit-controls .pass-wear__none:empty::after { border-color: #1a1a1a33; }

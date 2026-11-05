@@ -1,27 +1,12 @@
-/* A cosmetic on a shop card's front. Units are fractions of the card's width (the pass card is a size container), so the face
-   keeps its look from the 34 px tray to the 360 px detail. A small lamp from above lights the object, as on a desk at night. */
-.prize-face { position: absolute; inset: 0; display: flex; text-align: left; flex-direction: column; padding: 9cqw 8cqw 8cqw; border-radius: inherit;
-	background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--rarity) 22%, #2a282d) 0, #1d1c20 62%); color: #fff; }
-.prize-face__object { position: relative; flex: 1; display: grid; place-items: center; min-height: 0; }
-.prize-face__card { position: relative; display: block; width: 60cqw; }
-.prize-face[data-kind='frame'] .prize-face__card { width: 56cqw; }
-.prize-face .plate { --plate-h: 11cqw; }
-.prize-face .plate__name { font-size: max(6px, calc(var(--u) * 15)); }
-.prize-face__caption { display: grid; gap: 2.5cqw; margin-top: 6cqw; }
-.prize-face__name { overflow: hidden; font-size: 7.6cqw; font-weight: 500; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
-.prize-face__meta { display: flex; align-items: center; justify-content: space-between; gap: 3cqw; }
+/* Cosmetics on a shop card's front. Units are fractions of the card's width (the pass card is a size container), so the face
+   keeps its look from the 34 px tray to the 360 px detail. */
 .prize-rarity { display: inline-block; padding: .2em .6em; border-radius: 999px; background: var(--rarity); color: #fff; font-size: 5.6cqw; font-weight: 500; line-height: 1.25; }
 .prize-rarity[data-rarity='legendaria'] { color: #2b1a02; }
 /* Outside a card the chip keeps a plain size. */
 .shop-detail__text .prize-rarity { margin-top: 10px; font-size: 13px; }
 .gachapon-reveal__prize small .prize-rarity { font-size: 13px; }
-/* A thumbnail too small to read keeps only the object. */
-@container (max-width: 80px) { .prize-face__caption { display: none; } .prize-face { padding: 8cqw; } }
-/* The machine's reveal: the same face inside the gold-edged card, and the badge says what it is and how rare. */
+/* The machine's reveal: the same full-bleed cover inside the gold-edged card; the badge under it says what it is and how rare. */
 .gachapon-reveal__face[data-cosmetic] { container-type: inline-size; }
-.gachapon-reveal__face[data-cosmetic] .prize-face { inset: 7px; border-radius: 12px; }
-/* The badge under the card already names the rarity. */
-.gachapon-reveal__face[data-cosmetic] .prize-face__meta { display: none; }
 .gachapon-reveal__prize small[data-cosmetic] { display: inline-flex; align-items: center; gap: 8px; }
 
 /* A cosmetic as a row's own card, the size of a card for sale: the student's cover at full bleed, or a plate on the black of the card back. */

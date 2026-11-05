@@ -3,7 +3,7 @@ import type { GachaponResult } from '../../shared/gachaponShape'
 import { isRewardSkin, type PassSkin } from '../../shared/pass'
 import type { ShopPrize } from '../../shared/shop'
 import { skins } from '../portal/pass/catalog'
-import { prizeColor, prizeItem, prizeKind, PrizeFace, RarityChip } from '../shop/Prize'
+import { prizeColor, PrizeCover, prizeItem, prizeKind, RarityChip } from '../shop/Prize'
 import { scheduleSpinSounds } from './gachaponSounds'
 
 const BIT_COLORS = ['#ffd45c', '#ffffff', '#ff8fb8', '#6fb7ff', '#8fd66b']
@@ -50,7 +50,7 @@ export function GachaponReveal({ result, cover = 'xp' }: { result: Omit<Gachapon
 			<div className="gachapon-reveal__float">
 				<div className="gachapon-reveal__card">
 					{skin ? <div className="gachapon-reveal__face"><img style={{ objectPosition: skin.position }} src={skin.image} alt={skin.name} /><span>{skin.name}</span></div>
-						: <div className="gachapon-reveal__face" data-cosmetic><PrizeFace prize={result.skin} cover={cover} name={result.name} /></div>}
+						: <div className="gachapon-reveal__face" data-cosmetic><PrizeCover prize={result.skin} cover={cover} name={result.name} /></div>}
 					<div className="gachapon-reveal__back" aria-hidden="true" />
 				</div>
 			</div>
