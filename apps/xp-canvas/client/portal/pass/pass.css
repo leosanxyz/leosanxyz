@@ -798,7 +798,8 @@
 .pass-area-selection {
 	position: absolute;
 	inset: 0 auto 0 0;
-	width: calc((100% - 9px) / 4);
+	/* --n: cuántos botones hay en la fila; cada grupo lo pone en línea. */
+	width: calc((100% - 3px * (var(--n, 4) - 1)) / var(--n, 4));
 	border-radius: 22px;
 	background: #68615a;
 	pointer-events: none;
@@ -822,6 +823,12 @@
 }
 .pass-holo-styles button[aria-pressed='true'] {
 	color: #fff;
+}
+/* La fila de áreas depende de la de arriba: un paso más chica. */
+.pass-holo-styles[data-sub] button {
+	min-height: 30px;
+	padding-block: 5px;
+	font-size: 10px;
 }
 .pass-orbit {
 	width: 100%;
@@ -1771,7 +1778,7 @@
 }
 .pass-material-picker {
 	display: grid;
-	grid-template-columns: repeat(9, 1fr);
+	grid-template-columns: repeat(8, 1fr);
 	gap: 4px;
 	padding: 5px;
 	border-radius: 18px;

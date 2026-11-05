@@ -44,6 +44,7 @@
 .profile-edit-controls .pass-orbit { color: var(--xp-line); }
 .profile-edit-controls .pass-holo-row { flex-wrap: nowrap; gap: 8px; }
 .profile-edit-controls .pass-holo-styles button { padding-inline: 6px; }
+.profile-edit-controls .pass-holo-styles[data-sub] button { font-size: 11px; }
 .profile-edit-controls .pass-pattern-picker button, .profile-edit-controls .pass-pattern-selection { width: 36px; height: 40px; }
 .profile-edit-controls .pass-pattern-picker button { padding-inline: 8px; }
 .profile-edit-controls .pass-pattern-picker button::before { inset: -2px -4px; }

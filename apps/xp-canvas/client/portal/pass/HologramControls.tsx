@@ -9,6 +9,7 @@ import {
 import {
 	CARD_MATERIALS,
 	passHologram,
+	type CardMaterial,
 	type HoloArea,
 	type HoloPattern,
 	type PassDraft,
@@ -41,6 +42,9 @@ const patterns: { id: HoloPattern; name: string; path: string }[] = [
 		path: 'm12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4L12 17.6l-5.7 3 1.1-6.4L2.8 9.7l6.4-.9Z',
 	},
 ]
+type Mode = 'normal' | 'holograma' | 'especial'
+const MODES: { id: Mode; name: string }[] = [{ id: 'normal', name: 'Normal' }, { id: 'holograma', name: 'Holograma' }, { id: 'especial', name: 'Especial' }]
+const SPECIALS = CARD_MATERIALS.filter((m) => m !== 'none')
 export const orbitPoint = (v: number) => ({
 	x: 180 + 145 * Math.sin(v * Math.PI * 2),
 	y: 64 + 40 * Math.sin(v * Math.PI * 4),
@@ -55,18 +59,23 @@ export function HologramControls({
 	onChange: (d: Partial<PassDraft>) => void
 }) {
 	const holo = passHologram(draft)
-	// Holograma y material son excluyentes: encender uno apaga el otro.
+	// Tres acabados excluyentes: normal, holograma con sus ajustes, o un material especial.
+	const mode: Mode = holo.material !== 'none' ? 'especial' : draft.finish === 'matte' ? 'normal' : 'holograma'
+	const lastMaterial = useRef<CardMaterial>('fuego')
+	useEffect(() => { if (holo.material !== 'none') lastMaterial.current = holo.material }, [holo.material])
 	const set = (d: Partial<PassDraft>) => onChange(d.finish && d.finish !== 'matte' ? { ...d, hologram: { ...(d.hologram ?? holo), material: 'none' } } : d)
+	const pickMode = (next: Mode) => {
+		if (next === 'normal') onChange({ finish: 'matte', hologram: { ...holo, material: 'none' } })
+		else if (next === 'holograma') onChange({ finish: 'prism', hologram: { ...holo, material: 'none' } })
+		else onChange({ finish: 'matte', hologram: { ...holo, material: lastMaterial.current } })
+	}
 	const reduced = usePassReducedMotion()
 	const print = foilPattern(holo.phase)
-	const areas: { id: HoloArea | null; name: string }[] = [
-		{ id: null, name: 'Mate' },
+	const areas: { id: HoloArea; name: string }[] = [
 		{ id: 'all', name: 'Toda' },
 		...(hasHologramAreas(draft.skin) ? [{ id: 'subject' as const, name: subjectLabel(draft.skin) }, { id: 'background' as const, name: 'Fondo' }] : []),
 	]
-	const areaIndex = areas.findIndex((s) =>
-		draft.finish === 'matte' ? s.id === null : s.id === holo.area,
-	)
+	const areaIndex = Math.max(0, areas.findIndex((s) => s.id === holo.area))
 	const tracking = useRef<{ id: number; rect: DOMRect; before: number } | null>(
 		null,
 	)
@@ -167,39 +176,25 @@ export function HologramControls({
 		const p = orbitPoint(i / 120)
 		return `${i ? 'L' : 'M'}${p.x},${p.y}`
 	}).join(' ')
+	const segments = (label: string, items: { id: string; name: string }[], index: number, pick: (id: string) => void, sub = false) => (
+		<div className="pass-holo-styles" data-sub={sub || undefined} role="group" aria-label={label} style={{ '--n': items.length } as React.CSSProperties}>
+			<motion.span
+				className="pass-area-selection"
+				aria-hidden="true"
+				initial={false}
+				animate={{ x: `calc(${index * 100}% + ${index * 3}px)` }}
+				transition={reduced ? { duration: 0 } : selectionTransition}
+			/>
+			{items.map((item, i) => (
+				<button key={item.id} aria-pressed={i === index} onClick={() => pick(item.id)}>{item.name}</button>
+			))}
+		</div>
+	)
 	return (
-		<div className="pass-holo-controls">
-			<div
-				className="pass-holo-styles"
-				role="group"
-				aria-label="Dónde aplicar el holográfico"
-			>
-				<motion.span
-					className="pass-area-selection"
-					aria-hidden="true"
-					initial={false}
-					animate={{ x: `calc(${areaIndex * 100}% + ${areaIndex * 3}px)` }}
-					transition={reduced ? { duration: 0 } : selectionTransition}
-				/>
-				{areas.map((s) => (
-					<button
-						key={s.id ?? 'matte'}
-						aria-pressed={
-							s.id === null
-								? draft.finish === 'matte'
-								: draft.finish !== 'matte' && holo.area === s.id
-						}
-						onClick={() =>
-							set({
-								finish: s.id === null ? 'matte' : 'prism',
-								hologram: { ...holo, area: s.id ?? holo.area },
-							})
-						}
-					>
-						{s.name}
-					</button>
-				))}
-			</div>
+		<div className="pass-holo-controls" data-mode={mode}>
+			{segments('Acabado de la carta', MODES, MODES.findIndex((m) => m.id === mode), (id) => pickMode(id as Mode))}
+			{mode === 'holograma' && <>
+			{areas.length > 1 && segments('Dónde aplicar el holográfico', areas, areaIndex, (id) => set({ finish: 'prism', hologram: { ...holo, area: id as HoloArea } }), true)}
 			<svg
 				className="pass-orbit"
 				viewBox="0 0 360 128"
@@ -335,19 +330,20 @@ export function HologramControls({
 					/>
 				</motion.label>
 			</div>
-			<div className="pass-material-picker" role="group" aria-label="Material">
-				{CARD_MATERIALS.map((material) => (
+			</>}
+			{mode === 'especial' && <div className="pass-material-picker" role="group" aria-label="Material especial">
+				{SPECIALS.map((material) => (
 					<button
 						key={material}
 						aria-label={materialName(material)}
 						title={materialName(material)}
 						aria-pressed={holo.material === material}
-						onClick={() => set({ finish: material === 'none' ? draft.finish : 'matte', hologram: { ...holo, material } })}
+						onClick={() => onChange({ finish: 'matte', hologram: { ...holo, material } })}
 					>
 						<MaterialMini skin={draft.skin} material={material} />
 					</button>
 				))}
-			</div>
+			</div>}
 		</div>
 	)
 }
