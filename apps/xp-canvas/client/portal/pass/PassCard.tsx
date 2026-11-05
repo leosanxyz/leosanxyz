@@ -41,6 +41,7 @@ export function PassCard({
 	actions,
 	variant = 'pass',
 	backFace,
+	face,
 	hero = true,
 }: {
 	draft: PassDraft
@@ -61,6 +62,8 @@ export function PassCard({
 	/** `shop` keeps the art, foil, tilt and flip without the pass printing; its back is `backFace`. */
 	variant?: 'pass' | 'shop'
 	backFace?: ReactNode
+	/** The shop's cosmetics show their own preview on the front instead of the cover's art. */
+	face?: ReactNode
 	/** Draws the card's material live. Off for the carousel's other covers; one live hero per page anyway. */
 	hero?: boolean
 }) {
@@ -187,6 +190,7 @@ export function PassCard({
 					onAnimationComplete={() => setTurning(false)}
 				>
 					<div className="pass-face pass-front" aria-hidden={back} inert={back}>
+						{face ?? <>
 						<div className="pass-visuals">
 							<div
 								className="pass-art"
@@ -223,7 +227,8 @@ export function PassCard({
 						</div>
 						{hero && <MaterialHero skin={draft.skin} material={passHologram(draft).material} root={root}
 							rotateX={rotateX} rotateY={rotateY} lamp={lamp} phase={phase} reduced={reduced} />}
-						{pass && <CardFrame frame={draft.frame} hero={hero} root={root} />}
+						<CardFrame frame={draft.frame} hero={hero} root={root} />
+						</>}
 						{pass && <>
 						<div className="pass-top">
 							<span>XP / CLASS PASS</span>

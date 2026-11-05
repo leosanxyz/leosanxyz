@@ -1,4 +1,4 @@
-import { isCosmeticOf, type CosmeticItem, type EffectId, type EquipSlot, type FrameId, type PlateId } from './cosmetics'
+import { isCosmeticOf, type CosmeticId, type EffectId, type FrameId, type PlateId } from './cosmetics'
 
 export const REWARD_SKIN_SETS = [
 	['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'],
@@ -128,7 +128,7 @@ export interface PassDraft {
 	opened: boolean
 	// Optional for passes saved before the signature step existed.
 	signature?: PassSignature | null
-	// Bought in the shop. The server saves them only if the student owns them; absent means none.
+	// Bought in the shop or won in its machine. The server saves them only if the student owns them; absent means none.
 	plate?: PlateId | null
 	frame?: FrameId | null
 	// Profile effects are not built yet: always empty for now.
@@ -136,6 +136,8 @@ export interface PassDraft {
 }
 export interface PassProfile {
 	unlockedSkins?: RewardSkin[]
+	/** Cosmetics bought or won; the free basics are everyone's and not listed. */
+	cosmetics?: CosmeticId[]
 	intro: { name: string; message: string; skin: PassSkin }
 	draft: PassDraft
 	completed: boolean
@@ -153,15 +155,6 @@ export function defaultPass(name: string, skin: PassSkin = 'xp'): PassDraft {
 		opened: false,
 		signature: null,
 	}
-}
-/** Puts a shop item on the pass, or clears its slot with `null`. A material goes on as the special finish, as when chosen in the profile. */
-export function applyEquip(draft: PassDraft, slot: EquipSlot, item: CosmeticItem | null): PassDraft {
-	if (slot === 'plate') return { ...draft, plate: item?.kind === 'plate' ? item.id : null }
-	if (slot === 'frame') return { ...draft, frame: item?.kind === 'frame' ? item.id : null }
-	const hologram = draft.hologram ?? defaultHologram()
-	return item?.kind === 'material'
-		? { ...draft, finish: 'matte', hologram: { ...hologram, material: item.material } }
-		: { ...draft, hologram: { ...hologram, material: 'none' } }
 }
 export function passStickers(draft: PassDraft, skin: PassSkin): PassSticker[] {
 	return skin === draft.skin ? draft.stickers : draft.stickersBySkin?.[skin] ?? []

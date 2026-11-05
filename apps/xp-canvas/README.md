@@ -85,13 +85,17 @@ BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/gachapon-smoke.mjs
 
 ## Cosméticos de la tienda
 
-Debajo de las cartas en venta, **Tu pase** muestra el pase del alumno con lo que lleva puesto y sus cinco ranuras: carta, material, marco, placa y efecto de perfil. Más abajo está el catálogo agrupado por rareza, con el color y el precio de cada una: común 100, rara 250, épica 500 y legendaria 900 puntos. La rareza es el costo visual. Lo común es estático, lo raro se anima con CSS, lo épico es un material o un shader y lo legendario es un shader completo. El efecto de perfil llegará después; por ahora sus objetos aparecen como «Pronto» y no se venden.
+La tienda es una sola idea repetida: filas de cartas boca abajo que rotan cada seis horas. Debajo de **Cartas en venta** hay dos filas más con la misma mecánica: **Efectos de carta**, con materiales y marcos, y **Placas**. Cada fila trae seis objetos al azar de su parte del catálogo. Girar una carta paga 5 puntos y la voltea: muestra el objeto puesto sobre la portada del alumno (la placa, con su nombre), su nombre, su rareza con su color y su precio. Tocarla abre el detalle, donde el material o el marco se ven en vivo sobre el pase, y la compra pide dos toques. Lo que el alumno ya tiene sale en gris.
 
-Tocar un objeto lo prueba sobre el pase de la izquierda, con el nombre del alumno en la placa. Su botón pide dos toques para comprar, como una carta, y luego cambia a **Ponerme**. **Quitar** vacía la ranura y **Cambiar** lleva a la carta en Mi perfil. «Grafito» y «Fino gris» son gratis y de todos. Los ocho materiales ya tienen rareza y precio, pero mientras Leo los prueba se eligen gratis; `MATERIALS_FOR_SALE` en `shared/cosmetics.ts` los pone a la venta.
+La rareza es el costo visual y el precio: común 100, rara 250, épica 500 y legendaria 900 puntos. Lo común es estático, lo raro se anima con CSS, lo épico es un material o un shader y lo legendario es un shader completo. En cada rotación, una fila trae como mucho un legendario, uno o dos épicos y el resto raros y comunes, nunca más de la mitad de los objetos de una rareza. «Grafito» y «Fino gris» son gratis y de todos, y no se venden. Los efectos de perfil todavía no entran a la tienda.
 
-La placa equipada aparece detrás del nombre en **Alumnos** y en la lista de alumnos conectados del canvas. El marco rodea la carta en la lista de Alumnos, en Mi perfil y en la tienda. Las listas no usan WebGL: los shaders épicos y legendarios se hornean una vez por objeto a una hoja de sprites que guarda la Cache API, y se reproducen con CSS. Solo el pase grande de la página dibuja su marco y su placa en vivo, y reacciona al puntero. Con movimiento reducido todo queda en su primer cuadro.
+La máquina de la tienda también reparte cosméticos. Cada día trae seis premios: un legendario, uno o dos épicos, dos cartas y el resto raros y comunes. Las cartas cuentan como raras. Cada tirada elige entre lo que el alumno aún no tiene, primero la rareza con probabilidad de 55 % común, 30 % rara, 12 % épica y 3 % legendaria, y después un premio de esa rareza. Lo que se gana en la máquina ya no se puede comprar. La máquina de los canvases sigue dando solo cartas.
 
-El contrato de compra y equipado está en [Arquitectura](../../ARCHITECTURE.md#cosméticos). Prueba en un portal QA aislado; deja capturas en `/tmp/cosmeticos-qa`:
+Lo comprado o ganado se equipa en **Mi perfil**, al personalizar el pase: Especial ofrece solo los materiales propios (sin ninguno, ese acabado no aparece), y debajo están **Marco** y **Placa** con lo que el alumno tiene, los gratis y «Ninguno».
+
+La placa equipada aparece detrás del nombre en **Alumnos** y en la lista de alumnos conectados del canvas. El marco rodea la carta en la lista de Alumnos y en Mi perfil. Las listas no usan WebGL: los shaders épicos y legendarios se hornean una vez por objeto a una hoja de sprites que guarda la Cache API, y se reproducen con CSS. Solo el pase grande de la página dibuja su marco y su placa en vivo, y reacciona al puntero. Con movimiento reducido todo queda en su primer cuadro.
+
+El contrato de las filas, la máquina y la compra está en [Arquitectura](../../ARCHITECTURE.md#cosméticos). Prueba en un portal QA aislado; deja capturas y un GIF en `/tmp/cosmeticos-qa`:
 
 ```bash
 BASE_URL=http://127.0.0.1:5177 npm run smoke:cosmetics --workspace=apps/xp-canvas

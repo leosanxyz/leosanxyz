@@ -49,6 +49,7 @@
 .profile-edit-controls .pass-pattern-picker button { padding-inline: 8px; }
 .profile-edit-controls .pass-pattern-picker button::before { inset: -2px -4px; }
 .profile-edit-controls .pass-light-color { min-width: 66px; }
+.profile-edit-controls .pass-wear__label { color: var(--xp-text-2); font-size: 12px; }
 .profile-save.xp-dialog-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 12px; }
 .profile-save button { min-height: 44px; }
 .profile-save [role='alert'] { flex-basis: 100%; text-align: center; font-size: 14px; }

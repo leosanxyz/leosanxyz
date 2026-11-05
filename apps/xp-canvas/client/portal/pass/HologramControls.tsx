@@ -6,6 +6,7 @@ import {
 	useTransform,
 	type MotionValue,
 } from 'motion/react'
+import { materialItem, ownsCosmetic, type CosmeticId } from '../../../shared/cosmetics'
 import {
 	CARD_MATERIALS,
 	passHologram,
@@ -44,7 +45,6 @@ const patterns: { id: HoloPattern; name: string; path: string }[] = [
 ]
 type Mode = 'normal' | 'holograma' | 'especial'
 const MODES: { id: Mode; name: string }[] = [{ id: 'normal', name: 'Normal' }, { id: 'holograma', name: 'Holograma' }, { id: 'especial', name: 'Especial' }]
-const SPECIALS = CARD_MATERIALS.filter((m) => m !== 'none')
 export const orbitPoint = (v: number) => ({
 	x: 180 + 145 * Math.sin(v * Math.PI * 2),
 	y: 64 + 40 * Math.sin(v * Math.PI * 4),
@@ -52,19 +52,26 @@ export const orbitPoint = (v: number) => ({
 export function HologramControls({
 	draft,
 	phase,
+	owned = [],
 	onChange,
 }: {
 	draft: PassDraft
 	phase: MotionValue<number>
+	/** Cosmetics the student has: Especial offers only these materials, and hides with none. */
+	owned?: readonly CosmeticId[]
 	onChange: (d: Partial<PassDraft>) => void
 }) {
 	const holo = passHologram(draft)
+	const bought = new Set<string>(owned)
+	const specials = CARD_MATERIALS.filter((m) => m !== 'none' && ownsCosmetic(materialItem(m)!, bought))
 	// Tres acabados excluyentes: normal, holograma con sus ajustes, o un material especial.
 	const mode: Mode = holo.material !== 'none' ? 'especial' : draft.finish === 'matte' ? 'normal' : 'holograma'
-	const lastMaterial = useRef<CardMaterial>('fuego')
+	const modes = specials.length || mode === 'especial' ? MODES : MODES.slice(0, 2)
+	const lastMaterial = useRef<CardMaterial>(specials[0] ?? 'none')
 	useEffect(() => { if (holo.material !== 'none') lastMaterial.current = holo.material }, [holo.material])
 	const set = (d: Partial<PassDraft>) => onChange(d.finish && d.finish !== 'matte' ? { ...d, hologram: { ...(d.hologram ?? holo), material: 'none' } } : d)
 	const pickMode = (next: Mode) => {
+		if (next === 'especial' && lastMaterial.current === 'none') return
 		if (next === 'normal') onChange({ finish: 'matte', hologram: { ...holo, material: 'none' } })
 		else if (next === 'holograma') onChange({ finish: 'prism', hologram: { ...holo, material: 'none' } })
 		else onChange({ finish: 'matte', hologram: { ...holo, material: lastMaterial.current } })
@@ -192,7 +199,7 @@ export function HologramControls({
 	)
 	return (
 		<div className="pass-holo-controls" data-mode={mode}>
-			{segments('Acabado de la carta', MODES, MODES.findIndex((m) => m.id === mode), (id) => pickMode(id as Mode))}
+			{segments('Acabado de la carta', modes, modes.findIndex((m) => m.id === mode), (id) => pickMode(id as Mode))}
 			{mode === 'holograma' && <>
 			{areas.length > 1 && segments('Dónde aplicar el holográfico', areas, areaIndex, (id) => set({ finish: 'prism', hologram: { ...holo, area: id as HoloArea } }), true)}
 			<svg
@@ -332,7 +339,7 @@ export function HologramControls({
 			</div>
 			</>}
 			{mode === 'especial' && <div className="pass-material-picker" role="group" aria-label="Material especial">
-				{SPECIALS.map((material) => (
+				{specials.map((material) => (
 					<button
 						key={material}
 						aria-label={materialName(material)}

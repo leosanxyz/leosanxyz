@@ -1,6 +1,7 @@
 import type { CanvasEnv } from './access'
 import type { PortalUser } from '../shared/portal'
-import { defaultPass, SKINS, type PassProfile, type RewardSkin } from '../shared/pass'
+import { defaultPass, isRewardSkin, SKINS, type PassProfile } from '../shared/pass'
+import { boughtCosmetics, ownedList } from './cosmetics'
 import { portalDb } from './portalAuth'
 
 export async function readPass(user: PortalUser, env: CanvasEnv): Promise<PassProfile> {
@@ -18,9 +19,14 @@ export async function readPass(user: PortalUser, env: CanvasEnv): Promise<PassPr
 			'Qué gusto tenerte por aquí. Preparé este espacio para compartir lo que vamos creando en clase. Ojalá te acompañe con las ideas que vienen.',
 		skin: SKINS.includes(saved.skin) ? saved.skin : 'xp',
 	}
-	const unlocked = await portalDb(env).prepare('SELECT skin FROM gachapon_spins WHERE user_id = ? GROUP BY skin ORDER BY MIN(created_at) DESC, skin').bind(user.id).all<{ skin: RewardSkin }>()
+	const [unlocked, bought] = await Promise.all([
+		portalDb(env).prepare('SELECT skin FROM gachapon_spins WHERE user_id = ? GROUP BY skin ORDER BY MIN(created_at) DESC, skin').bind(user.id).all<{ skin: string }>(),
+		boughtCosmetics(env, user.id),
+	])
 	return {
-		unlockedSkins: unlocked.results.map((row) => row.skin),
+		// Shop spins that won a cosmetic keep its id in `skin`; only cards are covers.
+		unlockedSkins: unlocked.results.map((row) => row.skin).filter(isRewardSkin),
+		cosmetics: ownedList(bought),
 		intro,
 		draft: row?.draft_json ? JSON.parse(row.draft_json) : defaultPass(intro.name, intro.skin),
 		completed: Boolean(row?.completed_at),

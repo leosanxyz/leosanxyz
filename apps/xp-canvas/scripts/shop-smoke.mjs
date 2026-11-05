@@ -39,7 +39,9 @@ try {
 	const buy = (skin) => ana.request.post('/api/portal/shop/buy', { data: { skin } })
 	const reveal = (skin, context = ana) => context.request.post('/api/portal/shop/reveal', { data: { skin } })
 	let state = await shop()
-	// Two pools: the machine's six prizes for the day and six cards for sale every six hours, never the same card.
+	const machineCard = state.pool.find((prize) => REWARD_SKINS.includes(prize))
+	// The machine's six prizes for the day mix two cards and cosmetics, rarest first; six cards for sale every six hours, never the machine's.
+	assert.equal(state.pool.filter((prize) => REWARD_SKINS.includes(prize)).length, 2, 'two cards in the machine')
 	assert.equal(state.pool.length, 6)
 	assert.equal(new Set(state.pool).size, 6)
 	assert.equal(state.shop.length, 6)
@@ -52,8 +54,8 @@ try {
 	assert.equal((await spin(false)).status(), 409, 'zero balance cannot spin')
 	assert.equal((await spin(true)).status(), 409, 'no free spin before the review')
 	assert.equal((await buy(state.shop[0])).status(), 409, 'zero balance cannot buy')
-	assert.equal((await buy(state.pool[0])).status(), 403, 'the machine\'s cards are not for sale')
-	assert.equal((await reveal(state.pool[0])).status(), 403, 'the machine\'s cards are not turned for points')
+	assert.equal((await buy(machineCard)).status(), 403, 'the machine\'s cards are not for sale')
+	assert.equal((await reveal(machineCard)).status(), 403, 'the machine\'s cards are not turned for points')
 	assert.equal((await ana.request.post('/api/portal/shop/review')).status(), 409, 'no questions yet')
 	const outside = (await (await teacher.request.get('/api/portal/shop')).json())
 	assert.equal(outside.teacher, true)
@@ -64,7 +66,7 @@ try {
 	assert.equal((await buy('xp')).status(), 400, 'only reward cards are sold')
 	assert.equal((await reveal(elsewhere)).status(), 403, 'only the cards for sale can be turned')
 	assert.equal((await reveal('xp')).status(), 403)
-	assert.deepEqual([outside.revealed, outside.gift.claimed], [outside.shop, true], 'the teacher sees every card face up')
+	assert.deepEqual([outside.revealed, outside.gift.claimed], [[...outside.shop, ...outside.effects, ...outside.plates], true], 'the teacher sees every card face up')
 	assert.equal((await reveal(state.shop[0], teacher)).status(), 403, 'the teacher earns nothing')
 	assert.equal((await teacher.request.post('/api/portal/shop/gift')).status(), 403)
 	assert.equal(await points(), 0, 'rejected reveals pay nothing')
@@ -102,7 +104,7 @@ try {
 	await student.waitForURL('**/tienda')
 	await student.getByTestId('portal-shop').waitFor()
 	// Inside the shop page: the skeleton's leaving copy, in the body, has the same classes for a moment.
-	const shopPage = student.getByTestId('portal-shop'), strip = shopPage.locator('.shop-strip'), row = shopPage.locator('.shop-row')
+	const shopPage = student.getByTestId('portal-shop'), strip = shopPage.locator('.shop-strip'), row = shopPage.locator('.shop-row[data-place="cards"]')
 	// The shell shows before the shop loads; count once the cards are there.
 	await row.locator('.shop-card').first().waitFor()
 	// The shop fades in once its machine is built; measure it settled.
@@ -116,7 +118,8 @@ try {
 	assert.equal(await row.locator(':scope > li').last().getByTestId('shop-gift').count(), 1)
 	assert.equal(await row.getByRole('button', { name: 'Revelar carta' }).count(), 6, 'the cards for sale arrive face down')
 	assert.equal(await student.locator('#shop-cards-title').innerText(), 'Cartas en venta')
-	assert.match(await student.getByTestId('portal-shop').locator('.shop-cards').getByTestId('shop-countdown').innerText(), /^\d{2}:\d{2}$/)
+	assert.match(await student.getByTestId('portal-shop').locator('.shop-cards[data-row="cards"]').getByTestId('shop-countdown').innerText(), /^\d{2}:\d{2}$/)
+	assert.deepEqual(await shopPage.locator('.shop-cards h2').allInnerTexts(), ['Cartas en venta', 'Efectos de carta', 'Placas'], 'three rows, nothing else under the hero')
 	assert.equal(await student.getByTestId('portal-shop').locator('.shop-hero').getByTestId('shop-countdown').count(), 0, 'no clock in the hero')
 	await student.waitForTimeout(700)
 	const desk = await row.evaluate((list) => ({ overflow: getComputedStyle(list).overflowX, overflowY: getComputedStyle(list).overflowY, scrolls: list.scrollWidth > list.clientWidth, width: Math.round(list.children[0].getBoundingClientRect().width) }))
@@ -204,7 +207,7 @@ try {
 	// The daily gift pays once and starts the streak.
 	await student.reload()
 	await row.locator('.shop-card').first().waitFor()
-	assert.equal(await student.getByRole('button', { name: 'Revelar carta' }).count(), 0)
+	assert.equal(await row.getByRole('button', { name: 'Revelar carta' }).count(), 0)
 	// Hovering a face-up card only lifts it; nothing glows under it.
 	await row.locator('.shop-card-slot').first().hover()
 	await student.waitForTimeout(300)
@@ -445,7 +448,7 @@ try {
 	assert.equal(await student.locator('.shop-panel__step').count(), 0, 'a used free spin leaves the title alone')
 	assert.equal(await student.getByRole('button', { name: /Vuelve mañana/ }).count(), 0, 'no button for tomorrow')
 	assert.equal(await student.getByTestId('shop-points').innerText(), '555', 'the free spin costs nothing')
-	assert.equal(await strip.locator('.shop-card[data-owned="true"]').count(), 1, 'the prize is one of the machine\'s cards')
+	assert.equal(await strip.locator('.shop-card[data-owned="true"]').count(), 1, 'the prize is one of the machine\'s')
 	// An owned machine card fades to grey; no badge.
 	await student.waitForTimeout(500)
 	assert.notEqual(await strip.locator('.shop-card-slot[data-owned="true"] .shop-card-stage').evaluate((stage) => getComputedStyle(stage).filter), 'none', 'owned machine cards are dimmed')
@@ -462,8 +465,8 @@ try {
 	await student.locator('.gachapon-reveal').waitFor({ state: 'detached', timeout: 15_000 })
 	await strip.locator('.shop-card[data-owned="true"]').nth(1).waitFor()
 	state = await shop()
-	assert.equal(state.owned.length, 2, 'a spin never repeats an owned card')
-	assert(state.owned.every((skin) => state.pool.includes(skin)), 'spins draw from the machine\'s cards')
+	assert.equal(state.owned.length + state.cosmetics.length, 2, 'a spin never repeats an owned prize')
+	assert([...state.owned, ...state.cosmetics].every((prize) => state.pool.includes(prize)), 'spins draw from the machine\'s prizes')
 
 	// Buying happens in the card's detail: a second tap confirms and charges exactly the price.
 	const skin = await row.locator('.shop-card[data-owned="false"]').first().getAttribute('data-skin')
@@ -521,7 +524,8 @@ try {
 	assert.equal((await spin(false)).status(), 409, 'a spin needs 150 points')
 	assert.equal(await points(), 105, 'rejected requests never charge')
 	const unlocked = (await (await ana.request.get('/api/portal/pass')).json()).unlockedSkins
-	assert.equal(unlocked.length, 3)
+	// The machine's prizes may be cosmetics: only its cards and the one bought are covers.
+	assert.equal(unlocked.length, state.owned.length + 1)
 	assert(unlocked.includes(skin), 'shop cards unlock in the pass')
 	assert.equal((await (await teacher.request.get('/api/portal/roster')).json()).students.find((s) => s.id === id).points, 105, 'teacher sees the net balance')
 	await student.screenshot({ path: '/tmp/shop-after.png', fullPage: true })
@@ -579,7 +583,8 @@ try {
 	// The teacher previews the shop without buying.
 	await page.goto('/tienda')
 	await page.getByTestId('portal-shop').waitFor()
-	await page.getByText(TICKET_LINE).waitFor()
+	// The skeleton's leaving copy repeats the title for a moment; the real one has its id.
+	await page.locator('#shop-panel-title').filter({ hasText: TICKET_LINE }).waitFor()
 	await page.getByTestId('portal-shop').locator('.shop-row .shop-card').first().click()
 	assert.equal(await page.getByTestId('shop-card-detail').getByRole('button', { name: '300 puntos' }).isDisabled(), true, 'the teacher cannot buy')
 	await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()
@@ -603,7 +608,7 @@ try {
 	await mobile.locator('.shop-card').first().waitFor()
 	assert.equal(await drawer.getAttribute('aria-describedby'), null, 'the dot clears on the phone too')
 	for (const list of ['.shop-strip', '.shop-row']) {
-		const phoneRow = await mobile.getByTestId('portal-shop').locator(list).evaluate((element) => ({ overflow: getComputedStyle(element).overflowX, scrolls: element.scrollWidth > element.clientWidth, rows: new Set([...element.children].map((item) => item.offsetTop)).size }))
+		const phoneRow = await mobile.getByTestId('portal-shop').locator(list).first().evaluate((element) => ({ overflow: getComputedStyle(element).overflowX, scrolls: element.scrollWidth > element.clientWidth, rows: new Set([...element.children].map((item) => item.offsetTop)).size }))
 		assert.deepEqual(phoneRow, { overflow: 'auto', scrolls: true, rows: 1 }, `${list} never wraps on the phone`)
 	}
 	assert.equal(await mobile.getByTestId('portal-shop').locator('.shop-row > li').first().evaluate((item) => Math.round(item.getBoundingClientRect().width)), 196)

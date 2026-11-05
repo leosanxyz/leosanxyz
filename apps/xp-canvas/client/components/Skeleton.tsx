@@ -219,12 +219,12 @@ export function ShopShape() {
 				</div>
 			</section>
 		</section>
-		<section className="shop-cards">
-			<div className="shop-cards__heading"><h2>Cartas en venta</h2></div>
+		{['Cartas en venta', 'Efectos de carta', 'Placas'].map((title) => <section key={title} className="shop-cards">
+			<div className="shop-cards__heading"><h2>{title}</h2></div>
 			<div className="shop-scroller"><ul className="shop-row" style={{ '--card-w': `${CARD.row}px` } as CSSProperties}>
 				{range(6).map((index) => <li key={index}><span className="shop-skeleton__sale" skullet-block="" /></li>)}
 			</ul></div>
-		</section>
+		</section>)}
 	</>
 }
 

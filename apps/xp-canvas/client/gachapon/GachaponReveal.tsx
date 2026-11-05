@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import type { GachaponResult } from '../../shared/gachaponShape'
+import { isRewardSkin, type PassSkin } from '../../shared/pass'
+import type { ShopPrize } from '../../shared/shop'
 import { skins } from '../portal/pass/catalog'
+import { prizeColor, prizeItem, prizeKind, PrizeFace, RarityChip } from '../shop/Prize'
 import { scheduleSpinSounds } from './gachaponSounds'
 
 const BIT_COLORS = ['#ffd45c', '#ffffff', '#ff8fb8', '#6fb7ff', '#8fd66b']
@@ -20,10 +23,12 @@ function confetti(id: string, prizeColor: string) {
 	})
 }
 
-export function GachaponReveal({ result }: { result: GachaponResult }) {
+/** The canvas machine reveals a card; the shop's can also reveal a cosmetic, shown on the student's cover with its rarity. */
+export function GachaponReveal({ result, cover = 'xp' }: { result: Omit<GachaponResult, 'skin'> & { skin: ShopPrize }; cover?: PassSkin }) {
 	const root = useRef<HTMLDivElement>(null)
-	const skin = skins.find((s) => s.id === result.skin)!
-	const bits = useMemo(() => confetti(result.id, skin.color), [result.id, skin.color])
+	const skin = isRewardSkin(result.skin) ? skins.find((s) => s.id === result.skin)! : null, item = prizeItem(result.skin)
+	const color = prizeColor(result.skin)
+	const bits = useMemo(() => confetti(result.id, color), [result.id, color])
 	useEffect(() => {
 		const slot = document.querySelector(`[data-gachapon-id="${CSS.escape(result.shapeId)}"] .gachapon__slot`)?.getBoundingClientRect()
 		if (slot && slot.right > 0 && slot.left < innerWidth && slot.bottom > 0 && slot.top < innerHeight) {
@@ -34,7 +39,7 @@ export function GachaponReveal({ result }: { result: GachaponResult }) {
 		for (const animation of root.current?.getAnimations({ subtree: true }) ?? []) animation.currentTime = Math.max(0, Date.now() - result.startedAt)
 		scheduleSpinSounds(result.id, result.startedAt)
 	}, [result.id, result.startedAt])
-	return <div ref={root} className="gachapon-reveal" data-gachapon-result={result.id} style={{ '--prize-color': skin.color } as CSSProperties}>
+	return <div ref={root} className="gachapon-reveal" data-gachapon-result={result.id} style={{ '--prize-color': color } as CSSProperties}>
 		<div className="gachapon-reveal__backdrop" aria-hidden="true" />
 		<div className="gachapon-reveal__rays" aria-hidden="true" />
 		<div className="gachapon-reveal__capsule" aria-hidden="true"><b className="gachapon-reveal__glow" /><i /><i /></div>
@@ -44,11 +49,12 @@ export function GachaponReveal({ result }: { result: GachaponResult }) {
 			<p>{result.name} ganó</p>
 			<div className="gachapon-reveal__float">
 				<div className="gachapon-reveal__card">
-					<div className="gachapon-reveal__face"><img style={{ objectPosition: skin.position }} src={skin.image} alt={skin.name} /><span>{skin.name}</span></div>
+					{skin ? <div className="gachapon-reveal__face"><img style={{ objectPosition: skin.position }} src={skin.image} alt={skin.name} /><span>{skin.name}</span></div>
+						: <div className="gachapon-reveal__face" data-cosmetic><PrizeFace prize={result.skin} cover={cover} name={result.name} /></div>}
 					<div className="gachapon-reveal__back" aria-hidden="true" />
 				</div>
 			</div>
-			<small>Tarjeta desbloqueada</small>
+			{item ? <small data-cosmetic>{prizeKind(result.skin)} <RarityChip prize={result.skin} /></small> : <small>Tarjeta desbloqueada</small>}
 		</div>
 	</div>
 }

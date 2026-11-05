@@ -19,7 +19,7 @@ describe('cosmetics catalog', () => {
 			expect(look).toBe(item.rarity === 'comun' ? item.kind === 'plate' ? 'flat' : 'line' : item.rarity === 'rara' ? 'animated' : 'shader')
 		}
 	})
-	it('gives the basics to everyone, keeps effects out of sale and materials open while the switch is off', () => {
+	it('gives the basics to everyone, keeps effects out of sale and sells materials', () => {
 		const none = new Set<string>()
 		expect(COSMETICS.filter((item) => item.free).map((item) => item.id).sort()).toEqual(['frame:fino-gris', 'plate:grafito'])
 		expect(ownsCosmetic(cosmetic('plate:grafito')!, none)).toBe(true)
@@ -29,8 +29,9 @@ describe('cosmetics catalog', () => {
 			expect(forSale(cosmetic(id)!)).toBe(false)
 			expect(ownsCosmetic(cosmetic(id)!, new Set([id]))).toBe(false)
 		}
-		expect(forSale(cosmetic('material:fuego')!)).toBe(MATERIALS_FOR_SALE)
-		expect(ownsCosmetic(cosmetic('material:metal')!, none)).toBe(!MATERIALS_FOR_SALE)
+		expect(MATERIALS_FOR_SALE).toBe(true)
+		expect(forSale(cosmetic('material:fuego')!)).toBe(true)
+		expect(ownsCosmetic(cosmetic('material:metal')!, none)).toBe(false)
 		expect(forSale(cosmetic('plate:grafito')!)).toBe(false)
 		expect(forSale(cosmetic('frame:oro-vivo')!)).toBe(true)
 	})

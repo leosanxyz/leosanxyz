@@ -11,10 +11,10 @@ export const RARITY: Record<Rarity, { name: string; color: string; price: number
 }
 
 /**
- * Materials are still chosen freely in the pass while Leo tries them out. Turning this on puts them up for sale:
- * the shop shows «Comprar» and the server only saves a material the student owns.
+ * Materials are sold in the shop and won in the machine, and the pass only saves one the student owns.
+ * Turning this off would give every material to everyone again, as while Leo tried them out.
  */
-export const MATERIALS_FOR_SALE = false
+export const MATERIALS_FOR_SALE = true
 
 export type CosmeticKind = 'material' | 'plate' | 'frame' | 'effect'
 export type ShaderStrip = 'brasa' | 'rayo' | 'escarcha' | 'oro'
@@ -102,11 +102,5 @@ export const forSale = (item: CosmeticItem) => !item.free && item.kind !== 'effe
 export const ownsCosmetic = (item: CosmeticItem, bought: ReadonlySet<string>) =>
 	!!item.free || (item.kind === 'material' && !MATERIALS_FOR_SALE) || (item.kind !== 'effect' && bought.has(item.id))
 
-/** What a student wears, as the roster and the shop read it from the pass. */
-export interface Equipped { plate: PlateId | null; frame: FrameId | null; effect: EffectId | null }
-export type EquipSlot = 'plate' | 'frame' | 'material'
-
-export interface CosmeticsState { owned: CosmeticId[]; equipped: Equipped & { material: CardMaterial } }
 export interface CosmeticPurchase { item: CosmeticId; points: number; owned: CosmeticId[] }
-export interface CosmeticEquip { equipped: CosmeticsState['equipped'] }
 

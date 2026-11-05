@@ -1810,3 +1810,61 @@
 .pass-material-picker .material-mini {
 	border-radius: 6px;
 }
+/* Frame and plate under the finish: the same picker, one labelled row each. */
+.pass-wear {
+	display: grid;
+	gap: 7px;
+	margin-top: 7px;
+}
+.pass-wear__row {
+	display: grid;
+	gap: 5px;
+}
+.pass-wear__label {
+	padding-left: 12px;
+	color: #c7beb5;
+	font-size: 11px;
+}
+.pass-material-picker[data-wear='frame'] button {
+	padding: 3px;
+}
+.pass-wear__framed {
+	position: relative;
+	display: block;
+}
+.pass-wear__none {
+	position: relative;
+	display: block;
+	aspect-ratio: 0.686;
+	border: 1px dashed #c7beb580;
+	border-radius: 6px;
+	overflow: hidden;
+}
+.pass-wear__none:empty::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: -10%;
+	height: 120%;
+	border-left: 1px solid #c7beb580;
+	transform: rotate(34deg);
+}
+.pass-material-picker[data-wear='plate'] {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pass-material-picker[data-wear='plate'] button {
+	display: grid;
+	place-items: center;
+	min-height: 32px;
+	padding: 4px;
+	--plate-h: 17px;
+}
+.pass-material-picker[data-wear='plate'] .pass-wear__none {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 100%;
+	aspect-ratio: auto;
+	color: #c7beb5;
+	font-size: 10px;
+}

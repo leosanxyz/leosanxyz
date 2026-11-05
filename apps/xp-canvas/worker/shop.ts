@@ -2,14 +2,13 @@ import type { CanvasEnv } from './access'
 import { catalog } from './boards'
 import { balanceArgs, balanceSql, readPoints, savePointAward } from './points'
 import { allowedBoardIds, portalDb, type AuthSession } from './portalAuth'
-import { buyCosmetic, cosmeticsState, equipCosmetic } from './cosmetics'
+import { boughtCosmetics, buyCosmetic, cosmeticKey, ownedList } from './cosmetics'
 import { body, json, PortalError } from './portalHttp'
 import type { BoardLibrary } from '../shared/boards'
-import type { CosmeticEquip } from '../shared/cosmetics'
-import { isRewardSkin, type RewardSkin } from '../shared/pass'
+import { isRewardSkin, SKINS, type PassSkin } from '../shared/pass'
 import {
-	gachaPool, giftAmount, giftStreak, nextShopRotation, SHOP_CARD_COST, SHOP_GIFT_POINTS, SHOP_REVEAL_POINTS, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool, shopSlot,
-	type FreeSpinState, type ShopGift, type ShopGiftClaim, type ShopAnswer, type ShopPurchase, type ShopQuestion, type ShopReveal, type ShopSpin, type ShopState,
+	cosmeticRow, drawPrize, gachaPool, giftAmount, giftStreak, nextShopRotation, SHOP_CARD_COST, SHOP_GIFT_POINTS, SHOP_REVEAL_POINTS, SHOP_REVIEW_ATTEMPTS, SHOP_REVIEW_QUESTIONS, SHOP_SPIN_COST, shopDay, shopPool, shopSlot,
+	type FreeSpinState, type ShopGift, type ShopGiftClaim, type ShopAnswer, type ShopPrize, type ShopPurchase, type ShopQuestion, type ShopReveal, type ShopSpin, type ShopState,
 } from '../shared/shop'
 
 type StoredQuestion = ShopQuestion & { boardId: string; shapeId: string; revision: string; correct: number }
@@ -21,25 +20,33 @@ const ID = /^[a-f0-9-]{36}$/
 const balance = balanceSql('?')
 /** Answers so far, one slot per question. Rows from before per-question grading may hold `NULL`. */
 const storedAnswers = (json: string | null): Answers => json ? JSON.parse(json) : Array(SHOP_REVIEW_QUESTIONS).fill(null)
-const random = (below: number) => Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * below)
+const chance = () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296
+const random = (below: number) => Math.floor(chance() * below)
 
 async function student(session: AuthSession, env: CanvasEnv, day: string) {
 	const db = portalDb(env), userId = session.user.id
 	const [points, owned, reviews, free] = await Promise.all([
 		readPoints(env, userId),
-		db.prepare('SELECT DISTINCT skin FROM gachapon_spins WHERE user_id = ?').bind(userId).all<{ skin: RewardSkin }>(),
+		db.prepare('SELECT DISTINCT skin FROM gachapon_spins WHERE user_id = ?').bind(userId).all<{ skin: string }>(),
 		db.prepare('SELECT id, questions_json, answers_json, passed, finished_at FROM shop_reviews WHERE user_id = ? AND day = ? ORDER BY created_at').bind(userId, day).all<ReviewRow>(),
 		db.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(JSON.stringify(['shop-free', userId, day])).first(),
 	])
 	const freeSpin: FreeSpinState = free ? 'used' : reviews.results.some((row) => row.passed) ? 'available' : 'locked'
-	return { points, owned: owned.results.map((row) => row.skin), reviews: reviews.results, freeSpin }
+	// A shop spin that won a cosmetic keeps its id in `skin`; the cosmetic itself is owned through `cosmetics`.
+	return { points, owned: owned.results.map((row) => row.skin).filter(isRewardSkin), reviews: reviews.results, freeSpin }
 }
 
-/** The cards for sale turned in this rotation, from their point awards `["shop-reveal", user, slot, skin]`. */
+/** What was turned in this rotation, in any row, from the point awards `["shop-reveal", user, slot, item]`. */
 async function revealed(env: CanvasEnv, userId: string, slot: string) {
 	const rows = await portalDb(env).prepare("SELECT json_extract(source_key, '$[3]') AS skin FROM point_awards WHERE user_id = ? AND activity_kind = 'shop-reveal' AND json_extract(source_key, '$[2]') = ?")
-		.bind(userId, slot).all<{ skin: RewardSkin }>()
+		.bind(userId, slot).all<{ skin: ShopPrize }>()
 	return rows.results.map((row) => row.skin)
+}
+
+/** The pass's cover, which the shop dresses its materials and frames on. */
+async function cover(env: CanvasEnv, userId: string): Promise<PassSkin> {
+	const row = await portalDb(env).prepare("SELECT json_extract(draft_json, '$.skin') AS skin FROM student_passes WHERE user_id = ?").bind(userId).first<{ skin: string | null }>()
+	return SKINS.includes(row?.skin as PassSkin) ? row!.skin as PassSkin : 'xp'
 }
 
 /** The streak comes from the latest gift awards `["shop-gift", user, day]`, so it needs no table of its own. */
@@ -86,14 +93,14 @@ async function collectQuestions(session: AuthSession, env: CanvasEnv): Promise<S
 }
 
 export async function handleShopRequest(request: Request, session: AuthSession, env: CanvasEnv, path: string, method: string): Promise<Response> {
-	// The machine's prizes change daily; the cards for sale every six hours, never among the machine's.
+	// The machine's prizes change daily; the rows every six hours, and the cards for sale are never among the machine's.
 	const now = Date.now(), day = shopDay(now), slot = shopSlot(now), pool = gachaPool(day), shop = shopPool(slot)
-	const shared = { day, pool, slot, shop, rotatesAt: nextShopRotation(now), spinCost: SHOP_SPIN_COST, cardCost: SHOP_CARD_COST }
+	const effects = cosmeticRow(slot, 'effects'), plates = cosmeticRow(slot, 'plates'), rows: ShopPrize[] = [...shop, ...effects, ...plates]
+	const shared = { day, pool, slot, shop, effects, plates, rotatesAt: nextShopRotation(now), spinCost: SHOP_SPIN_COST, cardCost: SHOP_CARD_COST }
 	if (session.user.role === 'teacher') {
 		if (path === '/api/portal/shop' && method === 'GET') return json({
-			...shared, points: 0, owned: [], freeSpin: 'locked', review: { attemptsLeft: 0, active: null },
-			revealed: shop, gift: { claimed: true, amount: SHOP_GIFT_POINTS, streak: 0 },
-			cosmetics: { owned: [], equipped: { plate: null, frame: null, effect: null, material: 'none' } }, teacher: true,
+			...shared, points: 0, owned: [], cosmetics: [], cover: 'xp', freeSpin: 'locked', review: { attemptsLeft: 0, active: null },
+			revealed: rows, gift: { claimed: true, amount: SHOP_GIFT_POINTS, streak: 0 }, teacher: true,
 		} satisfies ShopState)
 		throw new PortalError(403, 'Los alumnos compran aquí con sus puntos.')
 	}
@@ -110,15 +117,15 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 	}
 
 	if (path === '/api/portal/shop' && method === 'GET') {
-		const [{ points, owned, reviews, freeSpin }, turned, daily, cosmetics] = await Promise.all([student(session, env, day), revealed(env, user.id, slot), gift(env, user.id, day), cosmeticsState(env, user.id)])
-		return json({ ...shared, points, owned, freeSpin, review: reviewState(reviews, freeSpin), revealed: turned, gift: daily, cosmetics, teacher: false } satisfies ShopState)
+		const [{ points, owned, reviews, freeSpin }, turned, daily, bought, skin] = await Promise.all([student(session, env, day), revealed(env, user.id, slot), gift(env, user.id, day), boughtCosmetics(env, user.id), cover(env, user.id)])
+		return json({ ...shared, points, owned, cosmetics: ownedList(bought), cover: skin, freeSpin, review: reviewState(reviews, freeSpin), revealed: turned, gift: daily, teacher: false } satisfies ShopState)
 	}
 
-	// Turning a card pays once: the award key repeats for a double tap.
+	// Turning a card in any row pays once: the award key repeats for a double tap.
 	if (path === '/api/portal/shop/reveal' && method === 'POST') {
-		const skin = (await body(request)).skin
-		if (!isRewardSkin(skin) || !shop.includes(skin)) throw new PortalError(403, 'Esa carta no está en la tienda ahora.')
-		await savePointAward(env, { sourceKey: JSON.stringify(['shop-reveal', user.id, slot, skin]), eventId: crypto.randomUUID(), userId: user.id, activityKind: 'shop-reveal', amount: SHOP_REVEAL_POINTS, createdAt: now })
+		const data = await body(request), item = (data.item ?? data.skin) as ShopPrize
+		if (!rows.includes(item)) throw new PortalError(403, 'Eso no está en la tienda ahora.')
+		await savePointAward(env, { sourceKey: JSON.stringify(['shop-reveal', user.id, slot, item]), eventId: crypto.randomUUID(), userId: user.id, activityKind: 'shop-reveal', amount: SHOP_REVEAL_POINTS, createdAt: now })
 		const [turned, points] = await Promise.all([revealed(env, user.id, slot), readPoints(env, user.id)])
 		return json({ revealed: turned, points } satisfies ShopReveal)
 	}
@@ -176,18 +183,22 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 	if (path === '/api/portal/shop/spin' && method === 'POST') {
 		const data = await body(request)
 		if (typeof data.spinId !== 'string' || !ID.test(data.spinId) || typeof data.free !== 'boolean') throw new PortalError(400, 'Solicitud inválida.')
-		const { owned, freeSpin } = await student(session, env, day)
-		const candidates = pool.filter((skin) => !owned.includes(skin))
-		if (!candidates.length) throw new PortalError(409, 'Ya tienes todas las cartas de hoy.')
-		const skin = candidates[random(candidates.length)]
+		const [{ owned, freeSpin }, bought] = await Promise.all([student(session, env, day), boughtCosmetics(env, user.id)])
+		const candidates = pool.filter((prize) => isRewardSkin(prize) ? !owned.includes(prize) : !bought.has(prize))
+		if (!candidates.length) throw new PortalError(409, 'Ya tienes todos los premios de hoy.')
+		const skin = drawPrize(candidates, chance)
 		if (data.free && freeSpin !== 'available') throw new PortalError(409, freeSpin === 'used' ? 'Ya usaste tu tirada gratis de hoy.' : 'Primero repasa tres preguntas.')
 		const cost = data.free ? 0 : SHOP_SPIN_COST
 		const source = JSON.stringify(data.free ? ['shop-free', user.id, day] : ['shop-spin', user.id, data.spinId])
 		// Like the canvas machine, the claim, the unlock and the charge are one D1 row, written only if the balance covers it.
-		// The ownership check keeps two simultaneous spins from paying twice for the same card.
-		const claimed = await db.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
-			SELECT ?, ?, ?, ?, ? WHERE ? <= ${balance} AND NOT EXISTS (SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ?)
-			RETURNING skin`).bind(source, user.id, skin, now, cost, cost, ...balanceArgs(user.id), user.id, skin).first()
+		// The ownership check keeps two simultaneous spins from paying twice for the same prize.
+		const card = isRewardSkin(skin)
+		const spun = db.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
+			SELECT ?, ?, ?, ?, ? WHERE ? <= ${balance} AND NOT EXISTS (${card ? 'SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ?' : 'SELECT 1 FROM cosmetics WHERE source_key = ?'})
+			RETURNING skin`).bind(source, user.id, skin, now, cost, cost, ...balanceArgs(user.id), ...(card ? [user.id, skin] : [cosmeticKey(user.id, skin)]))
+		// A cosmetic also gets its ownership row, at no cost and under the purchase's key, in the same transaction as the spin.
+		const claimed = card ? await spun.first() : (await db.batch([spun, db.prepare(`INSERT OR IGNORE INTO cosmetics (source_key, user_id, item, created_at, cost)
+			SELECT ?, ?, ?, ?, 0 WHERE EXISTS (SELECT 1 FROM gachapon_spins WHERE source_key = ? AND skin = ?)`).bind(cosmeticKey(user.id, skin), user.id, skin, now, source, skin)]))[0].results[0]
 		if (!claimed) {
 			if (await db.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(source).first()) throw new PortalError(409, data.free ? 'Ya usaste tu tirada gratis de hoy.' : 'Esta tirada ya se registró.')
 			if ((await readPoints(env, user.id)) < cost) throw new PortalError(409, `Necesitas ${SHOP_SPIN_COST} puntos para esta tirada.`)
@@ -210,11 +221,7 @@ export async function handleShopRequest(request: Request, session: AuthSession, 
 		return json({ skin, points: await readPoints(env, user.id) } satisfies ShopPurchase)
 	}
 
-	if (path === '/api/portal/shop/cosmetic/buy' && method === 'POST') return json(await buyCosmetic(env, user.id, (await body(request)).item, now))
-	if (path === '/api/portal/shop/cosmetic/equip' && method === 'POST') {
-		const data = await body(request)
-		return json({ equipped: await equipCosmetic(env, user.id, data.slot, data.item ?? null) } satisfies CosmeticEquip)
-	}
+	if (path === '/api/portal/shop/cosmetic/buy' && method === 'POST') return json(await buyCosmetic(env, user.id, (await body(request)).item, now, [...effects, ...plates]))
 
 	return json({ error: 'No encontrado.' }, 404)
 }
