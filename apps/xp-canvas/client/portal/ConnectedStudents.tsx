@@ -8,9 +8,9 @@ import { usePlates } from './usePlates'
 
 type DrawState = { activeId: string | null; running: boolean; finished: boolean }
 
-export function ConnectedStudents({ editor, user, expanded, instant, allowedUserIds, permissionPending, onPermission, draw, onDraw }: { editor: Editor | null; user?: PortalUser | null; expanded: boolean; instant: boolean; allowedUserIds: string[]; permissionPending: boolean; onPermission: (userId: string, allowed: boolean) => void; draw: DrawState; onDraw: () => void }) {
+export function ConnectedStudents({ roomId, editor, user, expanded, instant, allowedUserIds, permissionPending, onPermission, draw, onDraw }: { roomId: string; editor: Editor | null; user?: PortalUser | null; expanded: boolean; instant: boolean; allowedUserIds: string[]; permissionPending: boolean; onPermission: (userId: string, allowed: boolean) => void; draw: DrawState; onDraw: () => void }) {
 	const students = useConnectedStudents(editor, user)
-	const plates = usePlates(students.map((student) => student.userId.slice(5)))
+	const plates = usePlates(roomId, students.map((student) => student.userId.slice(5)))
 	const panel = useRef<HTMLDivElement>(null)
 	const isTeacher = user?.role === 'teacher'
 	useEffect(() => {

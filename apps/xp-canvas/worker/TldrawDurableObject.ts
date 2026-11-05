@@ -51,6 +51,7 @@ function getAttachment(ws: WebSocket): SocketAttachment | null {
 export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 	private room: TLSocketRoom<TLRecord, void> | null = null
 	private gachaBusy = new Set<string>()
+	private capsuleBusy = new Set<string>()
 	private pointsFlush: Promise<void> | null = null
 	private pointReceiptsImported = false
 	/** Map sessionId → ws so onSessionSnapshot can serialize to the right socket. */
@@ -179,7 +180,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 		if (command.action === 'capsule-bet' || command.action === 'capsule-draw' || command.action === 'capsule-bonus' || command.action === 'capsule-resolve' || command.action === 'capsule-list') {
 			this.ensurePointOutbox()
 			const result = await handleCapsule({
-				sql: this.ctx.storage.sql, db: this.env.PORTAL_DB!, roomId,
+				sql: this.ctx.storage.sql, db: this.env.PORTAL_DB!, roomId, busy: this.capsuleBusy,
 				transaction: <T>(fn: (store: Parameters<Parameters<typeof room.storage.transaction>[0]>[0]) => T) => room.storage.transaction((store) => fn(store) as never).result as T,
 				queueAward: (award) => {
 					if (this.ctx.storage.sql.exec('INSERT OR IGNORE INTO point_receipts (source_key) VALUES (?) RETURNING source_key', award.sourceKey).toArray().length) this.ctx.storage.sql.exec('INSERT INTO point_outbox (event_id, payload) VALUES (?, ?)', award.eventId, JSON.stringify({ award }))

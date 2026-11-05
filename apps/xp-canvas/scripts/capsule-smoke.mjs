@@ -96,6 +96,15 @@ try {
 	assert.equal(response.status(), 200)
 	assert.deepEqual((await response.json()).bet, { id: (await response.json()).bet.id, shapeId: capsuleId, revision: 'cap-1', outcome: 1, stake: 80, reason: 'El rombo no tiene salida si no hay llave.' })
 	assert.equal(await students.Dana.points(), 420, 'changing the bet refunds the previous stake')
+	// Dos cambios a la vez del mismo alumno: entra uno, el otro espera, y el saldo cuadra con la apuesta guardada.
+	const pair = await Promise.all([bet('Dana', { outcome: 1, stake: 60, reason: 'Primero.' }), bet('Dana', { outcome: 1, stake: 30, reason: 'Segundo.' })])
+	// Si llegan de verdad a la vez, la segunda espera (409); si el servidor alcanzó a terminar la primera, entran las dos.
+	const codes = pair.map((r) => r.status()).sort()
+	assert(codes[0] === 200 && [200, 409].includes(codes[1]), `simultaneous changes answer 200 or 409, got ${codes}`)
+	const kept = (await (await students.Dana.context.request.get(endpoint)).json()).bets[0].stake
+	assert.equal(await students.Dana.points(), 500 - kept, 'the balance matches the bet that was kept')
+	assert.equal((await bet('Dana', { outcome: 1, stake: 80, reason: 'El rombo no tiene salida si no hay llave.' })).status(), 200)
+	assert.equal(await students.Dana.points(), 420)
 	assert.equal((await bet('Dana', { outcome: 1, stake: 500, reason: 'x' })).status(), 400, 'the shared validator caps the stake at 100')
 	assert.equal((await bet('Nico', { outcome: 1, stake: 10, reason: 'x' })).status(), 409, 'no balance, no stake')
 	assert.equal((await bet('Sofi', { outcome: 0, stake: 50, reason: 'Si no hay llave, que se regrese a buscarla.' })).status(), 200)

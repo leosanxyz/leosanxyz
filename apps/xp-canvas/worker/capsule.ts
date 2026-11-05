@@ -11,6 +11,8 @@ export type CapsuleDeps = {
 	transaction<T>(fn: (store: Store) => T): T
 	/** Deja un premio en la cola durable del objeto; el envío a D1 ocurre aparte y se reintenta. */
 	queueAward(award: PointAward): void
+	/** Apuestas en curso por `shape:alumno`. Mientras una espera a D1, otra del mismo alumno no puede intercalarse. */
+	busy: Set<string>
 }
 type BetRow = { id: string; shape_id: string; revision: string; user_id: string; name: string; outcome: number; stake: number; reason: string; created_at: number; drawn_at: number | null; bonus: number }
 type Result = { status: number; body: CapsuleReply | { error: string } }
@@ -60,6 +62,15 @@ export async function handleCapsule(deps: CapsuleDeps, user: PortalUser, command
 // Cambiar de apuesta reemplaza la fila; la comprobación de saldo excluye lo ya apostado en esta misma cápsula.
 async function placeBet(deps: CapsuleDeps, user: PortalUser, command: Extract<CapsuleCommand, { action: 'capsule-bet' }>): Promise<Result> {
 	if (user.role !== 'student') return denied(403, 'Solo los alumnos apuestan.')
+	// El cobro en D1 y el registro aquí no son una sola transacción: dos cambios a la vez del mismo alumno podrían
+	// confirmarse en distinto orden y dejar el saldo y la apuesta en desacuerdo. Uno a la vez.
+	const key = `${command.shapeId}:${user.id}`
+	if (deps.busy.has(key)) return denied(409, 'Espera un momento antes de cambiar la apuesta.')
+	deps.busy.add(key)
+	try { return await placeBetNow(deps, user, command) } finally { deps.busy.delete(key) }
+}
+
+async function placeBetNow(deps: CapsuleDeps, user: PortalUser, command: Extract<CapsuleCommand, { action: 'capsule-bet' }>): Promise<Result> {
 	const check = (store: Store) => {
 		const shape = capsule(store, command.shapeId)
 		if (!shape) return 'Esta cápsula ya no existe.'
@@ -92,8 +103,8 @@ async function placeBet(deps: CapsuleDeps, user: PortalUser, command: Extract<Ca
 		return null
 	})
 	if (problem || !bet) {
-		// La cápsula se cerró entre el cobro y el registro: se devuelve lo cobrado.
-		await deps.db.prepare('UPDATE capsule_stakes SET amount = ? WHERE source_key = ?').bind(mine?.stake ?? 0, source).run()
+		// La cápsula se cerró entre el cobro y el registro: se devuelve lo cobrado, solo si la fila sigue siendo la de esta solicitud.
+		await deps.db.prepare('UPDATE capsule_stakes SET amount = ? WHERE source_key = ? AND amount = ?').bind(mine?.stake ?? 0, source, command.stake).run()
 		return denied(409, problem ?? 'No pude guardar la apuesta.')
 	}
 	return { status: 200, body: { type: 'capsule-bet', bet } }

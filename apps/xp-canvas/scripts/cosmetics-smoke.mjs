@@ -99,6 +99,13 @@ try {
 	assert(![...state.effects, ...state.plates].some((id) => id.startsWith('effect:') || id === 'plate:grafito' || id === 'frame:fino-gris'), 'no profile effects nor free basics')
 	assert.equal(state.pool.filter(isCard).length, 2, 'two cards in the machine, the rest cosmetics')
 	assert.equal((await buy(luis, state.plates[0])).status(), 409, 'zero balance cannot buy')
+	// Las placas solo se consultan dentro de un canvas compartido: sin canvas o sin acceso, nada; de un alumno ajeno al canvas, nada.
+	const stranger = await (await teacher.request.post('/api/portal/students', { data: { students: [{ username: `S${randomUUID().replaceAll('-', '').slice(0, 10).toUpperCase()}`, name: 'Ajeno' }] } })).status()
+	assert.equal(stranger, 201)
+	const ajeno = (await (await teacher.request.get('/api/portal/roster')).json()).students.find((s) => s.name === 'Ajeno')
+	assert.equal((await luis.context.request.get(`/api/portal/plates?ids=${luis.id}`)).status(), 403, 'no board, no plates')
+	assert.equal((await luis.context.request.get(`/api/portal/plates?board=${board.id}&ids=${ajeno.id}`)).status(), 200)
+	assert.deepEqual((await (await luis.context.request.get(`/api/portal/plates?board=${board.id}&ids=${ajeno.id},${luis.id}`)).json()).plates[ajeno.id], undefined, 'a student outside the canvas is not listed')
 	const away = ['plate:aurora', 'plate:neon', 'plate:pixel', 'plate:tinta', 'plate:crema'].find((id) => !state.plates.includes(id))
 	assert.equal((await buy(luis, away)).status(), 403, 'only the rotation\'s items are sold')
 	assert.equal((await buy(luis, 'effect:eclipse')).status(), 403, 'profile effects are not for sale yet')

@@ -460,7 +460,7 @@ function CanvasRoom({
 					</Suspense>}
 					{isEditor && editor && showEmojis && <Suspense fallback={null}><EmojiPicker editor={editor} onClose={closeEmojis} /></Suspense>}
 				</main>
-				{mode === 'portal' && <ConnectedStudents user={user} draw={draw} onDraw={questions.drawStudent} editor={editor} {...studentsSidebar} allowedUserIds={questions.allowedUserIds} permissionPending={questions.pending} onPermission={questions.permission} />}
+				{mode === 'portal' && <ConnectedStudents roomId={roomId} user={user} draw={draw} onDraw={questions.drawStudent} editor={editor} {...studentsSidebar} allowedUserIds={questions.allowedUserIds} permissionPending={questions.pending} onPermission={questions.permission} />}
 			</div>
 
 			{showUnlock && mode !== 'portal' && (

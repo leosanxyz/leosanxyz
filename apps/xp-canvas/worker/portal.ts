@@ -1,5 +1,5 @@
 import type { CanvasEnv } from './access'
-import { isSameOrigin } from './access'
+import { isSameOrigin, isValidRoomId } from './access'
 import { catalog, readBoard } from './boards'
 import type { Board, BoardLibrary } from '../shared/boards'
 import { studentLibrary } from './studentLibrary'
@@ -117,11 +117,17 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			}
 		}
 		if (path === '/api/portal/points' && method === 'GET') return json({ points: await readPoints(env, session.user.id) })
-		// The canvas's list of connected students shows each one's plate. Plates are public, like names in that list.
+		// The canvas's list of connected students shows each one's plate. A plate is as public as the name in that list, so the
+		// answer covers only students who share that canvas with the asker: never an arbitrary id.
 		if (path === '/api/portal/plates' && method === 'GET') {
-			const ids = (new URL(request.url).searchParams.get('ids') ?? '').split(',').filter((id) => /^[a-f0-9-]{36}$/.test(id)).slice(0, 100)
+			const url = new URL(request.url), boardId = url.searchParams.get('board') ?? ''
+			const ids = (url.searchParams.get('ids') ?? '').split(',').filter((id) => /^[a-f0-9-]{36}$/.test(id)).slice(0, 100)
 			if (!ids.length) return json({ plates: {} })
-			const { results } = await db.prepare(`SELECT user_id, json_extract(draft_json, '$.plate') AS plate FROM student_passes WHERE user_id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all<{ user_id: string; plate: string | null }>()
+			if (!isValidRoomId(boardId) || !await canReadBoard(session, boardId, env)) throw new PortalError(403, 'No tienes acceso a este canvas.')
+			const owner = (await readBoard(env, boardId))?.ownerId ?? ''
+			const { results } = await db.prepare(`SELECT p.user_id, json_extract(p.draft_json, '$.plate') AS plate FROM student_passes p JOIN users u ON u.id = p.user_id
+				WHERE p.user_id IN (${ids.map(() => '?').join(',')}) AND (u.id = ? OR EXISTS (SELECT 1 FROM board_grants g WHERE g.board_id = ? AND ((g.kind = 'user' AND g.subject_id = u.id) OR (g.kind = 'group' AND g.subject_id = u.group_id))))`)
+				.bind(...ids, owner, boardId).all<{ user_id: string; plate: string | null }>()
 			return json({ plates: Object.fromEntries(results.flatMap((row) => plateItem(row.plate) ? [[row.user_id, row.plate]] : [])) })
 		}
 		if (session.user.role === 'student' && (path === '/api/portal/canvases' || path.startsWith('/api/portal/canvases/') || path.startsWith('/api/portal/agents'))) {
