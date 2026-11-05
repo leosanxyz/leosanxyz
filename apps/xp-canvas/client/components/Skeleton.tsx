@@ -27,10 +27,11 @@ const STAGGER_MS = 40
 const reveal: RevealSpec = {
 	duration: 600,
 	order: ({ unit, reveal, secondary }) => {
-		if (!unit) return 0
+		// Una unidad sin tamaño (una imagen que aún no carga, un contenedor vacío) daría un retraso no finito y Element.animate lanza.
+		if (!unit || !(unit.width > 0) || !(unit.height > 0)) return 0
 		const columns = Math.max(Math.round(reveal.width / unit.width), 1)
 		const index = Math.round((unit.top - reveal.top) / unit.height) * columns + Math.round((unit.left - reveal.left) / unit.width)
-		return Math.min(index, 6) * STAGGER_MS + (secondary ? STAGGER_MS : 0)
+		return (Number.isFinite(index) ? Math.min(index, 6) : 0) * STAGGER_MS + (secondary ? STAGGER_MS : 0)
 	},
 }
 

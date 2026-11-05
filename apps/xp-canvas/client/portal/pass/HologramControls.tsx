@@ -55,6 +55,8 @@ export function HologramControls({
 	onChange: (d: Partial<PassDraft>) => void
 }) {
 	const holo = passHologram(draft)
+	// Holograma y material son excluyentes: encender uno apaga el otro.
+	const set = (d: Partial<PassDraft>) => onChange(d.finish && d.finish !== 'matte' ? { ...d, hologram: { ...(d.hologram ?? holo), material: 'none' } } : d)
 	const reduced = usePassReducedMotion()
 	const print = foilPattern(holo.phase)
 	const areas: { id: HoloArea | null; name: string }[] = [
@@ -157,7 +159,7 @@ export function HologramControls({
 		tracking.current = null
 		if (cancel) phase.set(t.before)
 		else
-			onChange({
+			set({
 				hologram: { ...holo, phase: Math.round(phase.get() * 1000) / 1000 },
 			})
 	}
@@ -188,7 +190,7 @@ export function HologramControls({
 								: draft.finish !== 'matte' && holo.area === s.id
 						}
 						onClick={() =>
-							onChange({
+							set({
 								finish: s.id === null ? 'matte' : 'prism',
 								hologram: { ...holo, area: s.id ?? holo.area },
 							})
@@ -219,7 +221,7 @@ export function HologramControls({
 					}
 					e.currentTarget.setPointerCapture(e.pointerId)
 					if (draft.finish !== 'prism')
-						onChange({ finish: 'prism', hologram: holo })
+						set({ finish: 'prism', hologram: holo })
 					point(e)
 				}}
 				onPointerMove={(e) => {
@@ -241,7 +243,7 @@ export function HologramControls({
 					e.preventDefault()
 					const value = clamp(holo.phase + delta, 0, 1)
 					phase.set(value)
-					onChange({ finish: 'prism', hologram: { ...holo, phase: value } })
+					set({ finish: 'prism', hologram: { ...holo, phase: value } })
 				}}
 			>
 				<path
@@ -275,7 +277,7 @@ export function HologramControls({
 							title={p.name}
 							aria-pressed={holo.pattern === p.id}
 							onClick={() =>
-								onChange({
+								set({
 									finish: 'prism',
 									hologram: { ...holo, pattern: p.id },
 								})
@@ -325,7 +327,7 @@ export function HologramControls({
 							}
 						}}
 						onChange={(e) =>
-							onChange({
+							set({
 								finish: 'prism',
 								hologram: { ...holo, hue: Number(e.target.value) },
 							})
@@ -340,7 +342,7 @@ export function HologramControls({
 						aria-label={materialName(material)}
 						title={materialName(material)}
 						aria-pressed={holo.material === material}
-						onClick={() => onChange({ hologram: { ...holo, material } })}
+						onClick={() => set({ finish: material === 'none' ? draft.finish : 'matte', hologram: { ...holo, material } })}
 					>
 						<MaterialMini skin={draft.skin} material={material} />
 					</button>
