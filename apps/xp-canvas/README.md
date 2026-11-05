@@ -83,6 +83,24 @@ El contrato de premios y cobros está en [Arquitectura](../../ARCHITECTURE.md#ga
 BASE_URL=http://127.0.0.1:5177 node apps/xp-canvas/scripts/gachapon-smoke.mjs
 ```
 
+## Cosméticos de la tienda
+
+La tienda es una sola idea repetida: filas de cartas boca abajo que rotan cada seis horas. Debajo de **Cartas en venta** hay dos filas más con la misma mecánica: **Efectos de carta**, con materiales y marcos, y **Placas**. Cada fila trae seis objetos al azar de su parte del catálogo. Girar una carta paga 5 puntos y la voltea: un material o un marco se ve sobre la portada del alumno a sangre, como el arte de una carta en venta, y una placa, con el nombre del alumno, sobre el negro del dorso; al pie va solo el nombre del objeto. Tocarla abre el detalle, con su rareza y su precio, donde el material o el marco se ven en vivo sobre el pase una vez que la carta llegó a su sitio, y la compra pide dos toques. Lo que el alumno ya tiene sale en gris.
+
+La rareza es el costo visual y el precio: común 100, rara 250, épica 500 y legendaria 900 puntos. Lo común es estático, lo raro se anima con CSS, lo épico es un material o un shader y lo legendario es un shader completo. En cada rotación, una fila trae como mucho un legendario, uno o dos épicos y el resto raros y comunes, nunca más de la mitad de los objetos de una rareza. «Grafito» y «Fino gris» son gratis y de todos, y no se venden. Los efectos de perfil todavía no entran a la tienda.
+
+La máquina de la tienda también reparte cosméticos. Cada día trae seis premios: un legendario, uno o dos épicos, dos cartas y el resto raros y comunes. Las cartas cuentan como raras. Cada tirada elige entre lo que el alumno aún no tiene, primero la rareza con probabilidad de 55 % común, 30 % rara, 12 % épica y 3 % legendaria, y después un premio de esa rareza. Lo que se gana en la máquina ya no se puede comprar. La máquina de los canvases sigue dando solo cartas.
+
+Lo comprado o ganado se equipa en **Mi perfil**, al personalizar el pase: Especial ofrece solo los materiales propios (sin ninguno, ese acabado no aparece), y debajo están **Marco** y **Placa** con lo que el alumno tiene, los gratis y «Ninguno».
+
+La placa equipada aparece detrás del nombre en **Alumnos** y en la lista de alumnos conectados del canvas. El marco rodea la carta en la lista de Alumnos y en Mi perfil. Las listas no usan WebGL: los shaders épicos y legendarios se hornean una vez por objeto a una hoja de sprites que guarda la Cache API, y se reproducen con CSS. Solo el pase grande de la página dibuja su marco y su placa en vivo, y reacciona al puntero. Con movimiento reducido todo queda en su primer cuadro.
+
+El contrato de las filas, la máquina y la compra está en [Arquitectura](../../ARCHITECTURE.md#cosméticos). Prueba en un portal QA aislado; deja capturas y un GIF en `/tmp/cosmeticos-qa`:
+
+```bash
+BASE_URL=http://127.0.0.1:5177 npm run smoke:cosmetics --workspace=apps/xp-canvas
+```
+
 ## Buzón
 
 En el portal, pulsa **Buzón** en la cabecera y escribe la pregunta. El buzón empieza cerrado. Con **Abrir buzón**, cada alumno conectado ve **Escribir una carta**; no necesita el permiso de interacción. Elige si firma con su nombre o la manda sin nombre. La hoja se dobla en tres, recibe un sello y vuela hasta la ranura. Todos ven entrar la carta, subir la bandera y cambiar el número de cartas sin leer.
@@ -90,6 +108,12 @@ En el portal, pulsa **Buzón** en la cabecera y escribe la pregunta. El buzón e
 Las cartas se guardan en el Durable Object del canvas, no en el documento: nadie puede leerlas antes de que el maestro saque una. **Sacar carta** elige una al azar entre las no leídas de la ronda: se abre la puerta y la carta se despliega para todos sin nombre. Solo el maestro ve quién la firmó; de una carta sin nombre nadie lo sabe. El alfiler la pega en el canvas como nota y la cruz la guarda. **Nueva ronda** vacía el contador y deja fuera las cartas anteriores. Cada alumno puede mandar hasta 5 cartas de 280 caracteres por ronda, con 3 segundos entre una y otra.
 
 El buzón se dibuja en 3D con three.js, con la paleta del gachapon, y three.js se descarga solo en canvases que muestran un buzón. Sin WebGL aparece el buzón plano en SVG. El maestro oye cada carta que llega y cada carta que saca; el alumno oye solo la suya. Los sonidos se sintetizan en el navegador. Con movimiento reducido no hay doblez, vuelo ni rebote. Al copiar o importar un canvas, sus buzones empiezan cerrados y vacíos. Queda pendiente probar el teclado y el audio en un iPad físico.
+
+## Cápsula
+
+Al final de la clase, pulsa **Cápsula** en la cabecera y escribe lo que nadie resolvió, de dos a cuatro salidas posibles y la hora de la siguiente clase. La cápsula aparece sin sellar; con **Sellar** empieza a aceptar apuestas. Hasta esa hora, desde casa o en clase, cada alumno elige una salida, apuesta de 0 a 100 puntos y escribe su porqué en 140 caracteres. Puede cambiar de salida y de monto cuantas veces quiera. Los puntos apostados salen del saldo al instante y vuelven si cambia la apuesta. Todos ven las barras por salida, el número de apuestas y el bote; nadie ve los porqués ni quién apostó. La cápsula se cierra sola a la hora de clase.
+
+Ya en clase, **Sortear** saca al azar una apuesta con porqué entre las que no se han leído y la muestra con nombre, salida y monto; quien la escribió la explica. Quien leyó en la cápsula anterior descansa en esta. Una apuesta sin porqué entra al bote pero no al sorteo. **Premiar ×1.5** paga la apuesta por 1.5, con un piso de 25 para quien apostó cero, haya acertado o no, una vez por apuesta. **Resolver** marca la salida ganadora: el bote, que suma 200 de la casa más todo lo apostado, se reparte entre quienes acertaron en proporción a lo que pusieron, y el reparto queda a la vista. Si nadie puso puntos en la salida ganadora, el bote se queda en la casa. El ojo muestra todas las apuestas boca arriba, solo al maestro. El alfiler pega la pregunta resuelta como nota para abrir la clase. Al copiar o importar un canvas, sus cápsulas empiezan sin sellar y sin apuestas.
 
 ## Parejas
 

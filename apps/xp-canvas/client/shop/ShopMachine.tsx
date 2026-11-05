@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import type { GachaponResult } from '../../shared/gachaponShape'
-import type { ShopState } from '../../shared/shop'
-import { skins } from '../portal/pass/catalog'
+import type { ShopSpin, ShopState } from '../../shared/shop'
 import { playCoin, prepareGachaponAudio } from '../gachapon/gachaponSounds'
 import { useMachine3D } from '../gachapon/useMachine3D'
+import { hasPrize, prizeColor } from './Prize'
 import '../gachapon/gachapon.css'
 
 /** The canvas gachapon outside tldraw. `data-gachapon-id="shop"` lets the reveal fly out of its slot. */
-export function ShopMachine({ state, pending, reveal, onSpin, onReady }: { state: ShopState; pending: boolean; reveal: GachaponResult | null; onSpin: (free: boolean) => void; onReady?: () => void }) {
+export function ShopMachine({ state, pending, reveal, onSpin, onReady }: { state: ShopState; pending: boolean; reveal: ShopSpin | null; onSpin: (free: boolean) => void; onReady?: () => void }) {
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const [coinAt, setCoinAt] = useState<number | null>(null)
 	const free = state.freeSpin === 'available'
-	const complete = state.pool.every((skin) => state.owned.includes(skin))
+	const complete = state.pool.every((prize) => hasPrize(prize, state))
 	const missing = state.spinCost - state.points
 	const spinning = !!reveal
 	const ready = !state.teacher && !spinning && !pending && !complete && (free || missing <= 0)
@@ -19,7 +18,7 @@ export function ShopMachine({ state, pending, reveal, onSpin, onReady }: { state
 	const cost = state.spinCost.toLocaleString('es-MX')
 	const status3d = useMachine3D(canvas, {
 		spinStartedAt: reveal?.startedAt ?? null, coinAt, cost: free ? 0 : state.spinCost, width: 300, height: 440,
-		prizeColor: skins.find((skin) => skin.id === reveal?.skin)?.color ?? '#ffb347', sway: false,
+		prizeColor: reveal ? prizeColor(reveal.skin) : '#ffb347', sway: false,
 	})
 	useEffect(() => { prepareGachaponAudio() }, [])
 	useEffect(() => {
@@ -30,7 +29,7 @@ export function ShopMachine({ state, pending, reveal, onSpin, onReady }: { state
 	}, [status3d, onReady])
 	// The coin is spent when the spin starts and returned if the student can no longer spin.
 	useEffect(() => { if (coinAt !== null && !ready && !pending) setCoinAt(null) }, [coinAt, ready, pending])
-	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todas las cartas de hoy'
+	const status = state.teacher ? 'Vista previa' : spinning ? 'Preparando el premio…' : pending ? 'Girando…' : complete ? 'Ya tienes todos los premios de hoy'
 		: free ? 'Tirada gratis lista' : missing > 0 ? '' : needsCoin ? `Inserta una moneda de ${cost} puntos` : 'Jala la palanca'
 	// The glowing coin and lever, or the ticket for a free spin, already say what to do; words show only when something is different.
 	// Short of points, the machine says nothing: the balance in the header already does.

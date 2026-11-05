@@ -1,13 +1,15 @@
 import type { CanvasEnv } from './access'
-import { isSameOrigin } from './access'
+import { isSameOrigin, isValidRoomId } from './access'
 import { catalog, readBoard } from './boards'
 import type { Board, BoardLibrary } from '../shared/boards'
 import { studentLibrary } from './studentLibrary'
 import { isBoardId } from '../shared/boards'
 import type { BoardGrant, Student } from '../shared/portal'
-import { validPass, isRewardSkin } from '../shared/pass'
-import { readPoints } from './points'
+import { validPass, isRewardSkin, CARD_MATERIALS, SKINS, type CardMaterial, type PassSkin } from '../shared/pass'
+import { balanceSql, readPoints } from './points'
 import { readPass } from './studentPass'
+import { ownsEquipped } from './cosmetics'
+import { frameItem, plateItem } from '../shared/cosmetics'
 import { body, json, PortalError } from './portalHttp'
 import { handleShopRequest } from './shop'
 import { listAgentGrants, revokeAgentGrants } from './oauth'
@@ -106,6 +108,7 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 				const data = await body(request, 32_000)
 				if (!validPass(data.draft) || !Number.isInteger(data.revision) || typeof data.completed !== 'boolean') throw new PortalError(400, 'Revisa el nombre y el diseño de tu pase.')
 				if (isRewardSkin(data.draft.skin) && !await db.prepare('SELECT 1 FROM gachapon_spins WHERE user_id = ? AND skin = ? LIMIT 1').bind(session.user.id, data.draft.skin).first()) throw new PortalError(403, 'Todavía no has ganado esa tarjeta.')
+				if (!await ownsEquipped(env, session.user.id, data.draft)) throw new PortalError(403, 'Tu pase lleva algo que todavía no compraste.')
 				await db.prepare('INSERT OR IGNORE INTO student_passes (user_id) VALUES (?)').bind(session.user.id).run()
 				const result = await db.prepare('UPDATE student_passes SET draft_json = ?, completed_at = COALESCE(completed_at, ?), revision = revision + 1, updated_at = ? WHERE user_id = ? AND revision = ? RETURNING revision')
 					.bind(JSON.stringify(data.draft), data.completed ? Date.now() : null, Date.now(), session.user.id, data.revision).first()
@@ -114,6 +117,19 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 			}
 		}
 		if (path === '/api/portal/points' && method === 'GET') return json({ points: await readPoints(env, session.user.id) })
+		// The canvas's list of connected students shows each one's plate. A plate is as public as the name in that list, so the
+		// answer covers only students who share that canvas with the asker: never an arbitrary id.
+		if (path === '/api/portal/plates' && method === 'GET') {
+			const url = new URL(request.url), boardId = url.searchParams.get('board') ?? ''
+			const ids = (url.searchParams.get('ids') ?? '').split(',').filter((id) => /^[a-f0-9-]{36}$/.test(id)).slice(0, 100)
+			if (!ids.length) return json({ plates: {} })
+			if (!isValidRoomId(boardId) || !await canReadBoard(session, boardId, env)) throw new PortalError(403, 'No tienes acceso a este canvas.')
+			const owner = (await readBoard(env, boardId))?.ownerId ?? ''
+			const { results } = await db.prepare(`SELECT p.user_id, json_extract(p.draft_json, '$.plate') AS plate FROM student_passes p JOIN users u ON u.id = p.user_id
+				WHERE p.user_id IN (${ids.map(() => '?').join(',')}) AND (u.id = ? OR EXISTS (SELECT 1 FROM board_grants g WHERE g.board_id = ? AND ((g.kind = 'user' AND g.subject_id = u.id) OR (g.kind = 'group' AND g.subject_id = u.group_id))))`)
+				.bind(...ids, owner, boardId).all<{ user_id: string; plate: string | null }>()
+			return json({ plates: Object.fromEntries(results.flatMap((row) => plateItem(row.plate) ? [[row.user_id, row.plate]] : [])) })
+		}
 		if (session.user.role === 'student' && (path === '/api/portal/canvases' || path.startsWith('/api/portal/canvases/') || path.startsWith('/api/portal/agents'))) {
 			if (!session.passCompleted) throw new PortalError(403, 'Termina tu bienvenida antes de continuar.')
 			if (path === '/api/portal/canvases' && method === 'POST') {
@@ -144,13 +160,16 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 		}
 		if (path === '/api/portal/roster' && method === 'GET') {
 			const [students, groups, personal] = await Promise.all([
-				db.prepare("SELECT users.*, COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = users.id), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = users.id), 0) AS points FROM users WHERE role = 'student' ORDER BY name").all<UserRow & { points: number }>(),
+				db.prepare(`SELECT users.*, ${balanceSql('users.id')} AS points, json_extract(student_passes.draft_json, '$.skin') AS card_skin, json_extract(student_passes.draft_json, '$.hologram.material') AS card_material, json_extract(student_passes.draft_json, '$.plate') AS plate, json_extract(student_passes.draft_json, '$.frame') AS frame FROM users LEFT JOIN student_passes ON student_passes.user_id = users.id WHERE role = 'student' ORDER BY name`).all<UserRow & { points: number; card_skin: string | null; card_material: string | null; plate: string | null; frame: string | null }>(),
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
 				catalog(env).fetch('http://catalog/api/library?scope=personal').then((response) => response.json<BoardLibrary>()),
 			])
 			// Trashed personal canvases stay listed: Leo grades them and can restore them.
 			const canvases = personal.boards.sort((a, b) => b.updatedAt - a.updatedAt)
-			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results, canvases })
+			const card = (row: { card_skin: string | null; card_material: string | null }): Student['card'] => SKINS.includes(row.card_skin as PassSkin)
+				? { skin: row.card_skin as PassSkin, material: CARD_MATERIALS.includes(row.card_material as CardMaterial) ? row.card_material as CardMaterial : 'none' }
+				: undefined
+			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled), card: card(row), plate: plateItem(row.plate)?.id ?? null, frame: frameItem(row.frame)?.id ?? null })), groups: groups.results, canvases })
 		}
 		if (path === '/api/portal/groups' && method === 'POST') {
 			const group = { id: crypto.randomUUID(), name: name((await body(request)).name) }

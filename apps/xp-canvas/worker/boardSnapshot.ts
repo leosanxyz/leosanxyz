@@ -6,9 +6,10 @@ import { resourceShapeProps } from '../shared/resourceShape'
 import { esquivaShapeProps } from '../shared/esquivaShape'
 import { mailboxShapeProps } from '../shared/mailboxShape'
 import { parejasShapeProps } from '../shared/parejasShape'
+import { capsuleShapeProps } from '../shared/capsuleShape'
 
 export const canvasSchema = createTLSchema({
-	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps }, mailbox: { props: mailboxShapeProps }, parejas: { props: parejasShapeProps } },
+	shapes: { ...defaultShapeSchemas, gachapon: { props: gachaponShapeProps, migrations: gachaponShapeMigrations }, resource: { props: resourceShapeProps }, question: { props: questionShapeProps, migrations: questionShapeMigrations }, esquiva: { props: esquivaShapeProps }, mailbox: { props: mailboxShapeProps }, parejas: { props: parejasShapeProps }, capsule: { props: capsuleShapeProps } },
 })
 
 /** Imports contain document records, never another user's camera or session state. */
@@ -38,11 +39,13 @@ export function validateBoardSnapshot(value: unknown): RoomSnapshot {
 	}
 }
 
-/** Una copia empieza con los buzones cerrados y vacíos: las cartas se quedan en el canvas original. */
+/** Una copia empieza con los buzones cerrados y vacíos y las cápsulas sin sellar: las cartas y las apuestas se quedan en el canvas original. */
 export function emptyMailboxes(snapshot: RoomSnapshot): RoomSnapshot {
 	return { ...snapshot, documents: snapshot.documents.map((document) => {
 		const record = document.state as TLRecord
-		if (record.typeName !== 'shape' || record.type !== 'mailbox') return document
-		return { ...document, state: { ...record, props: { ...record.props, open: false, round: 1, count: 0, drawn: 0, letter: '', letterId: '' } } }
+		if (record.typeName !== 'shape') return document
+		if (record.type === 'mailbox') return { ...document, state: { ...record, props: { ...record.props, open: false, round: 1, count: 0, drawn: 0, letter: '', letterId: '' } } }
+		if (record.type === 'capsule') return { ...document, state: { ...record, props: { ...record.props, status: 'draft', revision: crypto.randomUUID(), counts: record.props.outcomes.map(() => 0), stakes: record.props.outcomes.map(() => 0), read: 0, drawnId: '', drawnName: '', drawnOutcome: -1, drawnStake: 0, drawnReason: '', drawnBonus: 0, winner: -1, payouts: [] } } }
+		return document
 	}) }
 }

@@ -27,10 +27,11 @@ const STAGGER_MS = 40
 const reveal: RevealSpec = {
 	duration: 600,
 	order: ({ unit, reveal, secondary }) => {
-		if (!unit) return 0
+		// Una unidad sin tamaño (una imagen que aún no carga, un contenedor vacío) daría un retraso no finito y Element.animate lanza.
+		if (!unit || !(unit.width > 0) || !(unit.height > 0)) return 0
 		const columns = Math.max(Math.round(reveal.width / unit.width), 1)
 		const index = Math.round((unit.top - reveal.top) / unit.height) * columns + Math.round((unit.left - reveal.left) / unit.width)
-		return Math.min(index, 6) * STAGGER_MS + (secondary ? STAGGER_MS : 0)
+		return (Number.isFinite(index) ? Math.min(index, 6) : 0) * STAGGER_MS + (secondary ? STAGGER_MS : 0)
 	},
 }
 
@@ -49,7 +50,7 @@ export const SAMPLE_BOARDS: Board[] = ['Principal', 'Diagramas de flujo', 'Varia
 export const SAMPLE_ROSTER: Roster = {
 	groups: [{ id: 'sample-group', name: 'Grupo A' }],
 	students: ['Ana López Hernández', 'Luis Pérez', 'María Fernanda Ruiz', 'Diego Torres'].map((name, index) => ({
-		id: `sample-${index}`, username: `A0123456${index}`, name, role: 'student', mustChangePassword: false, points: 1250, groupId: null, disabled: false,
+		id: `sample-${index}`, username: `A0123456${index}`, name, role: 'student', mustChangePassword: false, points: 1250, groupId: null, disabled: false, card: { skin: 'xp', material: 'none' },
 	})),
 	canvases: [],
 }
@@ -218,12 +219,12 @@ export function ShopShape() {
 				</div>
 			</section>
 		</section>
-		<section className="shop-cards">
-			<div className="shop-cards__heading"><h2>Cartas en venta</h2></div>
+		{['Cartas en venta', 'Efectos de carta', 'Placas'].map((title) => <section key={title} className="shop-cards">
+			<div className="shop-cards__heading"><h2>{title}</h2></div>
 			<div className="shop-scroller"><ul className="shop-row" style={{ '--card-w': `${CARD.row}px` } as CSSProperties}>
 				{range(6).map((index) => <li key={index}><span className="shop-skeleton__sale" skullet-block="" /></li>)}
 			</ul></div>
-		</section>
+		</section>)}
 	</>
 }
 

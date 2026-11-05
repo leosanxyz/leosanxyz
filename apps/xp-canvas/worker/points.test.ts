@@ -9,7 +9,7 @@ it('starts at zero and keeps one award across retries, undo, and concurrent deli
 	const db = new DatabaseSync(':memory:')
 	try {
 		db.exec('CREATE TABLE users (id TEXT PRIMARY KEY); INSERT INTO users VALUES (\'ana\'), (\'luis\');')
-		for (const migration of ['0003_points.sql', '0004_gachapon.sql', '0005_gachapon_cost.sql']) db.exec(readFileSync(new URL(`../migrations/${migration}`, import.meta.url), 'utf8'))
+		for (const migration of ['0003_points.sql', '0004_gachapon.sql', '0005_gachapon_cost.sql', '0008_capsule_stakes.sql', '0009_cosmetics.sql']) db.exec(readFileSync(new URL(`../migrations/${migration}`, import.meta.url), 'utf8'))
 		const env = { PORTAL_DB: { prepare: (sql: string) => ({ bind: (...values: (string | number)[]) => ({ run: async () => db.prepare(sql).run(...values), first: async () => db.prepare(sql).get(...values) }) }) } } as unknown as CanvasEnv
 		const award: PointAward = { sourceKey: 'question:board:shape:revision', eventId: 'event-1', userId: 'ana', amount: 175, activityKind: 'question', createdAt: 1 }
 		expect(await readPoints(env, 'ana')).toBe(0)
@@ -21,6 +21,17 @@ it('starts at zero and keeps one award across retries, undo, and concurrent deli
 		expect(await readPoints(env, 'ana')).toBe(275)
 		db.prepare('INSERT INTO gachapon_spins (source_key, user_id, skin, created_at, cost) VALUES (?, ?, ?, ?, ?)').run('machine:round:ana', 'ana', 'arcane-knight', 2, 50)
 		expect(await readPoints(env, 'ana')).toBe(225)
+		expect(await readPoints(env, 'luis')).toBe(0)
+		// Lo apostado en una cápsula sale del saldo hasta que se resuelva; el premio vuelve como un award.
+		db.prepare('INSERT INTO capsule_stakes (source_key, user_id, amount, created_at) VALUES (?, ?, ?, ?)').run('["capsule","b","shape:c","r","ana"]', 'ana', 80, 3)
+		expect(await readPoints(env, 'ana')).toBe(145)
+		await savePointAward(env, { ...award, eventId: 'event-4', sourceKey: '["capsule-win","b","shape:c","r","ana"]', activityKind: 'capsule-win', amount: 465 })
+		expect(await readPoints(env, 'ana')).toBe(610)
+		// Un cosmético comprado se descuenta una vez por objeto: la clave repetida no vuelve a cobrar.
+		const buy = db.prepare('INSERT OR IGNORE INTO cosmetics (source_key, user_id, item, created_at, cost) VALUES (?, ?, ?, ?, ?)')
+		buy.run('["cosmetic","ana","plate:aurora"]', 'ana', 'plate:aurora', 4, 250)
+		buy.run('["cosmetic","ana","plate:aurora"]', 'ana', 'plate:aurora', 5, 250)
+		expect(await readPoints(env, 'ana')).toBe(360)
 		expect(await readPoints(env, 'luis')).toBe(0)
 	} finally { db.close() }
 })

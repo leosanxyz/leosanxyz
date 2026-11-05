@@ -1,0 +1,34 @@
+/* Cosmetics on a shop card's front. Units are fractions of the card's width (the pass card is a size container), so the face
+   keeps its look from the 34 px tray to the 360 px detail. */
+.prize-rarity { display: inline-block; padding: .2em .6em; border-radius: 999px; background: var(--rarity); color: #fff; font-size: 5.6cqw; font-weight: 500; line-height: 1.25; }
+.prize-rarity[data-rarity='legendaria'] { color: #2b1a02; }
+/* Outside a card the chip keeps a plain size. */
+.shop-detail__text .prize-rarity { margin-top: 10px; font-size: 13px; }
+.gachapon-reveal__prize small .prize-rarity { font-size: 13px; }
+/* The machine's reveal: the same full-bleed cover inside the gold-edged card; the badge under it says what it is and how rare. */
+.gachapon-reveal__face[data-cosmetic] { container-type: inline-size; }
+.gachapon-reveal__prize small[data-cosmetic] { display: inline-flex; align-items: center; gap: 8px; }
+
+/* A cosmetic as a row's own card, the size of a card for sale: the student's cover at full bleed, or a plate on the black of the card back. */
+.prize-cover { position: absolute; inset: 0; border-radius: inherit; background: #111; }
+.prize-cover__art { position: absolute; inset: 0; border-radius: inherit; aspect-ratio: auto; }
+.prize-cover__plate { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 9cqw; }
+.prize-cover .plate { --plate-h: 13cqw; }
+.prize-cover .plate__name { font-size: max(6px, calc(var(--u) * 15)); }
+/* A frame spills past the card, so the face lets it out; the art clips itself to the corners. */
+.pass-front:has(> .prize-cover > .card-frame) { overflow: visible; }
+.prize-cover .card-frame { --frame-gap: 1.6cqw; --frame-line: .7cqw; --frame-r: calc(8.7cqw + 1.6cqw); }
+/* The stars sit at the corners as on the full pass, so the row's edge never cuts them. */
+.prize-cover .card-frame__star { width: 13%; }
+.prize-cover .card-frame__star[data-corner$='l'] { left: -6.5%; }
+.prize-cover .card-frame__star[data-corner$='r'] { right: -6.5%; }
+.prize-cover .card-frame__star[data-corner^='t'] { top: -4.5%; }
+.prize-cover .card-frame__star[data-corner^='b'] { bottom: -4.5%; }
+/* The name at the card's foot, over a shade that keeps it legible on any cover. */
+.prize-caption { position: absolute; z-index: 5; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; height: 30%; padding: 0 7cqw 6.5cqw;
+	border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; background: linear-gradient(to top, #000000b3, #00000059 45%, transparent); color: #fff; pointer-events: none;
+	animation: prize-caption 180ms ease-out both; }
+.prize-caption > span { min-width: 0; overflow: hidden; font-size: 7.6cqw; font-weight: 500; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.prize-caption[data-leaving] { animation: prize-caption 120ms ease-out reverse both; }
+@keyframes prize-caption { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .prize-caption { animation: none; } }

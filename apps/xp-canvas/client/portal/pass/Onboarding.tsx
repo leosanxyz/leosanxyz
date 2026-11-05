@@ -432,6 +432,7 @@ export function Onboarding({
 										<HologramControls
 											draft={draft}
 											phase={holoPhase}
+											owned={profile.cosmetics}
 											onChange={update}
 										/>
 									)}

@@ -1,3 +1,5 @@
+import { isCosmeticOf, type CosmeticId, type EffectId, type FrameId, type PlateId } from './cosmetics'
+
 export const REWARD_SKIN_SETS = [
 	['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'],
 	['zelda-campfire', 'tracer', 'soraka', 'shadow-warrior', 'luke', 'attack-titan', 'rengoku', 'gyro', 'emilia'],
@@ -46,6 +48,8 @@ export const HOLO_PATTERNS = [
 export type HoloPattern = (typeof HOLO_PATTERNS)[number]
 export const HOLO_AREAS = ['all', 'subject', 'background'] as const
 export type HoloArea = (typeof HOLO_AREAS)[number]
+export const CARD_MATERIALS = ['none', 'fuego', 'slime', 'metal', 'fantasma', 'metal-color', 'fantasma-color', 'rayo', 'hielo'] as const
+export type CardMaterial = (typeof CARD_MATERIALS)[number]
 export interface PassHologram {
 	pattern: HoloPattern
 	// Kept for older saved passes. The current control changes light color.
@@ -54,6 +58,8 @@ export interface PassHologram {
 	area?: HoloArea
 	// 0..359 selects a color; 360 is the multicolor, full-spectrum stop.
 	hue?: number
+	// Optional so passes saved before materials existed stay valid as 'none'.
+	material?: CardMaterial
 }
 export const defaultHologram = (): PassHologram => ({
 	pattern: 'grid',
@@ -61,6 +67,7 @@ export const defaultHologram = (): PassHologram => ({
 	phase: 0.18,
 	area: 'all',
 	hue: 195,
+	material: 'none',
 })
 export function passHologram(
 	draft: Pick<PassDraft, 'finish' | 'hologram'> & { skin?: PassSkin },
@@ -75,6 +82,7 @@ export function passHologram(
 				: (saved?.pattern ?? 'grid'),
 		area: REWARD_SKIN_SETS[0].includes(draft.skin as (typeof REWARD_SKIN_SETS)[0][number]) ? 'all' : saved?.area ?? 'all',
 		hue: saved?.hue ?? 195,
+		material: saved?.material ?? 'none',
 	}
 }
 export const STICKERS = [
@@ -120,9 +128,16 @@ export interface PassDraft {
 	opened: boolean
 	// Optional for passes saved before the signature step existed.
 	signature?: PassSignature | null
+	// Bought in the shop or won in its machine. The server saves them only if the student owns them; absent means none.
+	plate?: PlateId | null
+	frame?: FrameId | null
+	// Profile effects are not built yet: always empty for now.
+	effect?: EffectId | null
 }
 export interface PassProfile {
 	unlockedSkins?: RewardSkin[]
+	/** Cosmetics bought or won; the free basics are everyone's and not listed. */
+	cosmetics?: CosmeticId[]
 	intro: { name: string; message: string; skin: PassSkin }
 	draft: PassDraft
 	completed: boolean
@@ -210,12 +225,16 @@ export function validPass(value: unknown): value is PassDraft {
 				finite(d.hologram.phase, 0, 1) &&
 				(d.hologram.area === undefined ||
 					HOLO_AREAS.includes(d.hologram.area)) &&
-				(d.hologram.hue === undefined || finite(d.hologram.hue, 0, 360)))) &&
+				(d.hologram.hue === undefined || finite(d.hologram.hue, 0, 360)) &&
+				(d.hologram.material === undefined || CARD_MATERIALS.includes(d.hologram.material)))) &&
 		Number.isInteger(d.step) &&
 		d.step >= 0 &&
 		d.step <= 4 &&
 		typeof d.opened === 'boolean' &&
 		validSignature(d.signature) &&
+		(d.plate == null || isCosmeticOf(d.plate, 'plate')) &&
+		(d.frame == null || isCosmeticOf(d.frame, 'frame')) &&
+		d.effect == null &&
 		validStickers(d.stickers) &&
 		(d.stickersBySkin === undefined ||
 			(d.stickersBySkin !== null && typeof d.stickersBySkin === 'object' && !Array.isArray(d.stickersBySkin) &&

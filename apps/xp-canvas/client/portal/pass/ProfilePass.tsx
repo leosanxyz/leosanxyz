@@ -8,6 +8,7 @@ import { PassCarousel } from './PassCarousel'
 import { PassDownload } from './PassDownload'
 import { StickerEditor } from './StickerEditor'
 import { HologramControls } from './HologramControls'
+import { WearControls } from './WearControls'
 import { usePassSounds } from './usePassSounds'
 import { usePassReducedMotion } from './usePassReducedMotion'
 
@@ -83,7 +84,10 @@ export function ProfilePass({ profile, account, initiallyEditing = false }: {
 				<button className="profile-pass-flip" aria-label="Girar pase" title="Girar pase" aria-pressed={back} disabled={busy} onClick={() => setBack(!back)}><Icon name="rotate" size={24} /></button>
 				<AnimatePresence initial={false}>
 					{editing && <ProfilePanel className="profile-edit-controls" key="tuning" reduced={reduced}>
-						<div inert={busy}><HologramControls draft={draft} phase={phase} onChange={update} /></div>
+						<div inert={busy}>
+							<HologramControls draft={draft} phase={phase} owned={profile.cosmetics} onChange={update} />
+							<WearControls draft={draft} owned={profile.cosmetics} onChange={update} />
+						</div>
 						<div className="profile-save xp-dialog-actions">
 							<button disabled={busy} onClick={cancel}>Cancelar</button>
 							<button className="xp-primary" disabled={busy} onClick={() => void save()}>{busy ? 'Guardando…' : 'Guardar cambios'}</button>

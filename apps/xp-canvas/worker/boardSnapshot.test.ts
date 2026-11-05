@@ -22,6 +22,19 @@ describe('canvas imports', () => {
 		expect(copia(5).documents).toHaveLength(2)
 		for (const paso of [-1, 6, 2.5]) expect(() => copia(paso)).toThrow()
 	})
+	it('copies a capsule unsealed and without bets', () => {
+		const props = { w: 440, h: 720, question: '¿Qué arregla el bug?', outcomes: ['Nada', 'Un estado', 'Quitar la puerta'], opensAt: 1_700_000_000_000, status: 'resolved' as const, revision: 'r1', counts: [9, 4, 1], stakes: [300, 110, 30], read: 2,
+			drawnId: 'b1', drawnName: 'Pau', drawnOutcome: 0, drawnStake: 50, drawnReason: 'Que se regrese.', drawnBonus: 75, winner: 1, payouts: [{ name: 'Dana', stake: 80, paid: 465 }] }
+		const capsule = canvasSchema.types.shape.create({ id: 'shape:capsula' as never, type: 'capsule', parentId: page.id, index: 'a1' as never, x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, meta: {}, props })
+		const copy = emptyMailboxes(validateBoardSnapshot({ ...snapshot, documents: [...snapshot.documents, { state: capsule, lastChangedClock: 1 }] }))
+		const copied = copy.documents.find((record) => record.state.id === capsule.id)?.state as TLRecord | undefined
+		expect(copied?.typeName === 'shape' && copied.type === 'capsule' && copied.props).toMatchObject({ question: props.question, outcomes: props.outcomes, status: 'draft', counts: [0, 0, 0], stakes: [0, 0, 0], read: 0, drawnId: '', winner: -1, payouts: [] })
+		expect(copied?.typeName === 'shape' && copied.type === 'capsule' && copied.props.revision).not.toBe('r1')
+		for (const wrong of [{ outcomes: ['Una'] }, { stakes: [1, 2, 300_000] }, { status: 'open' }, { drawnOutcome: 4 }]) {
+			expect(() => validateBoardSnapshot({ ...snapshot, documents: [...snapshot.documents, { state: { ...capsule, props: { ...props, ...wrong } }, lastChangedClock: 1 }] })).toThrow()
+		}
+		expect(parseQuestionCommand({ action: 'capsule-draw', shapeId: 'shape:capsula' })).toEqual({ action: 'capsule-draw', shapeId: 'shape:capsula' })
+	})
 	it('copies a mailbox closed and empty, and rejects impossible counts', () => {
 		const props = { w: 440, h: 560, prompt: '¿Qué notaste?', open: true, round: 3, count: 12, drawn: 4, letter: 'La sombra del pez', letterId: 'carta-1' }
 		const mailbox = canvasSchema.types.shape.create({ id: 'shape:buzon' as never, type: 'mailbox', parentId: page.id, index: 'a1' as never, x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, meta: {}, props })

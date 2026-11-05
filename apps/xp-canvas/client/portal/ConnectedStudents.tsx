@@ -3,11 +3,14 @@ import type { Editor } from 'tldraw'
 import { useConnectedStudents } from './studentPresence'
 import type { PortalUser } from '../../shared/portal'
 import { Icon } from '../components/Icon'
+import { Plate } from '../cosmetics/Plate'
+import { usePlates } from './usePlates'
 
 type DrawState = { activeId: string | null; running: boolean; finished: boolean }
 
-export function ConnectedStudents({ editor, user, expanded, instant, allowedUserIds, permissionPending, onPermission, draw, onDraw }: { editor: Editor | null; user?: PortalUser | null; expanded: boolean; instant: boolean; allowedUserIds: string[]; permissionPending: boolean; onPermission: (userId: string, allowed: boolean) => void; draw: DrawState; onDraw: () => void }) {
+export function ConnectedStudents({ roomId, editor, user, expanded, instant, allowedUserIds, permissionPending, onPermission, draw, onDraw }: { roomId: string; editor: Editor | null; user?: PortalUser | null; expanded: boolean; instant: boolean; allowedUserIds: string[]; permissionPending: boolean; onPermission: (userId: string, allowed: boolean) => void; draw: DrawState; onDraw: () => void }) {
 	const students = useConnectedStudents(editor, user)
+	const plates = usePlates(roomId, students.map((student) => student.userId.slice(5)))
 	const panel = useRef<HTMLDivElement>(null)
 	const isTeacher = user?.role === 'teacher'
 	useEffect(() => {
@@ -34,7 +37,7 @@ export function ConnectedStudents({ editor, user, expanded, instant, allowedUser
 						return (
 						<li key={student.userId} data-user-id={userId} data-hand-raised={student.handRaised} data-control={allowed} data-draw-active={draw.activeId === userId} data-draw-selected={draw.finished && draw.activeId === userId}>
 							<span className="connected-students__avatar" aria-hidden="true">{student.userName.trim().slice(0, 1).toLocaleUpperCase('es')}</span>
-							<span className="connected-students__name">{student.userName}</span>
+							<span className="connected-students__name"><Plate plate={plates[userId]} name={student.userName} /></span>
 							<div className="connected-students__actions">
 							{student.handRaised && <span className="connected-students__raised-hand" role="img" aria-label="Mano levantada" title="Mano levantada"><span className="hand-raise-emoji" aria-hidden="true">🖐️</span></span>}
 							{isTeacher ? <button type="button" className="connected-students__permission" aria-label={label} title={label} aria-pressed={allowed} disabled={permissionPending} onClick={() => onPermission(userId, !allowed)}><Icon name="cursor" size={20} /></button> : allowed && <span className="connected-students__control" role="img" aria-label="Tiene control" title="Tiene control"><Icon name="cursor" size={20} /></span>}

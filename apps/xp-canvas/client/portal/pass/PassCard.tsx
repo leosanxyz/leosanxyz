@@ -9,6 +9,7 @@ import {
 } from 'motion/react'
 import {
 	defaultHologram,
+	passHologram,
 	type PassDraft,
 	type PassSticker,
 	type PassSignature,
@@ -19,6 +20,8 @@ import { usePassReducedMotion } from './usePassReducedMotion'
 import { PassSticker as Sticker } from './PassSticker'
 import { PassHologram } from './PassHologram'
 import { unprojectCardPoint } from './cardProjection'
+import { MaterialHero } from './materials/MaterialHero'
+import { CardFrame } from '../../cosmetics/CardFrame'
 
 export function PassCard({
 	draft,
@@ -38,6 +41,10 @@ export function PassCard({
 	actions,
 	variant = 'pass',
 	backFace,
+	face,
+	hero = true,
+	live = true,
+	onLive,
 }: {
 	draft: PassDraft
 	edit?: boolean
@@ -57,6 +64,14 @@ export function PassCard({
 	/** `shop` keeps the art, foil, tilt and flip without the pass printing; its back is `backFace`. */
 	variant?: 'pass' | 'shop'
 	backFace?: ReactNode
+	/** The shop's cosmetics show their own preview on the front instead of the cover's art. */
+	face?: ReactNode
+	/** Draws the card's material live. Off for the carousel's other covers; one live hero per page anyway. */
+	hero?: boolean
+	/** A hero waits with `false`: compiling its shaders stalls the page and the GPU, so the shop starts them once its morph has settled. */
+	live?: boolean
+	/** The live material has drawn, so whatever stood in for it can go. */
+	onLive?: () => void
 }) {
 	const pass = variant === 'pass'
 	const reduced = usePassReducedMotion(),
@@ -181,6 +196,7 @@ export function PassCard({
 					onAnimationComplete={() => setTurning(false)}
 				>
 					<div className="pass-face pass-front" aria-hidden={back} inert={back}>
+						{face ?? <>
 						<div className="pass-visuals">
 							<div
 								className="pass-art"
@@ -215,6 +231,10 @@ export function PassCard({
 							)}
 							<div className="pass-shade" />
 						</div>
+						{hero && live && <MaterialHero skin={draft.skin} material={passHologram(draft).material} root={root}
+							rotateX={rotateX} rotateY={rotateY} lamp={lamp} phase={phase} reduced={reduced} onReady={onLive} />}
+						<CardFrame frame={draft.frame} hero={hero} live={hero && live} root={root} />
+						</>}
 						{pass && <>
 						<div className="pass-top">
 							<span>XP / CLASS PASS</span>

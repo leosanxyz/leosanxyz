@@ -1,0 +1,100 @@
+/* Hero: the canvas spills 64 px past the card on every side. The front face stops clipping while it is shown. */
+.pass-front:has(> .material-hero[data-ready='true']),
+.pass-front:has(> .card-frame) {
+	overflow: visible;
+}
+.material-hero {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+.material-hero canvas {
+	position: absolute;
+	left: -64px;
+	top: -64px;
+	width: calc(100% + 128px);
+	height: calc(100% + 128px);
+	/* above the art and the foil, under the shade and the printing */
+	z-index: 2;
+	opacity: 0;
+	transition: opacity 240ms ease-out;
+}
+.material-hero[data-ready='true'] canvas {
+	opacity: 1;
+}
+/* the light the material throws on the table: a large soft pool behind the card */
+.material-spill {
+	position: absolute;
+	inset: -80px -110px -130px;
+	z-index: -1;
+	background: radial-gradient(closest-side, var(--material-spill), transparent);
+	opacity: 0;
+	will-change: opacity;
+}
+.material-hero[data-ready='false'] .material-spill {
+	visibility: hidden;
+}
+
+/* Mini */
+.material-mini {
+	position: relative;
+	display: block;
+	aspect-ratio: 0.686;
+	border-radius: 8%/5.5%;
+}
+.material-mini-clip {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	overflow: hidden;
+	background: #101315;
+}
+.material-mini-clip > img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: 51% center;
+}
+.material-mini[data-skin='xp'] .material-mini-clip > img {
+	object-fit: contain;
+}
+/* the material's glow around the mini: opacity only, composited on the GPU */
+.material-mini[data-ready='true']::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+	box-shadow: 0 0 6px 1px var(--material-accent);
+	opacity: 0.35;
+	animation: material-breathe var(--loop, 4s) ease-in-out infinite alternate;
+}
+@keyframes material-breathe {
+	to { opacity: 0.75; }
+}
+.material-mini-strip {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: calc(100% * var(--n));
+	background-size: 100% 100%;
+	will-change: transform;
+	/* the sheet arrives over the plain art without a jump */
+	animation: material-strip var(--loop) steps(var(--n)) infinite, material-sheet-in 240ms ease-out;
+}
+@keyframes material-strip {
+	to { transform: translateX(-100%); }
+}
+@keyframes material-sheet-in {
+	from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+	/* the first frame, still */
+	.material-mini-strip,
+	.material-mini::before {
+		animation: none;
+	}
+}

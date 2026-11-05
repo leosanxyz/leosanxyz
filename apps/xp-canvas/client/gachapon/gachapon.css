@@ -101,7 +101,7 @@
 .gachapon-reveal__face, .gachapon-reveal__back { position: absolute; inset: 0; border-radius: 18px; overflow: hidden; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 .gachapon-reveal__face { padding: 7px; background: linear-gradient(130deg, #fff, var(--prize-color), #fff); box-shadow: 0 0 0 3px #fff8, 0 22px 60px #0009, 0 0 70px color-mix(in srgb, var(--prize-color) 65%, transparent); }
 .gachapon-reveal__face img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
-.gachapon-reveal__face span { position: absolute; bottom: 7px; left: 7px; right: 7px; padding: 30px 12px 17px; border-radius: 0 0 12px 12px; color: #fff; background: linear-gradient(transparent, #162333db); font-weight: 650; }
+.gachapon-reveal__face > span { position: absolute; bottom: 7px; left: 7px; right: 7px; padding: 30px 12px 17px; border-radius: 0 0 12px 12px; color: #fff; background: linear-gradient(transparent, #162333db); font-weight: 650; }
 .gachapon-reveal__face::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 32%, #ffffffb3 44%, #b8f3ff80 50%, #ffc8f580 56%, transparent 66%); mix-blend-mode: screen; animation: gacha-sheen 7000ms both; }
 .gachapon-reveal__back { transform: rotateY(180deg); border: 6px solid #fff; background: radial-gradient(circle at 50% 42%, #ffd45c 0 22%, transparent 23%), repeating-linear-gradient(45deg, #ff8a6e 0 14px, #ff977e 14px 28px); box-shadow: 0 22px 60px #0009; }
 .gachapon-reveal__back::after { content: 'XP'; position: absolute; inset: 0 0 16% 0; display: grid; place-items: center; font: 900 62px/1 system-ui, sans-serif; color: #8a3a2c; }

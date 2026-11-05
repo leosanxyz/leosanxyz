@@ -798,7 +798,8 @@
 .pass-area-selection {
 	position: absolute;
 	inset: 0 auto 0 0;
-	width: calc((100% - 9px) / 4);
+	/* --n: cuántos botones hay en la fila; cada grupo lo pone en línea. */
+	width: calc((100% - 3px * (var(--n, 4) - 1)) / var(--n, 4));
 	border-radius: 22px;
 	background: #68615a;
 	pointer-events: none;
@@ -822,6 +823,12 @@
 }
 .pass-holo-styles button[aria-pressed='true'] {
 	color: #fff;
+}
+/* La fila de áreas depende de la de arriba: un paso más chica. */
+.pass-holo-styles[data-sub] button {
+	min-height: 30px;
+	padding-block: 5px;
+	font-size: 10px;
 }
 .pass-orbit {
 	width: 100%;
@@ -1768,4 +1775,96 @@
 	.pass-sticker:not(.is-selected) .pass-sticker-drag:hover .pass-sticker-art {
 		transform: none;
 	}
+}
+.pass-material-picker {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: 4px;
+	padding: 5px;
+	border-radius: 18px;
+	background: #69615a;
+}
+.pass-material-picker button {
+	padding: 0;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	position: relative;
+	transition: transform 140ms ease-out;
+}
+.pass-material-picker button::after {
+	content: '';
+	position: absolute;
+	inset: -3px;
+	border-radius: 9px;
+	box-shadow: inset 0 0 0 2px #fff;
+	opacity: 0;
+	transition: opacity 140ms ease-out;
+}
+.pass-material-picker button[aria-pressed='true']::after {
+	opacity: 1;
+}
+.pass-material-picker button:active {
+	transform: scale(0.96);
+}
+.pass-material-picker .material-mini {
+	border-radius: 6px;
+}
+/* Frame and plate under the finish: the same picker, one labelled row each. */
+.pass-wear {
+	display: grid;
+	gap: 7px;
+	margin-top: 7px;
+}
+.pass-wear__row {
+	display: grid;
+	gap: 5px;
+}
+.pass-wear__label {
+	padding-left: 12px;
+	color: #c7beb5;
+	font-size: 11px;
+}
+.pass-material-picker[data-wear='frame'] button {
+	padding: 3px;
+}
+.pass-wear__framed {
+	position: relative;
+	display: block;
+}
+.pass-wear__none {
+	position: relative;
+	display: block;
+	aspect-ratio: 0.686;
+	border: 1px dashed #c7beb580;
+	border-radius: 6px;
+	overflow: hidden;
+}
+.pass-wear__none:empty::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: -10%;
+	height: 120%;
+	border-left: 1px solid #c7beb580;
+	transform: rotate(34deg);
+}
+.pass-material-picker[data-wear='plate'] {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pass-material-picker[data-wear='plate'] button {
+	display: grid;
+	place-items: center;
+	min-height: 32px;
+	padding: 4px;
+	--plate-h: 17px;
+}
+.pass-material-picker[data-wear='plate'] .pass-wear__none {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 100%;
+	aspect-ratio: auto;
+	color: #c7beb5;
+	font-size: 10px;
 }

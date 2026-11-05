@@ -1,5 +1,6 @@
-import { REWARD_SKINS, type RewardSkin } from './pass'
+import { isRewardSkin, REWARD_SKINS, type PassSkin, type RewardSkin } from './pass'
 import type { GachaponResult } from './gachaponShape'
+import { COSMETICS, cosmetic, forSale, RARITIES, type CosmeticId, type CosmeticKind, type Rarity } from './cosmetics'
 
 export const SHOP_SPIN_COST = 150
 export const SHOP_CARD_COST = 300
@@ -48,18 +49,21 @@ export function giftStreak(days: string[], today: string) {
 /** What a gift pays when it is the `streak`-th day in a row. */
 export const giftAmount = (streak: number) => streak >= SHOP_GIFT_STREAK_DAYS ? SHOP_GIFT_STREAK_POINTS : SHOP_GIFT_POINTS
 
-/** The catalog shuffled the same way for everyone with the same seed: FNV-1a seeds mulberry32. */
-function shuffled(seed: string, cards: readonly RewardSkin[]): RewardSkin[] {
+/** A random stream that is the same for everyone with the same seed: FNV-1a seeds mulberry32. */
+function seeded(seed: string) {
 	let state = 0x811c9dc5
 	for (let i = 0; i < seed.length; i++) state = Math.imul(state ^ seed.charCodeAt(i), 0x01000193) >>> 0
-	const random = () => {
+	return () => {
 		state = (state + 0x6d2b79f5) >>> 0
 		let t = state
 		t = Math.imul(t ^ (t >>> 15), t | 1)
 		t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
 		return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 	}
-	const result = [...cards]
+}
+
+function shuffled<T>(seed: string, items: readonly T[]): T[] {
+	const random = seeded(seed), result = [...items]
 	for (let i = result.length - 1; i > 0; i--) {
 		const j = Math.floor(random() * (i + 1));
 		[result[i], result[j]] = [result[j], result[i]]
@@ -67,13 +71,63 @@ function shuffled(seed: string, cards: readonly RewardSkin[]): RewardSkin[] {
 	return result
 }
 
-/** The machine's six prizes for a shop day. */
-export const gachaPool = (day: string) => shuffled(day, REWARD_SKINS).slice(0, SHOP_POOL_SIZE)
+/** What the machine and the shop hand out: a reward card or a cosmetic. Cosmetic ids carry their kind before a colon; cards never do. */
+export type ShopPrize = RewardSkin | CosmeticId
+/** Cards count as rare. */
+export const prizeRarity = (prize: ShopPrize): Rarity => isRewardSkin(prize) ? 'rara' : cosmetic(prize)!.rarity
+const ORDER: Record<Rarity, number> = { legendaria: 0, epica: 1, rara: 2, comun: 3 }
+const byRarity = (a: ShopPrize, b: ShopPrize) => ORDER[prizeRarity(a)] - ORDER[prizeRarity(b)]
+
+/** The cosmetics the shop hands out: everything for sale. Profile effects and the free basics stay out. */
+const SOLD = COSMETICS.filter(forSale)
+const sold = (rarity: Rarity, kinds?: readonly CosmeticKind[]) => SOLD.filter((item) => item.rarity === rarity && (!kinds || kinds.includes(item.kind))).map((item) => item.id)
+
+/**
+ * The machine's six prizes for a shop day, rarest first: always one legendary, one or two epics, two cards and
+ * rare or common cosmetics for the rest, so a pool never runs out of covers for the pass.
+ */
+export function gachaPool(day: string): ShopPrize[] {
+	const random = seeded(`machine/${day}`), epics = random() < 0.5 ? 1 : 2
+	const cards = shuffled(day, REWARD_SKINS).slice(0, 2)
+	const rest = shuffled(`${day}/rest`, [...sold('rara'), ...sold('comun')]).slice(0, SHOP_POOL_SIZE - 3 - epics)
+	return [...shuffled(`${day}/legendaria`, sold('legendaria')).slice(0, 1), ...shuffled(`${day}/epica`, sold('epica')).slice(0, epics), ...cards, ...rest].sort(byRarity)
+}
 
 /** The six cards for sale in a rotation, never one of that day's machine prizes. */
 export function shopPool(slot: string): RewardSkin[] {
 	const machine = gachaPool(slot.split('/')[0])
 	return shuffled(slot, REWARD_SKINS.filter((skin) => !machine.includes(skin))).slice(0, SHOP_POOL_SIZE)
+}
+
+/** The rows under the cards, each with its own part of the catalog. Profile effects come later. */
+export const SHOP_ROWS = { effects: ['material', 'frame'], plates: ['plate'] } as const satisfies Record<string, readonly CosmeticKind[]>
+export type ShopRow = keyof typeof SHOP_ROWS
+
+/**
+ * Six items of a row for a rotation. At most one legendary and one or two epics; the rest are rares and commons,
+ * and no rarity puts more than half its catalog (rounded up) in the same row, so a rotation never shows a whole tier.
+ * Unlike the cards, a row may share an item with the machine: there are too few plates to keep both rules.
+ */
+export function cosmeticRow(slot: string, row: ShopRow): CosmeticId[] {
+	const seed = `${slot}/${row}`, random = seeded(seed)
+	const tier = (rarity: Rarity) => { const catalog = sold(rarity, SHOP_ROWS[row]); return shuffled(`${seed}/${rarity}`, catalog).slice(0, Math.ceil(catalog.length / 2)) }
+	const [common, rare, epic, legendary] = RARITIES.map(tier)
+	const legends = legendary.length && random() < 0.5 ? 1 : 0
+	// Without a legendary the row needs both epics: half the rares and commons of a kind may not fill four places.
+	const epics = Math.min(legends && random() < 0.5 ? 1 : 2, epic.length)
+	const rest = shuffled(`${seed}/rest`, [...rare, ...common]).slice(0, SHOP_POOL_SIZE - legends - epics)
+	return shuffled(`${seed}/order`, [...legendary.slice(0, legends), ...epic.slice(0, epics), ...rest])
+}
+
+/** Chance of each rarity in a spin, out of 100. A rarity the student has completed in the pool hands its share to the others. */
+export const SPIN_WEIGHTS: Record<Rarity, number> = { comun: 55, rara: 30, epica: 12, legendaria: 3 }
+
+/** A spin among what the student does not have yet: first a rarity by its weight, then one of its prizes evenly. */
+export function drawPrize(candidates: readonly ShopPrize[], random: () => number): ShopPrize {
+	const tiers = RARITIES.map((rarity) => ({ rarity, prizes: candidates.filter((prize) => prizeRarity(prize) === rarity) })).filter((tier) => tier.prizes.length)
+	let roll = random() * tiers.reduce((sum, tier) => sum + SPIN_WEIGHTS[tier.rarity], 0)
+	const chosen = tiers.find((tier) => (roll -= SPIN_WEIGHTS[tier.rarity]) < 0) ?? tiers[tiers.length - 1]
+	return chosen.prizes[Math.floor(random() * chosen.prizes.length)]
 }
 
 /** A review question without its key. The correct index stays on the server until grading. */
@@ -88,27 +142,36 @@ export interface ShopGift { claimed: boolean; amount: number; streak: number }
 export interface ShopState {
 	day: string
 	/** The machine's prizes for the day, from `gachaPool`. */
-	pool: RewardSkin[]
+	pool: ShopPrize[]
 	/** The shop's rotation, from `shopSlot`. */
 	slot: string
 	/** The cards for sale in this rotation, from `shopPool`. */
 	shop: RewardSkin[]
-	/** When the cards for sale change next. */
+	/** The rows under the cards in this rotation, from `cosmeticRow`. */
+	effects: CosmeticId[]
+	plates: CosmeticId[]
+	/** When the rows change next. */
 	rotatesAt: number
 	spinCost: number
 	cardCost: number
 	points: number
+	/** Reward cards the student has. */
 	owned: RewardSkin[]
+	/** Cosmetics the student bought or won. */
+	cosmetics: CosmeticId[]
+	/** The student's current cover, which the shop's materials and frames are shown on. */
+	cover: PassSkin
 	freeSpin: FreeSpinState
 	review: { attemptsLeft: number; active: ShopReview | null }
-	/** The cards for sale this student already turned over in this rotation. */
-	revealed: RewardSkin[]
+	/** What this student already turned over in this rotation, in any row. */
+	revealed: ShopPrize[]
 	gift: ShopGift
 	teacher: boolean
 }
 /** One question graded at once. The third answer finishes the attempt: `done`, and `passed` stops being `null`. */
 export interface ShopAnswer { index: number; correct: boolean; right: number; done: boolean; passed: boolean | null; freeSpin: FreeSpinState; attemptsLeft: number }
-export type ShopSpin = GachaponResult & { points: number }
+/** A spin's result. Unlike the canvas machine's, its prize can be a cosmetic. */
+export type ShopSpin = Omit<GachaponResult, 'skin'> & { skin: ShopPrize; points: number }
 export interface ShopPurchase { skin: RewardSkin; points: number }
-export interface ShopReveal { revealed: RewardSkin[]; points: number }
+export interface ShopReveal { revealed: ShopPrize[]; points: number }
 export interface ShopGiftClaim { gift: ShopGift; points: number }
