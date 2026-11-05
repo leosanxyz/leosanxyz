@@ -7,6 +7,7 @@ import {
 	type MotionValue,
 } from 'motion/react'
 import {
+	CARD_MATERIALS,
 	passHologram,
 	type HoloArea,
 	type HoloPattern,
@@ -16,6 +17,8 @@ import { clamp } from './stickerGeometry'
 import { hasHologramAreas, subjectLabel } from './hologramMasks'
 import { foilPattern } from './foilLighting'
 import { usePassReducedMotion } from './usePassReducedMotion'
+import { MaterialMini } from './materials/MaterialMini'
+import { materialName } from './materials/materials'
 
 const selectionTransition = {
 	type: 'tween',
@@ -329,6 +332,19 @@ export function HologramControls({
 						}
 					/>
 				</motion.label>
+			</div>
+			<div className="pass-material-picker" role="group" aria-label="Material">
+				{CARD_MATERIALS.map((material) => (
+					<button
+						key={material}
+						aria-label={materialName(material)}
+						title={materialName(material)}
+						aria-pressed={holo.material === material}
+						onClick={() => onChange({ hologram: { ...holo, material } })}
+					>
+						<MaterialMini skin={draft.skin} material={material} />
+					</button>
+				))}
 			</div>
 		</div>
 	)

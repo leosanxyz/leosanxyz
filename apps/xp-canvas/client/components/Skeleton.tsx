@@ -49,7 +49,7 @@ export const SAMPLE_BOARDS: Board[] = ['Principal', 'Diagramas de flujo', 'Varia
 export const SAMPLE_ROSTER: Roster = {
 	groups: [{ id: 'sample-group', name: 'Grupo A' }],
 	students: ['Ana López Hernández', 'Luis Pérez', 'María Fernanda Ruiz', 'Diego Torres'].map((name, index) => ({
-		id: `sample-${index}`, username: `A0123456${index}`, name, role: 'student', mustChangePassword: false, points: 1250, groupId: null, disabled: false,
+		id: `sample-${index}`, username: `A0123456${index}`, name, role: 'student', mustChangePassword: false, points: 1250, groupId: null, disabled: false, card: { skin: 'xp', material: 'none' },
 	})),
 	canvases: [],
 }

@@ -9,6 +9,7 @@ import {
 } from 'motion/react'
 import {
 	defaultHologram,
+	passHologram,
 	type PassDraft,
 	type PassSticker,
 	type PassSignature,
@@ -19,6 +20,7 @@ import { usePassReducedMotion } from './usePassReducedMotion'
 import { PassSticker as Sticker } from './PassSticker'
 import { PassHologram } from './PassHologram'
 import { unprojectCardPoint } from './cardProjection'
+import { MaterialHero } from './materials/MaterialHero'
 
 export function PassCard({
 	draft,
@@ -38,6 +40,7 @@ export function PassCard({
 	actions,
 	variant = 'pass',
 	backFace,
+	hero = true,
 }: {
 	draft: PassDraft
 	edit?: boolean
@@ -57,6 +60,8 @@ export function PassCard({
 	/** `shop` keeps the art, foil, tilt and flip without the pass printing; its back is `backFace`. */
 	variant?: 'pass' | 'shop'
 	backFace?: ReactNode
+	/** Draws the card's material live. Off for the carousel's other covers; one live hero per page anyway. */
+	hero?: boolean
 }) {
 	const pass = variant === 'pass'
 	const reduced = usePassReducedMotion(),
@@ -215,6 +220,8 @@ export function PassCard({
 							)}
 							<div className="pass-shade" />
 						</div>
+						{hero && <MaterialHero skin={draft.skin} material={passHologram(draft).material} root={root}
+							rotateX={rotateX} rotateY={rotateY} lamp={lamp} phase={phase} reduced={reduced} />}
 						{pass && <>
 						<div className="pass-top">
 							<span>XP / CLASS PASS</span>

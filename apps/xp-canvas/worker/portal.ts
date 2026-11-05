@@ -5,7 +5,7 @@ import type { Board, BoardLibrary } from '../shared/boards'
 import { studentLibrary } from './studentLibrary'
 import { isBoardId } from '../shared/boards'
 import type { BoardGrant, Student } from '../shared/portal'
-import { validPass, isRewardSkin } from '../shared/pass'
+import { validPass, isRewardSkin, CARD_MATERIALS, SKINS, type CardMaterial, type PassSkin } from '../shared/pass'
 import { balanceSql, readPoints } from './points'
 import { readPass } from './studentPass'
 import { body, json, PortalError } from './portalHttp'
@@ -144,13 +144,16 @@ export async function handlePortalRequest(request: Request, env: CanvasEnv): Pro
 		}
 		if (path === '/api/portal/roster' && method === 'GET') {
 			const [students, groups, personal] = await Promise.all([
-				db.prepare(`SELECT users.*, ${balanceSql('users.id')} AS points FROM users WHERE role = 'student' ORDER BY name`).all<UserRow & { points: number }>(),
+				db.prepare(`SELECT users.*, ${balanceSql('users.id')} AS points, json_extract(student_passes.draft_json, '$.skin') AS card_skin, json_extract(student_passes.draft_json, '$.hologram.material') AS card_material FROM users LEFT JOIN student_passes ON student_passes.user_id = users.id WHERE role = 'student' ORDER BY name`).all<UserRow & { points: number; card_skin: string | null; card_material: string | null }>(),
 				db.prepare('SELECT id, name FROM student_groups ORDER BY name').all(),
 				catalog(env).fetch('http://catalog/api/library?scope=personal').then((response) => response.json<BoardLibrary>()),
 			])
 			// Trashed personal canvases stay listed: Leo grades them and can restore them.
 			const canvases = personal.boards.sort((a, b) => b.updatedAt - a.updatedAt)
-			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled) })), groups: groups.results, canvases })
+			const card = (row: { card_skin: string | null; card_material: string | null }): Student['card'] => SKINS.includes(row.card_skin as PassSkin)
+				? { skin: row.card_skin as PassSkin, material: CARD_MATERIALS.includes(row.card_material as CardMaterial) ? row.card_material as CardMaterial : 'none' }
+				: undefined
+			return json({ students: students.results.map((row): Student => ({ ...publicUser(row), points: row.points, groupId: row.group_id, disabled: Boolean(row.disabled), card: card(row) })), groups: groups.results, canvases })
 		}
 		if (path === '/api/portal/groups' && method === 'POST') {
 			const group = { id: crypto.randomUUID(), name: name((await body(request)).name) }

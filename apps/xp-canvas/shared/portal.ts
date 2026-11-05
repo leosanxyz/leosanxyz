@@ -1,4 +1,5 @@
 import type { Board } from './boards'
+import type { CardMaterial, PassSkin } from './pass'
 
 export interface PortalUser {
 	id: string
@@ -19,6 +20,8 @@ export interface Student extends PortalUser {
 	points: number
 	groupId: string | null
 	disabled: boolean
+	/** The cover and material of the student's pass, once they have saved one. */
+	card?: { skin: PassSkin; material: CardMaterial }
 }
 
 export interface StudentGroup { id: string; name: string }

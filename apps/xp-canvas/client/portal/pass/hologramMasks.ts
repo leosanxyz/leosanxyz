@@ -99,3 +99,14 @@ export const hologramMask = (skin: PassSkin, area: HoloArea) => {
 	}
 	return masks[skin][area]
 }
+
+/** White subject on black, in the artwork's own size, for rasterizing card material masks. */
+export function subjectSvg(skin: PassSkin): string | undefined {
+	if (skin === 'xp') return undefined
+	if (isRewardSkin(skin)) {
+		const subject = rewardSubjects[skin]
+		return subject && `<svg xmlns="http://www.w3.org/2000/svg" width="${subject.width}" height="${subject.height}" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="black"/><g fill="white">${subject.shapes}</g></svg>`
+	}
+	const subject = subjects[skin], [, , width, height] = subject.viewBox.split(' ')
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${subject.viewBox}"><rect width="100%" height="100%" fill="black"/><g fill="white" color="white">${subject.shapes}</g></svg>`
+}

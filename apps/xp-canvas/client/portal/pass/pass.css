@@ -1769,3 +1769,37 @@
 		transform: none;
 	}
 }
+.pass-material-picker {
+	display: grid;
+	grid-template-columns: repeat(9, 1fr);
+	gap: 4px;
+	padding: 5px;
+	border-radius: 18px;
+	background: #69615a;
+}
+.pass-material-picker button {
+	padding: 0;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	position: relative;
+	transition: transform 140ms ease-out;
+}
+.pass-material-picker button::after {
+	content: '';
+	position: absolute;
+	inset: -3px;
+	border-radius: 9px;
+	box-shadow: inset 0 0 0 2px #fff;
+	opacity: 0;
+	transition: opacity 140ms ease-out;
+}
+.pass-material-picker button[aria-pressed='true']::after {
+	opacity: 1;
+}
+.pass-material-picker button:active {
+	transform: scale(0.96);
+}
+.pass-material-picker .material-mini {
+	border-radius: 6px;
+}

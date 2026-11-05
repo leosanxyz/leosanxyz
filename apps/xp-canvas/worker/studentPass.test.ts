@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultPass, passHologram, passStickers, updatePassDraft, validPass, type PassSticker } from '../shared/pass'
+import { CARD_MATERIALS, defaultPass, passHologram, passStickers, updatePassDraft, validPass, type PassSticker } from '../shared/pass'
 
 describe('student pass validation', () => {
 	it('preserves independent stickers for every cover, including legacy passes', () => {
@@ -129,6 +129,7 @@ describe('student pass validation', () => {
 			pattern: 'stars',
 			area: 'all',
 			hue: 195,
+			material: 'none',
 		})
 		expect(hologram.pattern).toBe('rings')
 		expect(
@@ -225,5 +226,15 @@ describe('student pass validation', () => {
 				})),
 			}),
 		).toBe(false)
+	})
+	it('accepts every card material and keeps passes saved without one valid as none', () => {
+		const draft = defaultPass('Ana')
+		for (const material of CARD_MATERIALS) expect(validPass({ ...draft, hologram: { ...draft.hologram!, material } })).toBe(true)
+		const { material: _, ...older } = draft.hologram!
+		expect(validPass({ ...draft, hologram: older })).toBe(true)
+		expect(passHologram({ ...draft, hologram: older }).material).toBe('none')
+		expect(passHologram({ ...draft, hologram: { ...older, material: 'rayo' } }).material).toBe('rayo')
+		for (const material of ['lava', '', null, 3, 'https://attacker.test/shader.glsl', ['fuego']])
+			expect(validPass({ ...draft, hologram: { ...draft.hologram!, material } })).toBe(false)
 	})
 })

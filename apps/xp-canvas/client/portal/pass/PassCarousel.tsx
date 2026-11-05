@@ -330,6 +330,7 @@ function CarouselCard({
 								draft={draft}
 								hologramPhase={phase}
 								tilt={tilt && !reader?.active}
+								hero={selected}
 								{...(selected ? stickerCard : {})}
 								{...(!design && selected ? identity : {})}
 								{...(selected ? cardControls : {})}
