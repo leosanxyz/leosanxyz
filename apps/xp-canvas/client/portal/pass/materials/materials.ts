@@ -128,7 +128,7 @@ export const MATERIALS: Record<ShaderMaterial, MaterialDef> = {
 		light: (s) => 0.42 + 0.08 * Math.sin(s.clock * 1.2),
 	},
 	'metal-color': {
-		name: 'Metal épico', accent: '#edc76e', loop: 4, frames: 48,
+		name: 'Metal con color', accent: '#edc76e', loop: 4, frames: 48,
 		init: () => ({ spk: new Float32Array(48), spkV: new Float32Array(48), sparkList: [] as Spark[], spawnAcc: 0, rnd: rng(7) }),
 		step(s, dt, p) {
 			const r = s.rnd as () => number

@@ -76,8 +76,8 @@ async function placeBet(deps: CapsuleDeps, user: PortalUser, command: Extract<Ca
 	if (!mine && existing >= CAPSULE_BETS_MAX) return denied(409, 'La cápsula está llena.')
 	const source = JSON.stringify(['capsule', deps.roomId, command.shapeId, command.revision, user.id]), now = Date.now()
 	const charged = await deps.db.prepare(`INSERT OR REPLACE INTO capsule_stakes (source_key, user_id, amount, created_at)
-		SELECT ?, ?, ?, ? WHERE ? <= COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0) - COALESCE((SELECT SUM(amount) FROM capsule_stakes WHERE user_id = ? AND source_key != ?), 0)
-		RETURNING amount`).bind(source, user.id, command.stake, now, command.stake, user.id, user.id, user.id, source).first()
+		SELECT ?, ?, ?, ? WHERE ? <= COALESCE((SELECT SUM(amount) FROM point_awards WHERE user_id = ?), 0) - COALESCE((SELECT SUM(cost) FROM gachapon_spins WHERE user_id = ?), 0) - COALESCE((SELECT SUM(amount) FROM capsule_stakes WHERE user_id = ? AND source_key != ?), 0) - COALESCE((SELECT SUM(cost) FROM cosmetics WHERE user_id = ?), 0)
+		RETURNING amount`).bind(source, user.id, command.stake, now, command.stake, user.id, user.id, user.id, source, user.id).first()
 	if (!charged) return denied(409, `Te faltan puntos para apostar ${command.stake}.`)
 	const id = mine?.id ?? crypto.randomUUID()
 	let bet: CapsuleBet | null = null

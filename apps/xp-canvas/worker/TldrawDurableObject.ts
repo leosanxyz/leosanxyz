@@ -17,7 +17,7 @@ import { bindPresence, documentReferencesAsset } from './portalPresence'
 import { readBoard } from './boards'
 import { boardOpenFor } from '../shared/boards'
 import type { PortalUser } from '../shared/portal'
-import { balanceSql, savePointAward, type PointAward } from './points'
+import { balanceArgs, balanceSql, savePointAward, type PointAward } from './points'
 import { GACHAPON_DURATION, type GachaponResult } from '../shared/gachaponShape'
 import type { RewardSkin } from '../shared/pass'
 import { DRAW_DURATION, type StudentDraw } from '../shared/studentDraw'
@@ -268,7 +268,7 @@ export class TldrawDurableObject extends DurableObject<CanvasEnv> {
 			// The unique claim and the permanent unlock are the same D1 row. A retry cannot choose again.
 			const claimed = await this.env.PORTAL_DB!.prepare(`INSERT OR IGNORE INTO gachapon_spins (source_key, user_id, skin, created_at, cost)
 				SELECT ?, ?, ?, ?, ? WHERE ? <= ${balanceSql('?')}
-				RETURNING skin`).bind(source, user.id, skin, Date.now(), shape.props.cost, shape.props.cost, user.id, user.id, user.id).first()
+				RETURNING skin`).bind(source, user.id, skin, Date.now(), shape.props.cost, shape.props.cost, ...balanceArgs(user.id)).first()
 			if (!claimed) {
 				const used = await this.env.PORTAL_DB!.prepare('SELECT 1 FROM gachapon_spins WHERE source_key = ?').bind(source).first()
 				return denied(409, used ? 'Ya usaste tu tirada. Espera a que el maestro reinicie la máquina.' : `Necesitas ${shape.props.cost} puntos para esta tirada.`)

@@ -1,3 +1,5 @@
+import { isCosmeticOf, type EffectId, type FrameId, type PlateId } from './cosmetics'
+
 export const REWARD_SKIN_SETS = [
 	['arcane-knight', 'moon-magic', 'sunset-riders', 'lunar-witch', 'golden-warrior', 'starlight-duo'],
 	['zelda-campfire', 'tracer', 'soraka', 'shadow-warrior', 'luke', 'attack-titan', 'rengoku', 'gyro', 'emilia'],
@@ -126,6 +128,11 @@ export interface PassDraft {
 	opened: boolean
 	// Optional for passes saved before the signature step existed.
 	signature?: PassSignature | null
+	// Bought in the shop. The server saves them only if the student owns them; absent means none.
+	plate?: PlateId | null
+	frame?: FrameId | null
+	// Profile effects are not built yet: always empty for now.
+	effect?: EffectId | null
 }
 export interface PassProfile {
 	unlockedSkins?: RewardSkin[]
@@ -223,6 +230,9 @@ export function validPass(value: unknown): value is PassDraft {
 		d.step <= 4 &&
 		typeof d.opened === 'boolean' &&
 		validSignature(d.signature) &&
+		(d.plate == null || isCosmeticOf(d.plate, 'plate')) &&
+		(d.frame == null || isCosmeticOf(d.frame, 'frame')) &&
+		d.effect == null &&
 		validStickers(d.stickers) &&
 		(d.stickersBySkin === undefined ||
 			(d.stickersBySkin !== null && typeof d.stickersBySkin === 'object' && !Array.isArray(d.stickersBySkin) &&

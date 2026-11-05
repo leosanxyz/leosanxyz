@@ -1,5 +1,6 @@
 import { REWARD_SKINS, type RewardSkin } from './pass'
 import type { GachaponResult } from './gachaponShape'
+import type { CosmeticsState } from './cosmetics'
 
 export const SHOP_SPIN_COST = 150
 export const SHOP_CARD_COST = 300
@@ -104,6 +105,8 @@ export interface ShopState {
 	/** The cards for sale this student already turned over in this rotation. */
 	revealed: RewardSkin[]
 	gift: ShopGift
+	/** Bought items and what the pass wears in its shop slots. The teacher's is empty: the shop is a preview for them. */
+	cosmetics: CosmeticsState
 	teacher: boolean
 }
 /** One question graded at once. The third answer finishes the attempt: `done`, and `passed` stops being `null`. */
