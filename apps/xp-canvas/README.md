@@ -129,7 +129,7 @@ La tómbola se dibuja en 3D con three.js, con la paleta del gachapon y del buzó
 
 Con el dock de capítulos abierto en OBS, cada bloque de sección del canvas tiene, solo para el maestro, un botón chico en su esquina superior derecha. Un bloque de sección es un texto que empieza con su número y un punto medio, como «1 · haz el primer paso de tu plan»: puede ser el texto del propio rectángulo o marco, o un texto suelto dentro de un rectángulo; en ese caso el botón va en el rectángulo más chico que lo rodea. El botón muestra el título que ese capítulo tiene en OBS, para notar si no coincide, y pasa OBS directo a ese capítulo, desde la Mac o desde el iPad. El capítulo actual se ve en negro con «En OBS». Si OBS no está conectado, el botón dice «OBS sin conectar» y no hace nada; si OBS no tiene ese número, dice «OBS no tiene el N».
 
-Mientras OBS reporta una canción, todos, alumnos y maestro, ven arriba al centro del canvas una tarjeta con el título, el artista y, si llega, la portada. Desaparece cuando deja de sonar o cuando OBS se desconecta. El funcionamiento está en [Relé de OBS](../../ARCHITECTURE.md#relé-de-obs).
+Mientras OBS reporta una canción, todos, alumnos y maestro, la ven en el espacio libre de la barra superior, entre el nombre del canvas y los botones: título, artista y, si llega, la portada. Usa solo el espacio que sobra, sin mover los botones ni cambiar la altura de la barra. Si el hueco es angosto, primero quita el artista y achica la portada, y el título se corta con puntos suspensivos. Si no cabe, como en el iPad vertical del maestro o en un teléfono, no aparece. Desaparece cuando deja de sonar o cuando OBS se desconecta. El funcionamiento está en [Relé de OBS](../../ARCHITECTURE.md#relé-de-obs).
 
 ## Canvases personales y agentes
 

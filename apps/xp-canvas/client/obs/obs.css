@@ -33,28 +33,35 @@
 	.obs-chapter:hover:not(:disabled) { background: #fff; color: var(--xp-ink); }
 }
 
-/* Now playing: a small card at the top center of the canvas, the one corner tldraw's panels leave free for every role. */
+/*
+ * Now playing lives in the header's free space between the board title and the action buttons.
+ * The slot grows from zero, so it only takes space nobody else needs and never pushes a button.
+ * As the slot narrows, the card drops the bars, then the artist, shrinks the cover to a dot that still says music, then hides.
+ */
+.obs-song-slot {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	justify-content: center;
+	container-type: inline-size;
+}
 .obs-song {
-	position: absolute;
-	z-index: 260;
-	top: 12px;
-	left: 50%;
-	translate: -50% 0;
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	max-width: min(320px, calc(100% - 24px));
-	padding: 6px 12px 6px 6px;
+	gap: 9px;
+	box-sizing: border-box;
+	max-width: min(340px, 100%);
+	height: 44px;
+	padding: 0 14px 0 6px;
 	border: 1px solid var(--xp-line);
-	border-radius: 14px;
-	background: rgba(255, 255, 255, 0.94);
-	box-shadow: 0 6px 20px rgba(26, 26, 26, 0.08), 0 1px 2px rgba(26, 26, 26, 0.06);
+	border-radius: 999px;
+	background: white;
 	pointer-events: none;
 	animation: obs-song-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-.obs-song__cover { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 8px; object-fit: cover; background: #f1f3f5; }
-.obs-song__cover--empty { display: grid; place-items: center; color: var(--xp-text-2); font-size: 16px; }
-.obs-song__text { display: grid; min-width: 0; gap: 2px; }
+.obs-song__cover { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #f1f3f5; }
+.obs-song__cover--empty { display: grid; place-items: center; color: var(--xp-text-2); font-size: 15px; }
+.obs-song__text { display: grid; min-width: 0; gap: 1px; }
 .obs-song__title, .obs-song__artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .obs-song__title { color: var(--xp-ink); font: 500 13px/1.2 var(--xp-font); }
 .obs-song__artist { color: var(--xp-text-2); font: 400 12px/1.2 var(--xp-font); }
@@ -62,7 +69,12 @@
 .obs-song__bars i { width: 2px; height: 100%; border-radius: 1px; background: var(--xp-orange); transform-origin: bottom; animation: obs-bar 900ms ease-in-out infinite alternate; }
 .obs-song__bars i:nth-child(2) { animation-delay: -300ms; }
 .obs-song__bars i:nth-child(3) { animation-delay: -600ms; }
-@keyframes obs-song-in { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
+@container (max-width: 240px) { .obs-song__bars { display: none; } }
+@container (max-width: 190px) { .obs-song__artist { display: none; } .obs-song { gap: 7px; padding: 0 12px 0 10px; } .obs-song__cover { flex-basis: 20px; width: 20px; height: 20px; font-size: 12px; } }
+@container (max-width: 80px) { .obs-song { display: none; } }
+/* Below 600px the header already wraps into title and buttons rows, with no free space left in either. */
+@media (max-width: 599px) { .obs-song-slot { display: none; } }
+@keyframes obs-song-in { from { opacity: 0; transform: scale(0.96); } }
 @keyframes obs-bar { from { transform: scaleY(0.3); } }
 @media (prefers-reduced-motion: reduce) {
 	.obs-song { animation: none; }

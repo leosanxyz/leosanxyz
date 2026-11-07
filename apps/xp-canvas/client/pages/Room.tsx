@@ -375,6 +375,7 @@ function CanvasRoom({
 			<header className="canvas-header">
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label={user?.role !== 'student' ? 'Mis canvases' : board.ownerId ? 'Mis canvas' : 'Clases'} onClick={() => navigate(!board.ownerId ? '/' : user?.role === 'teacher' ? `/alumnos/${board.ownerId}` : '/?view=mine')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button>{board.trashedAt && <span className="canvas-trashed">En la papelera</span>}<div ref={setHeaderTarget} className="canvas-header-settings" /></div>
 
+				<SongCard />
 				<nav className="canvas-actions" aria-label="Acciones del canvas">
 					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setGachaponDialog('new')}>Gachapon</button>}
 					{isEditor && mode === 'portal' && !board.ownerId && <button type="button" className="header-question" disabled={!editor} onClick={() => setQuestionDialog('new')}>Pregunta</button>}
@@ -461,7 +462,6 @@ function CanvasRoom({
 						/>
 					</IpadToolbarProvider>
 					<PencilHoverPreview stageRef={stageRef} />
-					<SongCard />
 					{isEditor && editor && showResources && <Suspense fallback={<ResourcesSkeleton />}>
 						<ResourceLibrary editor={editor} onClose={closeResources} />
 					</Suspense>}

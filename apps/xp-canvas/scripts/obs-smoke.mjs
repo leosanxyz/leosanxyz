@@ -24,7 +24,7 @@ function openDock(token) {
 	})
 }
 const estado = (capitulo, sonando) => ({ tipo: 'estado', capitulo, titulos: ['Repaso', 'Primer paso', 'Juega'].slice(0, 2), visible: true, sonando })
-const SONG = { titulo: 'Shelter', artista: 'Porter Robinson & Madeon' }
+const SONG = { titulo: 'Something Comforting (Live at Second Sky Festival, Oakland 2021)', artista: 'Porter Robinson & Madeon' }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
 const errors = []
@@ -82,15 +82,27 @@ try {
 		new WebSocket(new URL('/api/obs/estado', location.href.replace(/^http/, 'ws'))).onmessage = (event) => window.__obsMessages.push(event.data)
 	})
 	await teacherPage.screenshot({ path: `${shots}/maestro-mac-sin-obs.png` })
+	// The song sits in the header's free space: same header height, and never over the title or the buttons.
+	const header = (page) => page.evaluate(() => {
+		const box = (selector) => { const rect = document.querySelector(selector)?.getBoundingClientRect(); return rect && rect.width ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } : null }
+		return { height: document.querySelector('.canvas-header').getBoundingClientRect().height, bar: box('.canvas-header'), identity: box('.canvas-identity'), song: box('.obs-song'), actions: box('.canvas-actions') }
+	})
+	const sizes = { mac: { width: 1440, height: 900 }, ipad: { width: 1180, height: 820 }, 'ipad-vertical': { width: 820, height: 1180 }, movil: { width: 390, height: 844 } }
+	const heights = {}
+	for (const [name, size] of Object.entries(sizes)) for (const [who, page] of [['maestro', teacherPage], ['alumno', studentPage]]) {
+		await page.setViewportSize(size)
+		heights[`${who}-${name}`] = (await header(page)).height
+	}
+	for (const page of [teacherPage, studentPage]) await page.setViewportSize(sizes.mac)
 
 	const dock = await openDock(TOKEN)
 	log('dock con token bueno: conectado, subprotocolo =', JSON.stringify(dock.socket.protocol))
 	dock.socket.send(JSON.stringify(estado(1, SONG)))
 	await studentPage.locator('.obs-song').waitFor()
-	await studentPage.waitForFunction(() => window.__obsMessages.some((message) => message.includes('Shelter')))
+	await studentPage.waitForFunction(() => window.__obsMessages.some((message) => message.includes('Something Comforting')))
 	log('alumno recibe:', (await studentPage.evaluate(() => window.__obsMessages)).join('\n               '))
 	assert.equal(await studentPage.locator('.obs-chapter').count(), 0, 'students never see chapter buttons')
-	assert.match(await studentPage.locator('.obs-song').innerText(), /Shelter[\s\S]*Porter Robinson/)
+	assert.match(await studentPage.locator('.obs-song').innerText(), /Something Comforting[\s\S]*Porter Robinson/)
 
 	await teacherPage.locator('.obs-chapter[data-live]').waitFor()
 	log('botones del maestro:', await teacherPage.locator('.obs-chapter').allInnerTexts())
@@ -101,12 +113,21 @@ try {
 	await teacherPage.locator('.obs-chapter[data-live]', { hasText: 'Primer paso' }).waitFor()
 	log('después del clic:', await teacherPage.locator('.obs-chapter').allInnerTexts())
 
-	const sizes = { mac: { width: 1440, height: 900 }, ipad: { width: 1180, height: 820 }, 'ipad-vertical': { width: 820, height: 1180 } }
 	for (const [name, size] of Object.entries(sizes)) {
 		for (const [who, page] of [['maestro', teacherPage], ['alumno', studentPage]]) {
 			await page.setViewportSize(size)
 			await page.evaluate(() => { window.__xpCanvasEditor.zoomToFit({ animation: { duration: 0 } }) })
 			await page.waitForTimeout(400)
+			const layout = await header(page)
+			assert.equal(layout.height, heights[`${who}-${name}`], `${who} ${name}: the song does not change the header height`)
+			if (layout.song) {
+				assert.ok(layout.song.top >= layout.bar.top && layout.song.bottom <= layout.bar.bottom, `${who} ${name}: song inside the bar`)
+				const sameRow = layout.song.top < layout.identity.bottom && layout.song.bottom > layout.identity.top
+				assert.ok(!sameRow || layout.song.left >= layout.identity.right, `${who} ${name}: song clear of the title`)
+				assert.ok(layout.song.right <= layout.actions.left, `${who} ${name}: song clear of the buttons`)
+			}
+			const shown = await page.locator('.obs-song').evaluate((card) => [...card.querySelectorAll('.obs-song__cover, .obs-song__artist, .obs-song__bars')].filter((part) => getComputedStyle(part).display !== 'none').map((part) => part.className.replace('obs-song__', '').split(' ')[0])).catch(() => null)
+			log(`${who} ${name}: barra ${layout.height}px, canción ${layout.song ? `${Math.round(layout.song.right - layout.song.left)}px con ${shown.join(', ') || 'solo el título'}` : 'escondida, no cabe'}`)
 			await page.screenshot({ path: `${shots}/${who}-${name}.png` })
 		}
 	}

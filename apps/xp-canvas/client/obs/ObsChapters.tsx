@@ -61,12 +61,12 @@ export function ObsChapters() {
 	})}</>
 }
 
-/** What's playing on stream, for students who follow the class on the canvas. */
+/** What's playing on stream, in the free space of the canvas header, for students who follow the class on the canvas. */
 export function SongCard() {
 	const obs = useObsContext()
 	const song = obs?.vista.obs ? obs.vista.sonando : null
 	if (!song) return null
-	return <div className="obs-song" role="status" aria-label={`Suena ${song.titulo}${song.artista ? ` de ${song.artista}` : ''}`} key={`${song.titulo}\n${song.artista}`}>
+	return <div className="obs-song-slot"><div className="obs-song" role="status" aria-label={`Suena ${song.titulo}${song.artista ? ` de ${song.artista}` : ''}`} key={`${song.titulo}\n${song.artista}`}>
 		{song.portada
 			? <img className="obs-song__cover" src={song.portada} alt="" referrerPolicy="no-referrer" />
 			: <span className="obs-song__cover obs-song__cover--empty" aria-hidden="true">♪</span>}
@@ -75,5 +75,5 @@ export function SongCard() {
 			{song.artista && <span className="obs-song__artist">{song.artista}</span>}
 		</span>
 		<span className="obs-song__bars" aria-hidden="true"><i /><i /><i /></span>
-	</div>
+	</div></div>
 }
