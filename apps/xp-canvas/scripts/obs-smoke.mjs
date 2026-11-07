@@ -143,7 +143,8 @@ try {
 	const corners = () => teacherPage.evaluate(() => {
 		const editor = window.__xpCanvasEditor
 		const blocks = editor.getCurrentPageShapes().filter((shape) => shape.type === 'geo' && shape.props.color === 'black')
-		return { buttons: [...document.querySelectorAll('.obs-chapter')].map((button) => Math.round(button.getBoundingClientRect().right + 10)).sort(), blocks: blocks.map((shape) => { const bounds = editor.getShapePageBounds(shape); return Math.round(editor.pageToScreen({ x: bounds.maxX, y: bounds.y }).x) }).sort() }
+		const zoom = editor.getZoomLevel()
+		return { buttons: [...document.querySelectorAll('.obs-chapter')].map((button) => Math.round(button.getBoundingClientRect().right + 20 * zoom)).sort(), heights: [...document.querySelectorAll('.obs-chapter')].map((button) => +(button.getBoundingClientRect().height / zoom).toFixed(1)), blocks: blocks.map((shape) => { const bounds = editor.getShapePageBounds(shape); return Math.round(editor.pageToScreen({ x: bounds.maxX, y: bounds.y }).x) }).sort() }
 	})
 	await teacherPage.setViewportSize(sizes['ipad-vertical'])
 	await teacherPage.evaluate(() => { window.__xpCanvasEditor.zoomToFit({ animation: { duration: 0 } }) })
@@ -163,6 +164,14 @@ try {
 	await teacherPage.screenshot({ path: `${shots}/maestro-mac-tras-alejar.png` })
 	const fit = await corners()
 	assert.deepEqual(fit.buttons, fit.blocks, 'three blocks, three buttons, after zooming back in')
+	// The button is part of the block: zooming in scales both together, so its size in page units stays put.
+	await teacherPage.evaluate(() => { const editor = window.__xpCanvasEditor; editor.setCamera({ ...editor.getCamera(), z: 2 }, { animation: { duration: 0 } }); editor.centerOnPoint({ x: 620, y: 120 }, { animation: { duration: 0 } }) })
+	await teacherPage.waitForTimeout(300)
+	await teacherPage.screenshot({ path: `${shots}/maestro-mac-zoom-200.png` })
+	const near = await corners()
+	log('alto de los botones en unidades del canvas, al ajustar y con zoom 200%:', fit.heights, near.heights)
+	assert.deepEqual(near.heights, fit.heights)
+	await teacherPage.evaluate(() => { window.__xpCanvasEditor.zoomToFit({ animation: { duration: 0 } }) })
 	dock.socket.close()
 	await studentPage.locator('.obs-song').waitFor({ state: 'detached' })
 	await teacherPage.locator('.obs-chapter[data-offline]').first().waitFor()

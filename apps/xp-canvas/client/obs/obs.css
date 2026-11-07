@@ -1,7 +1,9 @@
-/* Chapter button: pinned inside the top-right corner of a «N · …» block, the same size at any zoom. */
+/* Chapter button: inside the top-right corner of a «N · …» block, in page space, so it zooms with the block. */
 .obs-chapter {
 	position: absolute;
-	transform: translate(calc(-100% - 10px), 10px);
+	z-index: 2147483001;
+	transform-origin: 0 0;
+	transform: scale(2) translate(calc(-100% - 10px), 10px);
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -21,7 +23,7 @@
 }
 .obs-chapter__label { overflow: hidden; text-overflow: ellipsis; }
 .obs-chapter__dot { flex: 0 0 6px; height: 6px; border-radius: 50%; background: var(--xp-muted); }
-.obs-chapter:active:not(:disabled) { transform: translate(calc(-100% - 10px), 10px) scale(0.96); }
+.obs-chapter:active:not(:disabled) { transform: scale(2) translate(calc(-100% - 10px), 10px) scale(0.96); }
 .obs-chapter:focus-visible { outline: 2px solid var(--xp-ink); outline-offset: 2px; }
 .obs-chapter[aria-busy='true'] { color: var(--xp-ink); }
 .obs-chapter[aria-busy='true'] .obs-chapter__dot { background: var(--xp-orange); }

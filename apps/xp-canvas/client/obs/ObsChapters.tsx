@@ -5,8 +5,8 @@ import { findSections, TITLED } from './sections'
 import { useObsContext } from './useObs'
 import './obs.css'
 
-// Below this on-screen width a block is too small for a button to read as part of it.
-const MIN_BLOCK_WIDTH = 160
+// Buttons are drawn at twice their CSS size in page space, so their text reads 12 px at 50% zoom; below a third it's too small.
+const MIN_ZOOM = 1 / 3
 
 const sectionCache = new WeakMap<Editor, Computed<ReturnType<typeof findSections>>>()
 /** The «N · …» blocks of the current page, shared by the buttons and the live border. */
@@ -24,25 +24,17 @@ function sectionsOf(editor: Editor) {
 	return sections
 }
 
-/** Leo's chapter buttons, one in the top-right corner of every «N · …» block. Lives in tldraw's InFrontOfTheCanvas layer. */
+/** Leo's chapter buttons, one in the top-right corner of every «N · …» block. Part of the drawing: they zoom with their block. */
 export function ObsChapters() {
 	const editor = useEditor()
 	const obs = useObsContext()
 	const [pending, setPending] = useState<number | null>(null)
-	const sections = sectionsOf(editor)
-	const placed = useValue('obs section buttons', () => {
-		const viewport = editor.getViewportPageBounds(), zoom = editor.getZoomLevel()
-		return sections.get().flatMap((section) => {
-			const { x, y, w, h } = section.bounds
-			if (w * zoom < MIN_BLOCK_WIDTH || x > viewport.maxX || y > viewport.maxY || x + w < viewport.x || y + h < viewport.y) return []
-			const corner = editor.pageToViewport({ x: x + w, y })
-			return [{ id: section.id, number: section.number, left: corner.x, top: corner.y }]
-		})
-	}, [editor, sections])
-	if (!obs) return null
+	const sections = useValue('obs section buttons', () => sectionsOf(editor).get(), [editor])
+	const readable = useValue('obs buttons readable', () => editor.getZoomLevel() >= MIN_ZOOM, [editor])
+	if (!obs || !readable) return null
 	const { vista } = obs
 
-	return <>{placed.map(({ id, number, left, top }) => {
+	return <>{sections.map(({ id, number, bounds }) => {
 		const title = vista.obs ? vista.titulos[number - 1] : undefined
 		const live = vista.obs && vista.capitulo === number
 		const missing = vista.obs && title === undefined
@@ -51,7 +43,7 @@ export function ObsChapters() {
 			key={id}
 			type="button"
 			className="obs-chapter"
-			style={{ left, top }}
+			style={{ left: bounds.x + bounds.w, top: bounds.y }}
 			data-live={live || undefined}
 			aria-label={live ? `En OBS: ${label}` : undefined}
 			data-offline={!vista.obs || undefined}

@@ -84,7 +84,7 @@ function QuietLoadingScreen() {
 	return <div className="tl-loading" aria-busy="true" />
 }
 
-export function CanvasOverlayControls() {
+function CanvasOverlayControls() {
 	const { isEditor } = useIpadToolbarState()
 	return isEditor ? <><GridToggle /><SelectionActions /></> : null
 }

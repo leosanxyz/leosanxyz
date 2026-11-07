@@ -16,7 +16,6 @@ import {
 } from 'tldraw'
 import { getEditorSession } from '../access'
 import {
-	CanvasOverlayControls,
 	IpadToolbarProvider,
 	SnapHoldButton,
 	XP_CANVAS_COMPONENTS,
@@ -79,8 +78,8 @@ const TLDRAW_ASSET_URLS = {
 	},
 } satisfies TLUiAssetUrlOverrides
 
-function TeacherInFront() { return <><CanvasOverlayControls /><ObsChapters /></> }
-const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null, InFrontOfTheCanvas: TeacherInFront, OnTheCanvas: ObsLiveBorder }
+function TeacherOnTheCanvas() { return <><ObsLiveBorder /><ObsChapters /></> }
+const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null, OnTheCanvas: TeacherOnTheCanvas }
 const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null, SharePanel: null }
 const OWNER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, UserPresenceEditor: null, SharePanel: null }
 
