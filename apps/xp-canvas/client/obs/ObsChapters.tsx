@@ -35,8 +35,7 @@ export function ObsChapters() {
 		return sections.get().flatMap((section) => {
 			const { x, y, w, h } = section.bounds
 			if (w * zoom < MIN_BLOCK_WIDTH || x > viewport.maxX || y > viewport.maxY || x + w < viewport.x || y + h < viewport.y) return []
-			// A block that runs off the right edge keeps its button on screen, as long as the button still fits over the block.
-			const corner = editor.pageToViewport({ x: Math.max(x + MIN_BLOCK_WIDTH / zoom, Math.min(x + w, viewport.maxX)), y })
+			const corner = editor.pageToViewport({ x: x + w, y })
 			return [{ id: section.id, number: section.number, left: corner.x, top: corner.y }]
 		})
 	}, [editor, sections])

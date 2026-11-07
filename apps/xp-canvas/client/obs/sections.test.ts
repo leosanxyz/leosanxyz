@@ -23,6 +23,16 @@ describe('section blocks', () => {
 			{ id: 'note', type: 'note', text: '4 · nota', bounds: box(400, 0, 100, 100) },
 		]).map((section) => [section.id, section.number])).toEqual([['geo', 2], ['frame', 3]])
 	})
+	it('gives a block one title, the highest, so a numbered list inside it is not a chapter', () => {
+		expect(findSections([
+			{ id: 'block', type: 'geo', text: '', bounds: box(0, 0, 400, 400) },
+			{ id: 'step1', type: 'text', text: '1 · escribe lo que repites a mano', bounds: box(10, 80, 300, 20) },
+			{ id: 'title', type: 'text', text: '4 · en orden', bounds: box(10, 10, 300, 30) },
+			{ id: 'step5', type: 'text', text: '5 · pruébalo en Unity', bounds: box(10, 300, 300, 20) },
+			{ id: 'own', type: 'geo', text: '2 · juega', bounds: box(500, 0, 400, 400) },
+			{ id: 'inside', type: 'text', text: '1 · primero', bounds: box(510, 10, 300, 20) },
+		]).map((section) => [section.id, section.number])).toEqual([['block', 4], ['own', 2]])
+	})
 	it('falls back to the text when nothing surrounds it', () => {
 		expect(findSections([{ id: 't', type: 'text', text: '5 · suelto', bounds: box(0, 0, 10, 10) }])[0].id).toBe('t')
 	})

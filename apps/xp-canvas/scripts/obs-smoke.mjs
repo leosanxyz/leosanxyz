@@ -59,14 +59,16 @@ try {
 	await teacherPage.evaluate(() => {
 		const editor = window.__xpCanvasEditor
 		const rich = (text) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
-		const block = (y, title, cards) => {
+		const block = (y, title, cards, steps = []) => {
 			editor.createShape({ type: 'geo', x: 0, y, props: { geo: 'rectangle', w: 820, h: 250, color: 'black', size: 's' } })
 			editor.createShape({ type: 'text', x: 28, y: y + 26, props: { richText: rich(title), size: 'l', font: 'draw' } })
+			steps.forEach((step, i) => editor.createShape({ type: 'text', x: 28, y: y + 100 + i * 50, props: { richText: rich(step), size: 's', font: 'draw' } }))
 			cards.forEach(([head, sub], i) => editor.createShape({ type: 'geo', x: 28 + i * 395, y: y + 100, props: { geo: 'rectangle', w: 365, h: 125, color: 'blue', fill: 'semi', size: 's', font: 'draw', align: 'start', verticalAlign: 'start', richText: rich(`${head}\n${sub}`) } }))
 		}
 		block(0, '1 · haz el primer paso de tu plan', [['pídeselo a Codex', 'el paso 1 de tu plan, sin skill'], ['juega', '¿pasó lo que dice tu para comprobar?']])
 		block(320, '2 · revisa qué cambió', [['lee el diff', 'qué archivos tocó'], ['pregunta', '¿por qué así?']])
-		block(640, '3 · comparte', [['sube tu juego', 'al canvas de la clase']])
+		// A numbered list inside a block, like Leo's «4 · en orden»: its steps are content, not chapters.
+		block(640, '3 · comparte', [], ['1 · sube tu juego', '2 · pide que lo prueben'])
 		editor.zoomToFit({ animation: { duration: 0 } })
 	})
 	await teacherPage.waitForTimeout(800)
@@ -137,11 +139,30 @@ try {
 		}
 	}
 
+	// One button per block, pinned to its own top-right corner even when the block runs off screen.
+	const corners = () => teacherPage.evaluate(() => {
+		const editor = window.__xpCanvasEditor
+		const blocks = editor.getCurrentPageShapes().filter((shape) => shape.type === 'geo' && shape.props.color === 'black')
+		return { buttons: [...document.querySelectorAll('.obs-chapter')].map((button) => Math.round(button.getBoundingClientRect().right + 10)).sort(), blocks: blocks.map((shape) => { const bounds = editor.getShapePageBounds(shape); return Math.round(editor.pageToScreen({ x: bounds.maxX, y: bounds.y }).x) }).sort() }
+	})
+	await teacherPage.setViewportSize(sizes['ipad-vertical'])
+	await teacherPage.evaluate(() => { window.__xpCanvasEditor.zoomToFit({ animation: { duration: 0 } }) })
 	await teacherPage.evaluate(() => { const editor = window.__xpCanvasEditor; editor.setCamera({ ...editor.getCamera(), x: editor.getCamera().x + 260 }, { animation: { duration: 0 } }) })
 	await teacherPage.waitForTimeout(300)
 	await teacherPage.screenshot({ path: `${shots}/maestro-ipad-vertical-bloque-cortado.png` })
+	const cut = await corners()
+	log('bloque cortado, borde derecho de botones y bloques:', JSON.stringify(cut))
+	assert.deepEqual(cut.buttons, cut.blocks, 'each button stays on its block corner, even past the screen edge')
 	await teacherPage.setViewportSize(sizes.mac)
+	// Zoomed out the buttons leave, and come back without leftovers.
+	await teacherPage.evaluate(() => { const editor = window.__xpCanvasEditor; editor.setCamera({ ...editor.getCamera(), z: 0.1 }, { animation: { duration: 0 } }) })
+	await teacherPage.waitForTimeout(300)
+	assert.equal(await teacherPage.locator('.obs-chapter').count(), 0)
 	await teacherPage.evaluate(() => { window.__xpCanvasEditor.zoomToFit({ animation: { duration: 0 } }) })
+	await teacherPage.waitForTimeout(300)
+	await teacherPage.screenshot({ path: `${shots}/maestro-mac-tras-alejar.png` })
+	const fit = await corners()
+	assert.deepEqual(fit.buttons, fit.blocks, 'three blocks, three buttons, after zooming back in')
 	dock.socket.close()
 	await studentPage.locator('.obs-song').waitFor({ state: 'detached' })
 	await teacherPage.locator('.obs-chapter[data-offline]').first().waitFor()

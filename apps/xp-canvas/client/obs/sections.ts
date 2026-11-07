@@ -10,17 +10,21 @@ const contains = (outer: Bounds, inner: Bounds) =>
 /**
  * A section block is whatever carries a «N · …» title: a rectangle or frame with that text, or the smallest
  * rectangle or frame around a loose text shape with it, which is how Leo draws them by hand.
+ * A block has one title, its own text or else the highest one inside it; a numbered list below it is content.
  */
 export function findSections(shapes: SectionCandidate[]): Section[] {
 	const blocks = shapes.filter((shape) => shape.type === 'geo' || shape.type === 'frame')
-	const sections: Section[] = []
+	const titles = new Map<string, Section & { top: number }>()
 	for (const shape of shapes) {
 		const number = TITLED.has(shape.type) ? shape.number : null
 		if (!number) continue
-		const block = shape.type !== 'text' ? shape : blocks
+		const own = shape.type !== 'text'
+		const block = own ? shape : blocks
 			.filter((candidate) => contains(candidate.bounds, shape.bounds))
 			.sort((a, b) => a.bounds.w * a.bounds.h - b.bounds.w * b.bounds.h)[0] ?? shape
-		sections.push({ id: block.id, number, bounds: block.bounds })
+		const top = own ? -Infinity : shape.bounds.y
+		const current = titles.get(block.id)
+		if (!current || top < current.top) titles.set(block.id, { id: block.id, number, bounds: block.bounds, top })
 	}
-	return sections
+	return [...titles.values()].map(({ id, number, bounds }) => ({ id, number, bounds }))
 }
