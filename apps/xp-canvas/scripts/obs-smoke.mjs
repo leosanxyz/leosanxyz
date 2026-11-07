@@ -108,15 +108,16 @@ try {
 
 	await teacherPage.locator('.obs-chapter[data-live]').waitFor()
 	log('botones del maestro:', await teacherPage.locator('.obs-chapter').allInnerTexts())
-	await teacherPage.locator('.obs-chapter:not([disabled])', { hasText: '2 ·' }).click()
+	// Block 1 is live and OBS has no chapter 3, so block 2's is the only button that can be pressed.
+	assert.deepEqual(await teacherPage.locator('.obs-chapter').allInnerTexts(), ['En OBS', 'OBS', 'OBS no tiene el 3'])
+	await teacherPage.locator('.obs-chapter:not([disabled])').click()
 	for (let i = 0; i < 50 && !dock.received.some((message) => message.tipo === 'ir_a'); i++) await wait(100)
 	assert.deepEqual(dock.received.at(-1), { tipo: 'ir_a', capitulo: 2 })
 	dock.socket.send(JSON.stringify(estado(2, SONG)))
-	await teacherPage.locator('.obs-chapter[data-live]', { hasText: 'Primer paso' }).waitFor()
-	// The live block's border turns orange for Leo only, and its pill drops the dot.
+	await teacherPage.locator('.obs-chapter[data-live][title="Capítulo 2 en OBS: Primer paso"]').waitFor()
+	// The live block's border turns orange for Leo only. Its button just says «En OBS».
 	await teacherPage.locator('.obs-border:not([data-leaving])').waitFor()
 	assert.equal(await teacherPage.locator('.obs-border:not([data-leaving])').count(), 1)
-	assert.equal(await teacherPage.locator('.obs-chapter[data-live] .obs-chapter__dot').count(), 0)
 	assert.equal(await studentPage.locator('.obs-border').count(), 0, 'students never see the live border')
 	log('después del clic:', await teacherPage.locator('.obs-chapter').allInnerTexts())
 

@@ -38,25 +38,24 @@ export function ObsChapters() {
 		const title = vista.obs ? vista.titulos[number - 1] : undefined
 		const live = vista.obs && vista.capitulo === number
 		const missing = vista.obs && title === undefined
-		const label = !vista.obs ? 'OBS sin conectar' : live ? title || `${number}` : missing ? `OBS no tiene el ${number}` : `${number} · ${title || 'sin título'}`
+		// The block already shows its title; the button only says what it does. OBS's own title stays in the tooltip.
+		const label = !vista.obs ? 'OBS sin conectar' : live ? 'En OBS' : missing ? `OBS no tiene el ${number}` : 'OBS'
 		return <button
 			key={id}
 			type="button"
 			className="obs-chapter"
 			style={{ left: bounds.x + bounds.w, top: bounds.y }}
 			data-live={live || undefined}
-			aria-label={live ? `En OBS: ${label}` : undefined}
 			data-offline={!vista.obs || undefined}
 			disabled={!vista.obs || missing || live || pending !== null}
 			aria-busy={pending === number}
-			title={vista.obs ? `Pasar OBS al capítulo ${number}` : 'Abre el dock de capítulos en OBS'}
+			title={!vista.obs ? 'Abre el dock de capítulos en OBS' : title ? `Capítulo ${number} en OBS: ${title}` : undefined}
 			onPointerDown={(event) => { editor.markEventAsHandled(event); event.stopPropagation() }}
 			onClick={() => {
 				setPending(number)
 				void obs.irA(number).finally(() => setPending(null))
 			}}
 		>
-			{!live && <span className="obs-chapter__dot" aria-hidden="true" />}
 			<span className="obs-chapter__label">{label}</span>
 		</button>
 	})}</>
