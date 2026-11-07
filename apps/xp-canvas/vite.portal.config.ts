@@ -11,7 +11,7 @@ export default defineConfig(({ command }) => {
 		plugins: [cloudflare({
 			configPath: 'wrangler.portal.toml',
 			...(process.env.XP_CANVAS_STATE_PATH ? { persistState: { path: process.env.XP_CANVAS_STATE_PATH } } : {}),
-			...(qa ? { config: { vars: { PORTAL_BOOTSTRAP_PASSWORD: 'qa-teacher-password-only-local', PORTAL_PASSWORD_PEPPER: 'qa-pepper-for-isolated-tests-not-production-12345678' } } } : {}),
+			...(qa ? { config: { vars: { PORTAL_BOOTSTRAP_PASSWORD: 'qa-teacher-password-only-local', PORTAL_PASSWORD_PEPPER: 'qa-pepper-for-isolated-tests-not-production-12345678', OBS_RELAY_TOKEN: '0'.repeat(64) } } } : {}),
 		}), react()],
 		optimizeDeps: { include: ['@tldraw/validate'] },
 		server: { host: '127.0.0.1', port: 5177, strictPort: true },

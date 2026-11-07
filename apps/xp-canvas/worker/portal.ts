@@ -287,7 +287,7 @@ export async function portalGate(request: Request, env: CanvasEnv): Promise<Resp
 	const thumbnail = /^\/api\/boards\/([^/]+)\/thumbnail$/.exec(path)
 	if (thumbnail && request.method === 'PUT' && isBoardId(thumbnail[1]) && (await readBoard(env, thumbnail[1]))?.ownerId === session.user.id) return undefined
 	if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Tu cuenta solo puede observar canvases.' }, 403)
-	if (path === '/api/editor-session') return undefined
+	if (path === '/api/editor-session' || path === '/api/obs/estado') return undefined
 	if (path === '/api/library') {
 		const [data, allowed, own] = await Promise.all([library(env), allowedBoardIds(session, env), catalog(env).fetch(`http://catalog/api/library?owner=${encodeURIComponent(session.user.id)}`).then((response) => response.json<BoardLibrary>())])
 		const classes = studentLibrary(data, allowed)

@@ -20,6 +20,7 @@ Rutas relativas a `apps/xp-canvas/`.
 | Demo de Esquiva | `client/esquiva/` |
 | Buzón | `client/mailbox/`, `shared/mailboxShape.ts` |
 | Parejas | `client/parejas/`, `shared/parejasShape.ts` |
+| Capítulos de OBS y canción | `client/obs/`, `worker/obs.ts`, `worker/ObsRelay.ts`, `shared/obs.ts` |
 | Canvases personales, MCP y OAuth | `worker/mcp.ts`, `worker/oauth.ts`, `worker/flowchart.ts`, `client/portal/Authorize.tsx`, `client/portal/StudentCanvases.tsx` |
 | Imágenes, sonidos y fuentes | `design/` |
 | Tipos y validadores compartidos | `shared/` |

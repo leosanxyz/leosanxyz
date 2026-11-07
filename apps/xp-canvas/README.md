@@ -125,6 +125,12 @@ Todos los presentes ven la misma animación: la manivela da tres vueltas, las bo
 
 La tómbola se dibuja en 3D con three.js, con la paleta del gachapon y del buzón, y three.js se descarga solo en canvases que muestran una. Sin WebGL aparece una tómbola plana en SVG con el mismo recorrido. El trinquete, la caída de cada bola y una campanita se sintetizan en el navegador y suenan para todos los que tienen la pestaña visible. Con movimiento reducido no hay giro ni caída: las bolas aparecen abiertas y la lista se actualiza. Queda pendiente probar el rendimiento y el audio en un iPad físico.
 
+## Capítulos de OBS y canción
+
+Con el dock de capítulos abierto en OBS, cada bloque de sección del canvas tiene, solo para el maestro, un botón chico en su esquina superior derecha. Un bloque de sección es un texto que empieza con su número y un punto medio, como «1 · haz el primer paso de tu plan»: puede ser el texto del propio rectángulo o marco, o un texto suelto dentro de un rectángulo; en ese caso el botón va en el rectángulo más chico que lo rodea. El botón muestra el título que ese capítulo tiene en OBS, para notar si no coincide, y pasa OBS directo a ese capítulo, desde la Mac o desde el iPad. El capítulo actual se ve en negro con «En OBS». Si OBS no está conectado, el botón dice «OBS sin conectar» y no hace nada; si OBS no tiene ese número, dice «OBS no tiene el N».
+
+Mientras OBS reporta una canción, todos, alumnos y maestro, ven arriba al centro del canvas una tarjeta con el título, el artista y, si llega, la portada. Desaparece cuando deja de sonar o cuando OBS se desconecta. El funcionamiento está en [Relé de OBS](../../ARCHITECTURE.md#relé-de-obs).
+
 ## Canvases personales y agentes
 
 Cada alumno tiene **Mis canvas** en su barra lateral, junto a **Clases**. Puede mandar sus canvases propios a la papelera y restaurarlos; los de clase no. Ahí crea canvases propios y dibuja con las herramientas normales; no hay Recursos, emojis ni subida de archivos. En los canvases de clase sigue siendo espectador.

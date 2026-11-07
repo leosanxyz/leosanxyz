@@ -16,6 +16,7 @@ import {
 } from 'tldraw'
 import { getEditorSession } from '../access'
 import {
+	CanvasOverlayControls,
 	IpadToolbarProvider,
 	SnapHoldButton,
 	XP_CANVAS_COMPONENTS,
@@ -66,6 +67,8 @@ import type { CapsuleReply, CapsuleShape } from '../../shared/capsuleShape'
 import { ParejasContext } from '../parejas/ParejasContext'
 import { ParejasDialog } from '../parejas/ParejasDialog'
 import type { ParejasShape } from '../../shared/parejasShape'
+import { ObsContext, useObs } from '../obs/useObs'
+import { ObsChapters, SongCard } from '../obs/ObsChapters'
 
 const ResourceLibrary = lazy(() => import('../resources/ResourceLibrary'))
 const EmojiPicker = lazy(() => import('../emojis/EmojiPicker'))
@@ -76,7 +79,8 @@ const TLDRAW_ASSET_URLS = {
 	},
 } satisfies TLUiAssetUrlOverrides
 
-const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null }
+function TeacherInFront() { return <><CanvasOverlayControls /><ObsChapters /></> }
+const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null, InFrontOfTheCanvas: TeacherInFront }
 const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null, SharePanel: null }
 const OWNER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, UserPresenceEditor: null, SharePanel: null }
 
@@ -203,6 +207,7 @@ function CanvasRoom({
 	const toggleResources = useCallback(() => { setShowEmojis(false); setShowResources((open) => !open) }, [])
 	const toggleEmojis = useCallback(() => { setShowResources(false); setShowEmojis((open) => !open) }, [])
 	const [notice, setNotice] = useState<string | null>(null)
+	const obs = useObs(mode === 'portal', setNotice)
 	const stageRef = useRef<HTMLElement>(null)
 	const snapHeldRef = useRef(false)
 	const snapContactRef = useRef(false)
@@ -365,6 +370,7 @@ function CanvasRoom({
 		<MailboxContext.Provider value={{ isTeacher: isEditor, enabled: mode === 'portal' && syncConnected, authors: letterAuthors, sent: sentLetters, write: setLetterFor, draw: drawLetter, edit: setMailboxDialog }}>
 		<CapsuleContext.Provider value={{ isTeacher: isEditor, enabled: mode === 'portal' && syncConnected, mine: questions.capsuleBets, bet: setBetFor, draw: drawBet, bonus: bonusBet, resolve: resolveCapsule, list: setBetsOf, edit: setCapsuleDialog }}>
 		<ParejasContext.Provider value={{ isTeacher: isEditor, edit: setParejasDialog }}>
+		<ObsContext.Provider value={mode === 'portal' ? obs : null}>
 		<div className="canvas-room" data-stage-reveal={stageReveal}>
 			<header className="canvas-header">
 				<div className="canvas-identity"><button className="xp-icon-button" aria-label={user?.role !== 'student' ? 'Mis canvases' : board.ownerId ? 'Mis canvas' : 'Clases'} onClick={() => navigate(!board.ownerId ? '/' : user?.role === 'teacher' ? `/alumnos/${board.ownerId}` : '/?view=mine')}><Icon name="back" /></button><button className="canvas-board-title" disabled={!isEditor} onClick={() => setRename(board.name)}>{board.name}</button>{board.trashedAt && <span className="canvas-trashed">En la papelera</span>}<div ref={setHeaderTarget} className="canvas-header-settings" /></div>
@@ -455,6 +461,7 @@ function CanvasRoom({
 						/>
 					</IpadToolbarProvider>
 					<PencilHoverPreview stageRef={stageRef} />
+					<SongCard />
 					{isEditor && editor && showResources && <Suspense fallback={<ResourcesSkeleton />}>
 						<ResourceLibrary editor={editor} onClose={closeResources} />
 					</Suspense>}
@@ -491,6 +498,7 @@ function CanvasRoom({
 				void boardRequest<Board>(`boards/${roomId}`, 'PATCH', { name: rename }).then((updated) => { onBoardChange(updated); setRename(null) }).catch((cause) => setNotice(cause instanceof Error ? cause.message : 'No pude renombrar el canvas.')).finally(() => setRenaming(false))
 			}}><label>Nombre<input value={rename} onChange={(event) => setRename(event.target.value)} autoFocus maxLength={120} onFocus={(event) => event.target.select()} /></label><div className="xp-dialog-actions"><button type="button" onClick={() => setRename(null)} disabled={renaming}>Cancelar</button><button className="xp-primary" disabled={renaming || !rename.trim()}>Guardar</button></div></form></Modal>}
 		</div>
+		</ObsContext.Provider>
 		</ParejasContext.Provider>
 		</CapsuleContext.Provider>
 		</MailboxContext.Provider>

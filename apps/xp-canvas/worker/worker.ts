@@ -21,9 +21,11 @@ import { exportBoard, importBoard } from './boardTransfer'
 import { boardOpenFor } from '../shared/boards'
 import { handleMcp } from './mcp'
 import { authorizationServerMetadata, handleOAuthRequest, protectedResourceMetadata } from './oauth'
+import { handleObsCapitulo, handleObsDock, handleObsEstado } from './obs'
 
 export { TldrawDurableObject } from './TldrawDurableObject'
 export { BoardCatalog } from './BoardCatalog'
+export { ObsRelay } from './ObsRelay'
 
 const AUTH_EXPIRY_HEADER = 'x-xp-canvas-auth-exp'
 
@@ -122,6 +124,8 @@ const router = AutoRouter<IRequest, [env: CanvasEnv, ctx: ExecutionContext]>({
 		const id = env.TLDRAW_DURABLE_OBJECT.idFromName(request.params.roomId)
 		return env.TLDRAW_DURABLE_OBJECT.get(id).fetch(request.url, { headers })
 	})
+	.get('/api/obs/estado', handleObsEstado)
+	.post('/api/obs/capitulo', handleObsCapitulo)
 	.get('/api/library', handleLibraryRequest)
 	.post('/api/boards', handleLibraryRequest)
 	.post('/api/boards/import', importBoard)
@@ -158,6 +162,7 @@ export default {
 			return Response.json({ error: 'Configura el portal antes de publicar XP Canvas.' }, { status: 503, headers: { 'cache-control': 'no-store' } })
 		}
 		try {
+			if (portalEnabled(env) && new URL(request.url).pathname === '/api/obs/relay') return await handleObsDock(request, env)
 			return await portalGate(request, env) ?? await router.fetch(request, env, ctx)
 		} catch {
 			return Response.json({ error: 'No se pudo comprobar el acceso.' }, { status: 503, headers: { 'cache-control': 'no-store' } })

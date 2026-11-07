@@ -1,0 +1,70 @@
+/* Chapter button: pinned inside the top-right corner of a «N · …» block, the same size at any zoom. */
+.obs-chapter {
+	position: absolute;
+	transform: translate(calc(-100% - 10px), 10px);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 220px;
+	height: 26px;
+	padding: 0 10px 0 9px;
+	border: 1px solid var(--xp-line);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--xp-text-2);
+	font: 500 12px/1 var(--xp-font);
+	white-space: nowrap;
+	pointer-events: all;
+	cursor: pointer;
+	box-shadow: 0 1px 2px rgba(26, 26, 26, 0.06);
+	transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+.obs-chapter__label { overflow: hidden; text-overflow: ellipsis; }
+.obs-chapter__dot { flex: 0 0 6px; height: 6px; border-radius: 50%; background: var(--xp-muted); }
+.obs-chapter:active:not(:disabled) { transform: translate(calc(-100% - 10px), 10px) scale(0.96); }
+.obs-chapter:focus-visible { outline: 2px solid var(--xp-ink); outline-offset: 2px; }
+.obs-chapter[aria-busy='true'] { color: var(--xp-ink); }
+.obs-chapter[aria-busy='true'] .obs-chapter__dot { background: var(--xp-orange); }
+.obs-chapter:disabled { cursor: default; }
+.obs-chapter[data-offline] { color: var(--xp-muted); background: rgba(255, 255, 255, 0.7); border-style: dashed; }
+.obs-chapter[data-live] { border-color: #24231f; background: #24231f; color: #fff; }
+.obs-chapter[data-live] .obs-chapter__dot { background: var(--xp-orange); box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.28); }
+@media (hover: hover) and (pointer: fine) {
+	.obs-chapter:hover:not(:disabled) { background: #fff; color: var(--xp-ink); }
+}
+
+/* Now playing: a small card at the top center of the canvas, the one corner tldraw's panels leave free for every role. */
+.obs-song {
+	position: absolute;
+	z-index: 260;
+	top: 12px;
+	left: 50%;
+	translate: -50% 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: min(320px, calc(100% - 24px));
+	padding: 6px 12px 6px 6px;
+	border: 1px solid var(--xp-line);
+	border-radius: 14px;
+	background: rgba(255, 255, 255, 0.94);
+	box-shadow: 0 6px 20px rgba(26, 26, 26, 0.08), 0 1px 2px rgba(26, 26, 26, 0.06);
+	pointer-events: none;
+	animation: obs-song-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.obs-song__cover { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 8px; object-fit: cover; background: #f1f3f5; }
+.obs-song__cover--empty { display: grid; place-items: center; color: var(--xp-text-2); font-size: 16px; }
+.obs-song__text { display: grid; min-width: 0; gap: 2px; }
+.obs-song__title, .obs-song__artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obs-song__title { color: var(--xp-ink); font: 500 13px/1.2 var(--xp-font); }
+.obs-song__artist { color: var(--xp-text-2); font: 400 12px/1.2 var(--xp-font); }
+.obs-song__bars { display: flex; align-items: flex-end; gap: 2px; flex: 0 0 auto; height: 12px; margin-left: 2px; }
+.obs-song__bars i { width: 2px; height: 100%; border-radius: 1px; background: var(--xp-orange); transform-origin: bottom; animation: obs-bar 900ms ease-in-out infinite alternate; }
+.obs-song__bars i:nth-child(2) { animation-delay: -300ms; }
+.obs-song__bars i:nth-child(3) { animation-delay: -600ms; }
+@keyframes obs-song-in { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
+@keyframes obs-bar { from { transform: scaleY(0.3); } }
+@media (prefers-reduced-motion: reduce) {
+	.obs-song { animation: none; }
+	.obs-song__bars i { animation: none; transform: scaleY(0.6); }
+}

@@ -14,7 +14,7 @@ xp.leosan.xyz
     frontend React + Vite + tldraw
     API HTTP y acceso a WebSockets
       D1: cuentas, grupos, sesiones, permisos, pases y agentes
-      Durable Objects: documentos y catálogo
+      Durable Objects: documentos, catálogo y relé de OBS
     MCP en /mcp para los agentes de los alumnos (OAuth)
       R2 privado: archivos, recursos y miniaturas
 ```
@@ -104,6 +104,18 @@ En un canvas personal, la API de interacciones rechaza las acciones de los alumn
 
 El agente se autentica con OAuth 2.1 (`worker/oauth.ts`): metadatos en `/.well-known/oauth-authorization-server` y `/.well-known/oauth-protected-resource/mcp`, registro dinámico de clientes públicos, PKCE S256 obligatorio, redirecciones https o de loopback (el puerto de loopback no se compara) y consentimiento en `/autorizar` con la sesión del portal. Solo una cuenta de alumno activa, con la contraseña cambiada y la bienvenida terminada, puede conectar un agente. La migración `0007_agents.sql` crea `oauth_clients`, `oauth_codes` (un uso, cinco minutos) y `agent_grants`. D1 guarda únicamente hashes: el token de acceso dura una hora y el de renovación 120 días; cada renovación los rota. Cada alumno conserva hasta cinco agentes. El alumno los desconecta en **Mi perfil** y el profesor los revoca en `/alumnos/<id>`; restablecer la contraseña o deshabilitar la cuenta los borra. Registro, token y `/mcp` tienen límites por IP o por agente en `login_attempts`.
 
+## Relé de OBS
+
+OBS corre en la Mac de Leo con un dock de capítulos, una página `file://` que también reporta la canción que suena. Leo abre el canvas desde la Mac o desde el iPad, así que el salto de capítulo pasa por el servidor y no por la red local. `ObsRelay` es un Durable Object único (`idFromName('obs')`) con la API de WebSockets con hibernación; no guarda tablas. El último estado del dock vive en el adjunto de su propio socket: sobrevive a la hibernación y desaparece con el dock.
+
+| Ruta | Quién | Qué hace |
+| --- | --- | --- |
+| `GET /api/obs/relay` (WebSocket) | El dock | Se atiende antes de `portalGate`, porque el dock no tiene cookie, y no filtra por Origin. El dock abre `new WebSocket(url, ['obs-relay', TOKEN])`; el Worker compara el token con `OBS_RELAY_TOKEN` en tiempo constante y responde con el subprotocolo `obs-relay`. Sin el secreto rechaza todo con 401. Un dock nuevo cierra al anterior. El dock manda `{"tipo":"estado","capitulo","titulos","visible","sonando"}` al conectarse y en cada cambio, y recibe `{"tipo":"ir_a","capitulo":N}`. `ping` recibe `pong` sin despertar al objeto. |
+| `GET /api/obs/estado` (WebSocket) | Cualquier sesión que pase `portalGate`, alumnos con la bienvenida terminada incluidos | Solo lectura y mismo origen. Recibe el último estado del dock con `obs: true`, o `{"obs": false}` si no hay dock; al irse el dock, todos reciben `obs: false`. Lo que manden estos sockets se ignora. Cerrar sesión no corta un socket ya abierto: solo lleva lo que muestra OBS. |
+| `POST /api/obs/capitulo` | Maestro | `{"capitulo": N}`, de 1 a 99. 200 si se lo pasó a un dock, 409 si no hay dock, 403 si no es maestro. |
+
+El servidor recorta el estado antes de reenviarlo (`readEstado` en `shared/obs.ts`): hasta 99 títulos de 120 caracteres, título y artista de 200, y la portada solo si es una URL https. Así un dock con errores no manda datos arbitrarios a los alumnos. No hay modelo de secciones: el cliente del maestro reconoce los bloques por el título «N · …» (`client/obs/sections.ts`).
+
 ## Puntos de los alumnos
 
 Cada alumno parte de cero. La migración D1 `0003_points.sql` crea `point_awards`, un registro de premios del servidor; el saldo es la suma de premios menos el costo de las tiradas de gachapon y de las compras de la tienda del usuario, menos lo apostado en cápsulas (`capsule_stakes`, de `0008_capsule_stakes.sql`), menos los cosméticos comprados (`cosmetics`, de `0009_cosmetics.sql`; los ganados en la máquina cuestan 0). La fórmula vive en `balanceSql` de `worker/points.ts`, con sus valores en `balanceArgs`, y la usan el perfil, el roster, la tienda y el gachapon. La apuesta de una cápsula repite la fórmula en `worker/capsule.ts` porque excluye su propia fila; un gasto nuevo se suma en los dos lugares. Ningún cliente puede enviar un saldo ni concederse premios. Las respuestas correctas a preguntas generan premios de entre 0 y 1 000 000 puntos enteros, con 100 por defecto. La [tienda](#tienda) también premia girar las cartas en venta y el regalo diario. El sistema de premios está separado del documento para poder usarlo en otras actividades.
@@ -172,6 +184,7 @@ Las sesiones del portal duran siete días. D1 guarda el hash de un token aleator
 | `PORTAL_PASSWORD_PEPPER` | Secreto remoto, fuera de D1 y de Git. Conservarlo y respaldarlo de forma privada; cambiarlo sin una migración invalida las contraseñas existentes. |
 | `PORTAL_BOOTSTRAP_PASSWORD` | Crea al profesor únicamente en una base nueva. Está retirado de producción y no se necesita para desplegar código ni permite restablecer una cuenta existente. |
 | `EDITOR_CODE`, `EDITOR_SESSION_SECRET` | Acceso opcional del editor local. No permiten entrar al portal. |
+| `OBS_RELAY_TOKEN` | Secreto remoto del Worker, 64 caracteres hexadecimales, que comparte el dock de OBS para entrar a `/api/obs/relay`. Sin él el relé rechaza todo. Cambiarlo exige actualizar el dock. El portal QA local usa un valor ficticio de ceros. |
 
 En el editor local, `EDITOR_AUTH_REQUIRED = "false"` permite edición abierta. Si falta esa variable o vale `"true"`, se exige el código. El Worker comprueba el origen de escrituras y WebSockets incluso en modo abierto. Con contraseña crea una cookie firmada HttpOnly y SameSite=Strict, válida por doce horas; no guarda credenciales en la URL ni en localStorage. El servidor fija el rol del WebSocket e impide que un espectador se convierta en editor.
 

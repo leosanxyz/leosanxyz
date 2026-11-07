@@ -10,6 +10,8 @@ export interface CanvasEnv extends Env {
 	EDITOR_AUTH_REQUIRED?: string
 	EDITOR_CODE?: string
 	EDITOR_SESSION_SECRET?: string
+	OBS_RELAY?: DurableObjectNamespace<import('./ObsRelay').ObsRelay>
+	OBS_RELAY_TOKEN?: string
 }
 
 export const INTERNAL_ROLE_HEADER = 'x-xp-canvas-role'

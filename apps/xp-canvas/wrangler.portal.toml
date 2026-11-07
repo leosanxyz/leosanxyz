@@ -27,7 +27,8 @@ run_worker_first = ["/api/*", "/mcp", "/.well-known/*"]
 [durable_objects]
 bindings = [
   { name = "TLDRAW_DURABLE_OBJECT", class_name = "TldrawDurableObject" },
-  { name = "BOARD_CATALOG", class_name = "BoardCatalog" }
+  { name = "BOARD_CATALOG", class_name = "BoardCatalog" },
+  { name = "OBS_RELAY", class_name = "ObsRelay" }
 ]
 
 [[migrations]]
@@ -37,6 +38,10 @@ new_sqlite_classes = ["TldrawDurableObject"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["BoardCatalog"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ObsRelay"]
 
 [[r2_buckets]]
 binding = "TLDRAW_BUCKET"
