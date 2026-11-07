@@ -23,7 +23,8 @@ function openDock(token) {
 		socket.onerror = () => reject(new Error('rejected'))
 	})
 }
-const estado = (capitulo, sonando) => ({ tipo: 'estado', capitulo, titulos: ['Repaso', 'Primer paso', 'Juega'].slice(0, 2), visible: true, sonando })
+// The dock numbers its chapters its own way; blocks find theirs by title (accents and case don't count). OBS has no «comparte».
+const estado = (capitulo, sonando) => ({ tipo: 'estado', capitulo, titulos: ['Dónde quedó cada quien', 'Haz el primer paso de tu plan', 'Revisa que cambio'], visible: true, sonando })
 const SONG = { titulo: 'Something Comforting (Live at Second Sky Festival, Oakland 2021)', artista: 'Porter Robinson & Madeon' }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
@@ -99,7 +100,7 @@ try {
 
 	const dock = await openDock(TOKEN)
 	log('dock con token bueno: conectado, subprotocolo =', JSON.stringify(dock.socket.protocol))
-	dock.socket.send(JSON.stringify(estado(1, SONG)))
+	dock.socket.send(JSON.stringify(estado(2, SONG)))
 	await studentPage.locator('.obs-song').waitFor()
 	await studentPage.waitForFunction(() => window.__obsMessages.some((message) => message.includes('Something Comforting')))
 	log('alumno recibe:', (await studentPage.evaluate(() => window.__obsMessages)).join('\n               '))
@@ -109,12 +110,12 @@ try {
 	await teacherPage.locator('.obs-chapter[data-live]').waitFor()
 	log('botones del maestro:', await teacherPage.locator('.obs-chapter').allInnerTexts())
 	// Block 1 is live and OBS has no chapter 3, so block 2's is the only button that can be pressed.
-	assert.deepEqual(await teacherPage.locator('.obs-chapter').allInnerTexts(), ['En OBS', 'OBS', 'OBS no tiene el 3'])
+	assert.deepEqual(await teacherPage.locator('.obs-chapter').allInnerTexts(), ['En OBS', 'OBS', 'OBS no tiene este'])
 	await teacherPage.locator('.obs-chapter:not([disabled])').click()
 	for (let i = 0; i < 50 && !dock.received.some((message) => message.tipo === 'ir_a'); i++) await wait(100)
-	assert.deepEqual(dock.received.at(-1), { tipo: 'ir_a', capitulo: 2 })
-	dock.socket.send(JSON.stringify(estado(2, SONG)))
-	await teacherPage.locator('.obs-chapter[data-live][title="Capítulo 2 en OBS: Primer paso"]').waitFor()
+	assert.deepEqual(dock.received.at(-1), { tipo: 'ir_a', capitulo: 3 })
+	dock.socket.send(JSON.stringify(estado(3, SONG)))
+	await teacherPage.locator('.obs-chapter[data-live][title="Capítulo 3 en OBS"]').waitFor()
 	// The live block's border turns orange for Leo only. Its button just says «En OBS».
 	await teacherPage.locator('.obs-border:not([data-leaving])').waitFor()
 	assert.equal(await teacherPage.locator('.obs-border:not([data-leaving])').count(), 1)

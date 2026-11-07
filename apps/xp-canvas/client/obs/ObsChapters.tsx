@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { computed, useEditor, useValue, type Computed, type Editor, type TLShape, type TLShapeId } from 'tldraw'
-import { sectionNumber } from '../../shared/obs'
+import { chapterFor, sectionTitle } from '../../shared/obs'
 import { findSections, TITLED } from './sections'
 import { useObsContext } from './useObs'
 import './obs.css'
@@ -14,11 +14,11 @@ function sectionsOf(editor: Editor) {
 	let sections = sectionCache.get(editor)
 	if (!sections) {
 		// Reading rich text is the expensive part; cached per shape, a pencil stroke only re-reads the stroke.
-		const titles = editor.store.createComputedCache<number | null, TLShape>('obs section title', (shape) =>
-			TITLED.has(shape.type) ? sectionNumber(editor.getShapeUtil(shape).getText(shape)) : null)
+		const titles = editor.store.createComputedCache<string | null, TLShape>('obs section title', (shape) =>
+			TITLED.has(shape.type) ? sectionTitle(editor.getShapeUtil(shape).getText(shape)) : null)
 		sections = computed('obs sections', () => findSections(editor.getCurrentPageShapes()
 			.filter((shape) => shape.type === 'geo' || shape.type === 'frame' || titles.get(shape.id))
-			.map((shape) => ({ id: shape.id, type: shape.type, number: titles.get(shape.id) ?? null, bounds: editor.getShapePageBounds(shape) ?? { x: 0, y: 0, w: 0, h: 0 } }))))
+			.map((shape) => ({ id: shape.id, type: shape.type, title: titles.get(shape.id) ?? null, bounds: editor.getShapePageBounds(shape) ?? { x: 0, y: 0, w: 0, h: 0 } }))))
 		sectionCache.set(editor, sections)
 	}
 	return sections
@@ -28,18 +28,18 @@ function sectionsOf(editor: Editor) {
 export function ObsChapters() {
 	const editor = useEditor()
 	const obs = useObsContext()
-	const [pending, setPending] = useState<number | null>(null)
+	const [pending, setPending] = useState<string | null>(null)
 	const sections = useValue('obs section buttons', () => sectionsOf(editor).get(), [editor])
 	const readable = useValue('obs buttons readable', () => editor.getZoomLevel() >= MIN_ZOOM, [editor])
 	if (!obs || !readable) return null
 	const { vista } = obs
 
-	return <>{sections.map(({ id, number, bounds }) => {
-		const title = vista.obs ? vista.titulos[number - 1] : undefined
-		const live = vista.obs && vista.capitulo === number
-		const missing = vista.obs && title === undefined
-		// The block already shows its title; the button only says what it does. OBS's own title stays in the tooltip.
-		const label = !vista.obs ? 'OBS sin conectar' : live ? 'En OBS' : missing ? `OBS no tiene el ${number}` : 'OBS'
+	return <>{sections.map(({ id, title, bounds }) => {
+		const chapter = vista.obs ? chapterFor(title, vista.titulos) : 0
+		const live = vista.obs && chapter > 0 && vista.capitulo === chapter
+		const missing = vista.obs && !chapter
+		// The block already shows its title; the button only says what it does.
+		const label = !vista.obs ? 'OBS sin conectar' : live ? 'En OBS' : missing ? 'OBS no tiene este' : 'OBS'
 		return <button
 			key={id}
 			type="button"
@@ -48,12 +48,12 @@ export function ObsChapters() {
 			data-live={live || undefined}
 			data-offline={!vista.obs || undefined}
 			disabled={!vista.obs || missing || live || pending !== null}
-			aria-busy={pending === number}
-			title={!vista.obs ? 'Abre el dock de capítulos en OBS' : title ? `Capítulo ${number} en OBS: ${title}` : undefined}
+			aria-busy={pending === id}
+			title={!vista.obs ? 'Abre el dock de capítulos en OBS' : missing ? `Ningún capítulo del dock se llama «${title}»` : `Capítulo ${chapter} en OBS`}
 			onPointerDown={(event) => { editor.markEventAsHandled(event); event.stopPropagation() }}
 			onClick={() => {
-				setPending(number)
-				void obs.irA(number).finally(() => setPending(null))
+				setPending(id)
+				void obs.irA(chapter).finally(() => setPending(null))
 			}}
 		>
 			<span className="obs-chapter__label">{label}</span>
@@ -72,8 +72,9 @@ export function ObsLiveBorder() {
 	const editor = useEditor()
 	const obs = useObsContext()
 	const capitulo = obs?.vista.obs ? obs.vista.capitulo : 0
+	const titulos = obs?.vista.obs ? obs.vista.titulos.join('\n') : ''
 	const live = useValue('obs live blocks', () => capitulo
-		? sectionsOf(editor).get().filter((section) => section.number === capitulo).map((section) => section.id).join(' ') : '', [editor, capitulo])
+		? sectionsOf(editor).get().filter((section) => chapterFor(section.title, titulos.split('\n')) === capitulo).map((section) => section.id).join(' ') : '', [editor, capitulo, titulos])
 	const [leaving, setLeaving] = useState<string[]>([])
 	const previous = useRef('')
 	useEffect(() => {

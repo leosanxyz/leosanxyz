@@ -6,11 +6,21 @@ export type ObsVista = ({ obs: true } & ObsEstado) | { obs: false }
 export const OBS_SIN_ESTADO: ObsEstado = { capitulo: 0, titulos: [], visible: false, sonando: null }
 const MAX_CAPITULOS = 99
 
-/** A section block's title starts with its number and a middle dot: «1 · haz el primer paso de tu plan». */
-export function sectionNumber(text: string | undefined): number | null {
-	const match = /^\s*(\d{1,2})\s*·/.exec(text ?? '')
-	const number = match ? Number(match[1]) : 0
-	return number >= 1 ? number : null
+/** A section block's title starts with a number and a middle dot: «1 · haz el primer paso de tu plan». Returns the words after the dot. */
+export function sectionTitle(text: string | undefined): string | null {
+	const match = /^\s*(\d{1,2})\s*·([^\n]*)/.exec(text ?? '')
+	const title = match && Number(match[1]) >= 1 ? match[2].trim() : ''
+	return title || null
+}
+
+const comparable = (title: string) => title.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+/**
+ * The OBS chapter (1-based) a block belongs to, matched by title: the board and the dock number their sections
+ * differently. Case, accents and punctuation don't count; the words do. 0 when OBS has no chapter with that title.
+ */
+export function chapterFor(title: string, titulos: string[]): number {
+	const wanted = comparable(title)
+	return titulos.findIndex((titulo) => comparable(titulo) === wanted) + 1
 }
 
 export function validCapitulo(value: unknown): value is number {

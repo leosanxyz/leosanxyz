@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { sectionNumber } from '../../shared/obs'
+import { sectionTitle } from '../../shared/obs'
 import { findSections as find, type SectionCandidate } from './sections'
 
 const box = (x: number, y: number, w: number, h: number) => ({ x, y, w, h })
-const findSections = (shapes: (Omit<SectionCandidate, 'number'> & { text: string })[]) => find(shapes.map((shape) => ({ ...shape, number: sectionNumber(shape.text) })))
+const findSections = (shapes: (Omit<SectionCandidate, 'title'> & { text: string })[]) => find(shapes.map((shape) => ({ ...shape, title: sectionTitle(shape.text) })))
 
 describe('section blocks', () => {
 	it('attaches a loose title to the smallest rectangle around it', () => {
@@ -14,14 +14,14 @@ describe('section blocks', () => {
 			{ id: 'title', type: 'text', text: '1 · haz el primer paso de tu plan', bounds: box(80, 90, 580, 40) },
 			{ id: 'subtitle', type: 'text', text: 'el paso 1 de tu plan, sin skill', bounds: box(180, 220, 200, 50) },
 		])
-		expect(sections).toEqual([{ id: 'block', number: 1, bounds: box(50, 60, 810, 260) }])
+		expect(sections).toEqual([{ id: 'block', title: 'haz el primer paso de tu plan', bounds: box(50, 60, 810, 260) }])
 	})
 	it('uses the rectangle or frame itself when the title is its own text', () => {
 		expect(findSections([
 			{ id: 'geo', type: 'geo', text: '2 · juega', bounds: box(0, 0, 100, 100) },
 			{ id: 'frame', type: 'frame', text: '3·repaso', bounds: box(200, 0, 100, 100) },
 			{ id: 'note', type: 'note', text: '4 · nota', bounds: box(400, 0, 100, 100) },
-		]).map((section) => [section.id, section.number])).toEqual([['geo', 2], ['frame', 3]])
+		]).map((section) => [section.id, section.title])).toEqual([['geo', 'juega'], ['frame', 'repaso']])
 	})
 	it('gives a block one title, the highest, so a numbered list inside it is not a chapter', () => {
 		expect(findSections([
@@ -31,7 +31,7 @@ describe('section blocks', () => {
 			{ id: 'step5', type: 'text', text: '5 · pruébalo en Unity', bounds: box(10, 300, 300, 20) },
 			{ id: 'own', type: 'geo', text: '2 · juega', bounds: box(500, 0, 400, 400) },
 			{ id: 'inside', type: 'text', text: '1 · primero', bounds: box(510, 10, 300, 20) },
-		]).map((section) => [section.id, section.number])).toEqual([['block', 4], ['own', 2]])
+		]).map((section) => [section.id, section.title])).toEqual([['block', 'en orden'], ['own', 'juega']])
 	})
 	it('falls back to the text when nothing surrounds it', () => {
 		expect(findSections([{ id: 't', type: 'text', text: '5 · suelto', bounds: box(0, 0, 10, 10) }])[0].id).toBe('t')

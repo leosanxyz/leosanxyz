@@ -114,7 +114,7 @@ OBS corre en la Mac de Leo con un dock de capítulos, una página `file://` que 
 | `GET /api/obs/estado` (WebSocket) | Cualquier sesión que pase `portalGate`, alumnos con la bienvenida terminada incluidos | Solo lectura y mismo origen. Recibe el último estado del dock con `obs: true`, o `{"obs": false}` si no hay dock; al irse el dock, todos reciben `obs: false`. Lo que manden estos sockets se ignora. Cerrar sesión no corta un socket ya abierto: solo lleva lo que muestra OBS. |
 | `POST /api/obs/capitulo` | Maestro | `{"capitulo": N}`, de 1 a 99. 200 si se lo pasó a un dock, 409 si no hay dock, 403 si no es maestro. |
 
-El servidor recorta el estado antes de reenviarlo (`readEstado` en `shared/obs.ts`): hasta 99 títulos de 120 caracteres, título y artista de 200, y la portada solo si es una URL https. Así un dock con errores no manda datos arbitrarios a los alumnos. No hay modelo de secciones: el cliente del maestro reconoce los bloques por el título «N · …» (`client/obs/sections.ts`).
+El servidor recorta el estado antes de reenviarlo (`readEstado` en `shared/obs.ts`): hasta 99 títulos de 120 caracteres, título y artista de 200, y la portada solo si es una URL https. Así un dock con errores no manda datos arbitrarios a los alumnos. No hay modelo de secciones: el cliente del maestro reconoce los bloques por el título «N · …» (`client/obs/sections.ts`) y los empareja con los capítulos del dock por título, no por número (`chapterFor`); al dock solo le llega el número.
 
 ## Puntos de los alumnos
 
