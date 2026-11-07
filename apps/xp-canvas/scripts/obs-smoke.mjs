@@ -111,6 +111,11 @@ try {
 	assert.deepEqual(dock.received.at(-1), { tipo: 'ir_a', capitulo: 2 })
 	dock.socket.send(JSON.stringify(estado(2, SONG)))
 	await teacherPage.locator('.obs-chapter[data-live]', { hasText: 'Primer paso' }).waitFor()
+	// The live block's border turns orange for Leo only, and its pill drops the dot.
+	await teacherPage.locator('.obs-border:not([data-leaving])').waitFor()
+	assert.equal(await teacherPage.locator('.obs-border:not([data-leaving])').count(), 1)
+	assert.equal(await teacherPage.locator('.obs-chapter[data-live] .obs-chapter__dot').count(), 0)
+	assert.equal(await studentPage.locator('.obs-border').count(), 0, 'students never see the live border')
 	log('después del clic:', await teacherPage.locator('.obs-chapter').allInnerTexts())
 
 	for (const [name, size] of Object.entries(sizes)) {

@@ -68,7 +68,7 @@ import { ParejasContext } from '../parejas/ParejasContext'
 import { ParejasDialog } from '../parejas/ParejasDialog'
 import type { ParejasShape } from '../../shared/parejasShape'
 import { ObsContext, useObs } from '../obs/useObs'
-import { ObsChapters, SongCard } from '../obs/ObsChapters'
+import { ObsChapters, ObsLiveBorder, SongCard } from '../obs/ObsChapters'
 
 const ResourceLibrary = lazy(() => import('../resources/ResourceLibrary'))
 const EmojiPicker = lazy(() => import('../emojis/EmojiPicker'))
@@ -80,7 +80,7 @@ const TLDRAW_ASSET_URLS = {
 } satisfies TLUiAssetUrlOverrides
 
 function TeacherInFront() { return <><CanvasOverlayControls /><ObsChapters /></> }
-const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null, InFrontOfTheCanvas: TeacherInFront }
+const TEACHER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, SharePanel: null, InFrontOfTheCanvas: TeacherInFront, OnTheCanvas: ObsLiveBorder }
 const STUDENT_COMPONENTS = { ...XP_CANVAS_COMPONENTS, Toolbar: StudentToolbar, UserPresenceEditor: null, SharePanel: null }
 const OWNER_COMPONENTS = { ...XP_CANVAS_COMPONENTS, UserPresenceEditor: null, SharePanel: null }
 

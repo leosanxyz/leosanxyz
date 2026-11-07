@@ -27,10 +27,27 @@
 .obs-chapter[aria-busy='true'] .obs-chapter__dot { background: var(--xp-orange); }
 .obs-chapter:disabled { cursor: default; }
 .obs-chapter[data-offline] { color: var(--xp-muted); background: rgba(255, 255, 255, 0.7); border-style: dashed; }
-.obs-chapter[data-live] { border-color: #24231f; background: #24231f; color: #fff; }
-.obs-chapter[data-live] .obs-chapter__dot { background: var(--xp-orange); box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.28); }
+.obs-chapter[data-live] { border-color: rgba(245, 158, 66, 0.55); background: #fff; color: var(--xp-ink); }
 @media (hover: hover) and (pointer: fine) {
 	.obs-chapter:hover:not(:disabled) { background: #fff; color: var(--xp-ink); }
+}
+
+/*
+ * The live block's own border turns orange. It traces around once (rare event, long path: 700 ms ease-in-out,
+ * since the line moves along something already on screen), then breathes very slowly (2.8 s each way), and
+ * fades out in 180 ms ease-out when another chapter takes over.
+ */
+.obs-border { position: absolute; top: 0; left: 0; z-index: 2147483000; transform-origin: top left; pointer-events: none; }
+.obs-border svg { overflow: visible; }
+.obs-border path { stroke: var(--xp-orange); stroke-dasharray: 1 1; animation: obs-border-draw 700ms cubic-bezier(0.645, 0.045, 0.355, 1) both; }
+.obs-border g { animation: obs-border-breathe 2800ms ease-in-out 700ms infinite alternate; }
+.obs-border[data-leaving] { animation: obs-border-out 180ms ease-out forwards; }
+@keyframes obs-border-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes obs-border-breathe { to { opacity: 0.62; } }
+@keyframes obs-border-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+	.obs-border path, .obs-border g { animation: none; }
+	.obs-border[data-leaving] { display: none; }
 }
 
 /*
